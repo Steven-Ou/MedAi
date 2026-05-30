@@ -1,0 +1,15 @@
+# Python environment
+__pycache__/
+*.pyc
+venv/
+.env
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Data and Weights (DO NOT TRACK)
+research/data/
+*.pth
+*.pt
+*.h5
+*.pkl
