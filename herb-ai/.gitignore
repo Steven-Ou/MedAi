@@ -1,15 +1,15 @@
-# Python environment
+# Data and Datasets
+data/
+research/data/
+
+# Databases & Vector Stores
+*.db
+*.sqlite
+database/telemetry.db
+chroma_storage/
+
+# Environment and System
+.env
 __pycache__/
 *.pyc
-venv/
-.env
-
-# Jupyter Notebook checkpoints
 .ipynb_checkpoints/
-
-# Data and Weights (DO NOT TRACK)
-research/data/
-*.pth
-*.pt
-*.h5
-*.pkl
