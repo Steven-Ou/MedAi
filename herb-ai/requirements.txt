@@ -1,3 +1,15 @@
 matplotlib
 seaborn
 pandas
+
+# Computer Vision
+ultralytics
+opencv-python
+
+# Vector DB & LLM Orchestration
+chromadb
+langchain
+openai
+
+# Database Utilities
+psycopg2-binary
