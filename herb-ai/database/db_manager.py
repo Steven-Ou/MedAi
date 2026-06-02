@@ -1,23 +1,24 @@
 import sqlite3
 import os
 from contextlib import contextmanager
+from typing import Generator, Tuple, Optional
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "telemetry.db")
+DB_PATH: str = os.path.join(os.path.dirname(__file__), "telemetry.db")
 
 @contextmanager
-def get_db_connection():
+def get_db_connection() -> Generator[sqlite3.Connection, None, None]:
     """Context manager to handle safe database connections and closures."""
-    conn = sqlite3.connect(DB_PATH)
+    conn: sqlite3.Connection = sqlite3.connect(DB_PATH)
     conn.execute("PRAGMA foreign_keys = ON;")
     try:
         yield conn
     finally:
         conn.close()
 
-def init_db():
+def init_db() -> None:
     """Initializes the relational database schema for video tracking telemetry."""
     with get_db_connection() as conn:
-        cursor = conn.cursor()
+        cursor: sqlite3.Cursor = conn.cursor()
         
         # Table 1: Unique tracked plant entities
         cursor.execute('''
@@ -47,21 +48,22 @@ def init_db():
         conn.commit()
     print(f"Database successfully initialized at: {DB_PATH}")
 
-def add_new_plant(species_name):
+def add_new_plant(species_name: str) -> int:
     """Inserts a newly detected unique plant entity and returns its ID."""
     with get_db_connection() as conn:
-        cursor = conn.cursor()
+        cursor: sqlite3.Cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO tracked_plants (species_name) 
             VALUES (?);
         ''', (species_name,))
         conn.commit()
-        return cursor.lastrowid
+        last_id: Optional[int] = cursor.lastrowid
+        return last_id if last_id is not None else 0
 
-def update_plant_last_seen(plant_id):
+def update_plant_last_seen(plant_id: int) -> None:
     """Updates the last_seen timestamp when a tracking ID is active in a frame."""
     with get_db_connection() as conn:
-        cursor = conn.cursor()
+        cursor: sqlite3.Cursor = conn.cursor()
         cursor.execute('''
             UPDATE tracked_plants 
             SET last_seen = CURRENT_TIMESTAMP 
@@ -69,18 +71,18 @@ def update_plant_last_seen(plant_id):
         ''', (plant_id,))
         conn.commit()
 
-def insert_telemetry(plant_id, frame_number, bbox, confidence_score):
+def insert_telemetry(plant_id: int, frame_number: int, bbox: Tuple[float, float, float, float], confidence_score: float) -> None:
     """
     Logs spatial coordinates for a plant track at a specific video frame.
     bbox expected format: (xmin, ymin, xmax, ymax)
     """
     xmin, ymin, xmax, ymax = bbox
     with get_db_connection() as conn:
-        cursor = conn.cursor()
+        cursor: sqlite3.Cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO video_telemetry (plant_id, frame_number, bbox_xmin, bbox_ymin, bbox_xmax, bbox_ymax, confidence_score)
             VALUES (?, ?, ?, ?, ?, ?, ?);
-        ''', (plant_id, frame_number, xmin, ymin, xmax, ymax, confidence_score))
+        ''', (plant_id, frame_number, float(xmin), float(ymin), float(xmax), float(ymax), confidence_score))
         conn.commit()
     
     # Keeping timestamps fresh as frames process
