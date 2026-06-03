@@ -1,17 +1,19 @@
+# Virtual Environments (Matches anywhere in the repository)
+.venv/
+**/__pycache__/
+*.pyc
+
 # Data and Datasets
 data/
+**/data/
 research/data/
 
 # Databases & Vector Stores
 *.db
 *.sqlite
-database/telemetry.db
-chroma_storage/
+**/database/telemetry.db
+**/chroma_storage/
 
 # Environment and System
 .env
-__pycache__/
-*.pyc
 .ipynb_checkpoints/
-
-.DS_Store
