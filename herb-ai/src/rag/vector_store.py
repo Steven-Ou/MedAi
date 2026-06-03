@@ -19,7 +19,7 @@ class KnowledgeBaseEngine:
     def __init__(self) -> None:
         """Initializes the embedding model wrapper using Google Gemini."""
         # This automatically looks for the GEMINI_API_KEY environment variable
-        self.embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
+        self.embeddings = GoogleGenerativeAIEmbeddings(model="text-embedding-004")
 
     def build_vector_store(self) -> None:
         """Loads text profiles, chunks them, and builds a local vector database."""
