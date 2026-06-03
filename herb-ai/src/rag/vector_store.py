@@ -1,23 +1,25 @@
 import os
 import sys
 from typing import List
+
+# Import loaders from modern standalone langchain packages to eliminate deprecation warnings
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_google_genai import GoogleGenAIEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings  # Fixed the import name here!
 from langchain_community.vectorstores import Chroma
 
 # Ensure project root is accessible for imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
 # Constants
-KNOWLEDGE_BASE_DIR = "data/knowledge_base"
-CHROMA_DB_DIR = "chroma_storage"
+KNOWLEDGE_BASE_DIR: str = "data/knowledge_base"
+CHROMA_DB_DIR: str = "chroma_storage"
 
 class KnowledgeBaseEngine:
     def __init__(self) -> None:
         """Initializes the embedding model wrapper using Google Gemini."""
         # This automatically looks for the GEMINI_API_KEY environment variable
-        self.embeddings = GoogleGenAIEmbeddings(model="models/text-embedding-004")
+        self.embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
 
     def build_vector_store(self) -> None:
         """Loads text profiles, chunks them, and builds a local vector database."""
