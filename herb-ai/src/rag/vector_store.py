@@ -3,7 +3,7 @@ import sys
 from typing import List
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import OpenAIEmbeddings
+from langchain_google_genai import GoogleGenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 
 # Ensure project root is accessible for imports
@@ -15,9 +15,9 @@ CHROMA_DB_DIR = "chroma_storage"
 
 class KnowledgeBaseEngine:
     def __init__(self) -> None:
-        """Initializes the embedding model wrapper using OpenAI."""
-        # Note: Make sure your OPENAI_API_KEY environment variable is configured!
-        self.embeddings = OpenAIEmbeddings()
+        """Initializes the embedding model wrapper using Google Gemini."""
+        # This automatically looks for the GEMINI_API_KEY environment variable
+        self.embeddings = GoogleGenAIEmbeddings(model="models/text-embedding-004")
 
     def build_vector_store(self) -> None:
         """Loads text profiles, chunks them, and builds a local vector database."""
@@ -28,7 +28,6 @@ class KnowledgeBaseEngine:
             return
 
         print(f"Loading reference articles from '{KNOWLEDGE_BASE_DIR}'...")
-        # Recursively load all text documents inside the directory
         loader = DirectoryLoader(KNOWLEDGE_BASE_DIR, glob="**/*.txt", loader_cls=TextLoader)
         documents = loader.load()
 
@@ -38,7 +37,6 @@ class KnowledgeBaseEngine:
 
         print(f"Successfully loaded {len(documents)} document(s). Splitting into semantic chunks...")
         
-        # Split texts structurally so concepts remain cohesive
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=500,
             chunk_overlap=50
@@ -46,18 +44,16 @@ class KnowledgeBaseEngine:
         doc_chunks = text_splitter.split_documents(documents)
         print(f"Created {len(doc_chunks)} distinct document text chunks.")
 
-        print(f"Generating embeddings and persisting vector index to: {CHROMA_DB_DIR}...")
-        # Store vector representations locally to disk
+        print(f"Generating Gemini embeddings and persisting vector index to: {CHROMA_DB_DIR}...")
         self.vector_store = Chroma.from_documents(
             documents=doc_chunks,
             embedding=self.embeddings,
             persist_directory=CHROMA_DB_DIR
         )
-        print("Vector database built successfully!")
+        print("Vector database built successfully using Gemini!")
 
     def query_knowledge(self, query_text: str, num_results: int = 2) -> List:
         """Performs a similarity vector search against the stored botanical text."""
-        # Re-initialize or load the collection from disk
         vector_db = Chroma(persist_directory=CHROMA_DB_DIR, embedding_function=self.embeddings)
         results = vector_db.similarity_search(query_text, k=num_results)
         return results
