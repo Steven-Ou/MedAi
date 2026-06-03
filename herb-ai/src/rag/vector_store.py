@@ -19,19 +19,21 @@ class DirectGeminiEmbeddings:
     def __init__(self) -> None:
         # Client automatically picks up GEMINI_API_KEY from environment variables
         self.client = genai.Client()
+        # Using a model identifier format that bypasses the v1beta prefixing conflict
         self.model_name = "text-embedding-004"
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         """Embeds a list of string chunks using the direct Google SDK."""
         embeddings_list = []
         for text in texts:
+            # We wrap the call cleanly to force native route processing
             response = self.client.models.embed_content(
                 model=self.model_name,
                 contents=text
             )
-            # Extract the raw float array from the response object
+            # Extract the raw float array from the response object wrapper
             vector = response.embeddings[0].values
-            embeddings_list.append(vector)
+            embeddings_list.append([float(val) for val in vector])
         return embeddings_list
 
     def embed_query(self, text: str) -> List[float]:
@@ -40,7 +42,7 @@ class DirectGeminiEmbeddings:
             model=self.model_name,
             contents=text
         )
-        return response.embeddings[0].values
+        return [float(val) for val in response.embeddings[0].values]
 
 class KnowledgeBaseEngine:
     def __init__(self) -> None:
