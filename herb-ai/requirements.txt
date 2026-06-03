@@ -16,3 +16,4 @@ langchain-google-genai
 # Database Utilities
 psycopg2-binary
 
+google-generativeai
