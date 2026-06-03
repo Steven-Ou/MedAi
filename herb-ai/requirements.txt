@@ -9,7 +9,9 @@ opencv-python
 # Vector DB & LLM Orchestration
 chromadb
 langchain
+langchain-community
 langchain-google-genai
 
 # Database Utilities
 psycopg2-binary
+
