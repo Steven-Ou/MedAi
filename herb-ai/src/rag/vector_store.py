@@ -1,12 +1,10 @@
 import os
 import sys
-import time
-from typing import List
+from typing import Dict, List, Any
+import requests
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import chromadb
-from google import genai
-from google.genai import errors
 
 # Ensure project root is accessible for imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
@@ -15,37 +13,35 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'
 KNOWLEDGE_BASE_DIR: str = "data/knowledge_base"
 CHROMA_DB_DIR: str = "chroma_storage"
 
-class StableGeminiEngine:
+class ProductionGeminiEngine:
     def __init__(self) -> None:
-        """Initializes the official Google GenAI Client and native Chroma DB."""
-        # Automatically detects the GEMINI_API_KEY environment variable
-        self.client = genai.Client()
+        """Initializes direct HTTP access to stable Google AI v1 embedding endpoints."""
+        self.api_key = os.environ.get("GEMINI_API_KEY")
+        if not self.api_key:
+            raise ValueError("GEMINI_API_KEY environment variable is missing!")
         
-        # FIXED: In the modern google-genai SDK, use the clean short name string
-        self.model_name = "text-embedding-004"
+        # The correct v1 endpoint path for text-embedding-004
+        self.url = f"https://generativelanguage.googleapis.com/v1/models/text-embedding-004:embedContent?key={self.api_key}"
         self.chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
 
-    def get_embedding(self, text: str, retries: int = 3, backoff_factor: float = 2.0) -> List[float]:
-        """Computes vectors using the official SDK wrapper with built-in retry logic."""
-        for attempt in range(retries):
-            try:
-                response = self.client.models.embed_content(
-                    model=self.model_name,
-                    contents=text
-                )
-                # Extract vector values cleanly
-                return [float(val) for val in response.embeddings[0].values]
-                
-            except errors.APIError as e:
-                # Gracefully catch 503 service unavailabilities or 429 rate limit flags
-                if e.code in [503, 429] and attempt < retries - 1:
-                    sleep_time = backoff_factor ** attempt
-                    print(f"  [Warning] Google API returned {e.code}. Retrying in {sleep_time}s...")
-                    time.sleep(sleep_time)
-                    continue
-                raise e
-                
-        raise RuntimeError("Failed to compute embeddings after maximum retries.")
+    def get_embedding(self, text: str) -> List[float]:
+        """Computes vectors via direct REST call to the stable v1 production API."""
+        # FIXED: To use text-embedding-004 on the v1 API endpoint via REST, 
+        # the model name inside the JSON body MUST match the path string format exactly.
+        payload: Dict[str, Any] = {
+            "model": "models/text-embedding-004",
+            "content": {
+                "parts": [{"text": text}]
+            }
+        }
+        
+        response = requests.post(self.url, json=payload)
+        
+        if response.status_code != 200:
+            raise RuntimeError(f"Google API Error ({response.status_code}): {response.text}")
+            
+        response_json = response.json()
+        return [float(val) for val in response_json["embedding"]["values"]]
 
     def build_vector_store(self) -> None:
         """Loads text files manually, cuts into chunks, and populates the native Chroma collection."""
@@ -87,10 +83,8 @@ class StableGeminiEngine:
                 metadatas=[{"source": "knowledge_base_profile"}],
                 ids=[f"doc_chunk_{idx}"]
             )
-            # Safe pacing buffer delay for the free tier key
-            time.sleep(1.0)
             
-        print("Vector database built successfully using official Google GenAI SDK hooks!")
+        print("Vector database built successfully using direct production v1 API endpoints!")
 
     def query_knowledge(self, query_text: str, num_results: int = 2) -> List[str]:
         """Queries the local vector storage database for similar text segments."""
@@ -104,5 +98,5 @@ class StableGeminiEngine:
         return results['documents'][0] if results['documents'] else []
 
 if __name__ == "__main__":
-    engine = StableGeminiEngine()
+    engine = ProductionGeminiEngine()
     engine.build_vector_store()
