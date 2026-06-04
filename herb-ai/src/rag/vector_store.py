@@ -3,7 +3,6 @@ import sys
 from typing import List
 import requests
 
-# Standalone imports to eliminate the LangChain community deprecation warning
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import chromadb
@@ -22,14 +21,15 @@ class ProductionGeminiEngine:
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY environment variable is missing!")
         
-        # Strict Google AI Studio production REST endpoint URL mapping
+        # Base production v1 URL string target
         self.url = f"https://generativelanguage.googleapis.com/v1/models/text-embedding-004:embedContent?key={self.api_key}"
         self.chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
 
     def get_embedding(self, text: str) -> List[float]:
-        """Computes vectors via a direct REST call to the stable v1 production API."""
-        # Payload structured cleanly: Model is in the URL, so we only pass content blocks here
+        """Computes vectors via direct REST call to the stable v1 production API."""
+        # FIXED: Explicitly providing both the 'model' path key and content inside the payload body
         payload = {
+            "model": "models/text-embedding-004",
             "content": {
                 "parts": [{"text": text}]
             }
@@ -70,7 +70,9 @@ class ProductionGeminiEngine:
         for idx, chunk in enumerate(doc_chunks):
             text_content = chunk.page_content
             vector = self.get_embedding(text_content)
-            source_file = chunk.metadata.get("source", "unknown")
+            
+            # FIXED: Explicitly cast to string to fix the 'Type of source_file is unknown' type check warning
+            source_file = str(chunk.metadata.get("source", "unknown"))
 
             collection.add(
                 embeddings=[vector],
