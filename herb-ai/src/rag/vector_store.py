@@ -1,5 +1,6 @@
 import os
 import sys
+import time  # Added for rate-limit handling
 from typing import Dict, List, Any
 import requests
 
@@ -20,14 +21,11 @@ class ProductionGeminiEngine:
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY environment variable is missing!")
         
-        # The correct v1 endpoint path for text-embedding-004
         self.url = f"https://generativelanguage.googleapis.com/v1/models/text-embedding-004:embedContent?key={self.api_key}"
         self.chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
 
-    def get_embedding(self, text: str) -> List[float]:
-        """Computes vectors via direct REST call to the stable v1 production API."""
-        # FIXED: To use text-embedding-004 on the v1 API endpoint via REST, 
-        # the model name inside the JSON body MUST match the path string format exactly.
+    def get_embedding(self, text: str, retries: int = 3, backoff_factor: float = 2.0) -> List[float]:
+        """Computes vectors via direct REST call with built-in retry logic for 503/429 errors."""
         payload: Dict[str, Any] = {
             "model": "models/text-embedding-004",
             "content": {
@@ -35,13 +33,23 @@ class ProductionGeminiEngine:
             }
         }
         
-        response = requests.post(self.url, json=payload)
-        
-        if response.status_code != 200:
+        for attempt in range(retries):
+            response = requests.post(self.url, json=payload)
+            
+            if response.status_code == 200:
+                response_json = response.json()
+                return [float(val) for val in response_json["embedding"]["values"]]
+            
+            # If the server is temporarily overloaded (503) or rate-limiting (429), pause and retry
+            if response.status_code in [503, 429]:
+                sleep_time = backoff_factor ** attempt
+                print(f"  [Warning] Google API returned {response.status_code}. Retrying in {sleep_time}s...")
+                time.sleep(sleep_time)
+                continue
+                
             raise RuntimeError(f"Google API Error ({response.status_code}): {response.text}")
             
-        response_json = response.json()
-        return [float(val) for val in response_json["embedding"]["values"]]
+        raise RuntimeError("Failed to compute embeddings after multiple retries due to Google service unavailability.")
 
     def build_vector_store(self) -> None:
         """Loads text files manually, cuts into chunks, and populates the native Chroma collection."""
@@ -83,6 +91,8 @@ class ProductionGeminiEngine:
                 metadatas=[{"source": "knowledge_base_profile"}],
                 ids=[f"doc_chunk_{idx}"]
             )
+            # Add a small polite pacing delay to stay clear of free tier concurrency caps
+            time.sleep(0.5)
             
         print("Vector database built successfully using direct production v1 API endpoints!")
 
