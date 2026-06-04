@@ -1,6 +1,6 @@
 import os
 import sys
-from typing import List
+from typing import Dict, List, Any
 import requests
 
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
@@ -21,15 +21,15 @@ class ProductionGeminiEngine:
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY environment variable is missing!")
         
-        # Base production v1 URL string target
+        # Model is explicitly declared here in the endpoint path
         self.url = f"https://generativelanguage.googleapis.com/v1/models/text-embedding-004:embedContent?key={self.api_key}"
         self.chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
 
     def get_embedding(self, text: str) -> List[float]:
         """Computes vectors via direct REST call to the stable v1 production API."""
-        # FIXED: Explicitly providing both the 'model' path key and content inside the payload body
-        payload = {
-            "model": "models/text-embedding-004",
+        # FIXED: Removed the duplicate 'model' key entirely. 
+        # Explicitly typing the dictionary to resolve the Pylance Unknown type warning.
+        payload: Dict[str, Any] = {
             "content": {
                 "parts": [{"text": text}]
             }
@@ -71,7 +71,7 @@ class ProductionGeminiEngine:
             text_content = chunk.page_content
             vector = self.get_embedding(text_content)
             
-            # FIXED: Explicitly cast to string to fix the 'Type of source_file is unknown' type check warning
+            # FIXED: Cast the metadata cleanly to string to fix type checking alerts
             source_file = str(chunk.metadata.get("source", "unknown"))
 
             collection.add(
