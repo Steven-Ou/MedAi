@@ -5,7 +5,7 @@ from typing import List
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import chromadb
-from google import genai  # Official, modern SDK
+from google import genai
 from google.genai import errors
 
 # Ensure project root is accessible for imports
@@ -21,8 +21,8 @@ class StableGeminiEngine:
         # Automatically detects the GEMINI_API_KEY environment variable
         self.client = genai.Client()
         
-        # This model identifier is universally stable on free developer API keys
-        self.model_name = "models/embedding-001"
+        # FIXED: In the modern google-genai SDK, use the clean short name string
+        self.model_name = "text-embedding-004"
         self.chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
 
     def get_embedding(self, text: str, retries: int = 3, backoff_factor: float = 2.0) -> List[float]:
@@ -33,11 +33,11 @@ class StableGeminiEngine:
                     model=self.model_name,
                     contents=text
                 )
-                # Parse out the raw coordinate float matrix safely
+                # Extract vector values cleanly
                 return [float(val) for val in response.embeddings[0].values]
                 
             except errors.APIError as e:
-                # Handle temporary 503 overloads or 429 rate pacing flags gracefully
+                # Gracefully catch 503 service unavailabilities or 429 rate limit flags
                 if e.code in [503, 429] and attempt < retries - 1:
                     sleep_time = backoff_factor ** attempt
                     print(f"  [Warning] Google API returned {e.code}. Retrying in {sleep_time}s...")
@@ -87,8 +87,8 @@ class StableGeminiEngine:
                 metadatas=[{"source": "knowledge_base_profile"}],
                 ids=[f"doc_chunk_{idx}"]
             )
-            # Safe padding delay to stay clear of concurrency caps
-            time.sleep(0.5)
+            # Safe pacing buffer delay for the free tier key
+            time.sleep(1.0)
             
         print("Vector database built successfully using official Google GenAI SDK hooks!")
 
