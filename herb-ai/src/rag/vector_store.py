@@ -1,6 +1,6 @@
 import os
 import sys
-import time  # Added for rate-limit handling
+import time
 from typing import Dict, List, Any
 import requests
 
@@ -21,13 +21,14 @@ class ProductionGeminiEngine:
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY environment variable is missing!")
         
+        # Model is cleanly declared ONLY in the path here
         self.url = f"https://generativelanguage.googleapis.com/v1/models/text-embedding-004:embedContent?key={self.api_key}"
         self.chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
 
     def get_embedding(self, text: str, retries: int = 3, backoff_factor: float = 2.0) -> List[float]:
         """Computes vectors via direct REST call with built-in retry logic for 503/429 errors."""
+        # FIXED: Removed 'model' key from the dictionary entirely to avoid the 404 URL conflict
         payload: Dict[str, Any] = {
-            "model": "models/text-embedding-004",
             "content": {
                 "parts": [{"text": text}]
             }
@@ -40,7 +41,6 @@ class ProductionGeminiEngine:
                 response_json = response.json()
                 return [float(val) for val in response_json["embedding"]["values"]]
             
-            # If the server is temporarily overloaded (503) or rate-limiting (429), pause and retry
             if response.status_code in [503, 429]:
                 sleep_time = backoff_factor ** attempt
                 print(f"  [Warning] Google API returned {response.status_code}. Retrying in {sleep_time}s...")
@@ -91,7 +91,7 @@ class ProductionGeminiEngine:
                 metadatas=[{"source": "knowledge_base_profile"}],
                 ids=[f"doc_chunk_{idx}"]
             )
-            # Add a small polite pacing delay to stay clear of free tier concurrency caps
+            # Safe padding pacing delay between consecutive chunk writes
             time.sleep(0.5)
             
         print("Vector database built successfully using direct production v1 API endpoints!")
