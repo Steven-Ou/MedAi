@@ -3,7 +3,6 @@ import sys
 from typing import Dict, List, Any
 import requests
 
-# Standalone splitting library to eliminate community deprecation alerts
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import chromadb
 
@@ -21,14 +20,16 @@ class ProductionGeminiEngine:
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY environment variable is missing!")
         
-        # FIXED: Swapped to the universally accessible embedding-001 model endpoint path
-        self.url = f"https://generativelanguage.googleapis.com/v1/models/embedding-001:embedContent?key={self.api_key}"
+        # The correct v1 endpoint path for text-embedding-004
+        self.url = f"https://generativelanguage.googleapis.com/v1/models/text-embedding-004:embedContent?key={self.api_key}"
         self.chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
 
     def get_embedding(self, text: str) -> List[float]:
         """Computes vectors via direct REST call to the stable v1 production API."""
+        # FIXED: To use text-embedding-004 on the v1 API endpoint via REST, 
+        # the model name inside the JSON body MUST match the path string format exactly.
         payload: Dict[str, Any] = {
-            "model": "models/embedding-001",
+            "model": "models/text-embedding-004",
             "content": {
                 "parts": [{"text": text}]
             }
@@ -51,7 +52,6 @@ class ProductionGeminiEngine:
 
         print(f"Loading reference articles from '{KNOWLEDGE_BASE_DIR}'...")
         
-        # FIXED: Pure Python file loading to completely remove the deprecated DirectoryLoader dependency
         raw_texts: List[str] = []
         for root, _, files in os.walk(KNOWLEDGE_BASE_DIR):
             for file in files:
@@ -67,7 +67,6 @@ class ProductionGeminiEngine:
         print(f"Successfully loaded {len(raw_texts)} document(s). Splitting into semantic chunks...")
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
         
-        # Split raw text input directly
         doc_chunks = text_splitter.split_text("\n\n".join(raw_texts))
         print(f"Created {len(doc_chunks)} distinct document text chunks.")
 
