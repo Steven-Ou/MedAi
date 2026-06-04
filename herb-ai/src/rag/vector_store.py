@@ -1,6 +1,6 @@
 import os
 import sys
-from typing import List
+from typing import List, Optional
 from google import genai
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -16,7 +16,6 @@ CHROMA_DB_DIR: str = "chroma_storage"
 class ProductionGeminiEngine:
     def __init__(self) -> None:
         """Initializes the official Google GenAI SDK client and Chroma DB client."""
-        # The genai.Client() automatically detects and uses the GEMINI_API_KEY environment variable.
         if not os.environ.get("GEMINI_API_KEY"):
             raise ValueError("GEMINI_API_KEY environment variable is missing!")
             
@@ -24,16 +23,38 @@ class ProductionGeminiEngine:
         self.chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
 
     def get_embedding(self, text: str) -> List[float]:
-        """Computes vectors using the official Google GenAI SDK client wrapper."""
-        try:
-            response = self.client.models.embed_content(
-                model="text-embedding-004",
-                contents=text
-            )
-            # The SDK parses the response structure safely into clean attributes
-            return response.embeddings[0].values
-        except Exception as e:
-            raise RuntimeError(f"Google GenAI SDK Error failed to generate embedding: {e}")
+        """Computes vectors safely using the official Google GenAI SDK client wrapper."""
+        # We try the preferred text-embedding-004 model first.
+        # If it returns a 404 due to localized project/key restrictions, we fallback to text-embedding-001.
+        models_to_try = ["text-embedding-004", "text-embedding-001"]
+        
+        last_exception: Optional[Exception] = None
+        
+        for model_name in models_to_try:
+            try:
+                response = self.client.models.embed_content(
+                    model=model_name,
+                    contents=text
+                )
+                
+                # FIX TYPE ERRORS: Explicitly validate the presence of attributes 
+                # so the type checker (and runtime) knows it's not None.
+                if response and response.embeddings:
+                    first_embedding = response.embeddings[0]
+                    if first_embedding and first_embedding.values:
+                        return [float(v) for v in first_embedding.values]
+                        
+                raise ValueError("API responded with an empty or malformed embedding structure.")
+                
+            except Exception as e:
+                last_exception = e
+                # If it's a 404, we continue the loop to try the fallback model
+                if "404" in str(e):
+                    continue
+                # For other errors (like auth/network issues), fail early
+                raise RuntimeError(f"Google GenAI SDK Error: {e}")
+                
+        raise RuntimeError(f"All embedding models failed. Last error: {last_exception}")
 
     def build_vector_store(self) -> None:
         """Loads text files manually, cuts them into chunks, and populates the native Chroma collection."""
