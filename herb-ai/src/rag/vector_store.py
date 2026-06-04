@@ -15,21 +15,21 @@ CHROMA_DB_DIR: str = "chroma_storage"
 
 class ProductionGeminiEngine:
     def __init__(self) -> None:
-        """Initializes direct HTTP access to stable Google AI v1beta embedding endpoints."""
+        """Initializes direct HTTP access to the Gemini embedding endpoint."""
         self.api_key = os.environ.get("GEMINI_API_KEY")
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY environment variable is missing!")
         
-        # CHANGED: Changed v1 to v1beta to ensure text-embedding-004 is found
+        # FIXED: The model name MUST be built directly into the URL path before ':embedContent'
+        # Using the stable v1beta endpoint with text-embedding-004
         self.url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key={self.api_key}"
         self.chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
 
     def get_embedding(self, text: str) -> List[float]:
-        """Computes vectors via direct REST call to the stable v1 production API."""
-        # FIXED: To use text-embedding-004 on the v1 API endpoint via REST, 
-        # the model name inside the JSON body MUST match the path string format exactly.
+        """Computes vectors via direct REST call to the Gemini API."""
+        # FIXED: When the model is in the URL path, the body payload only requires 
+        # the content structure containing the text parts.
         payload: Dict[str, Any] = {
-            "model": "models/text-embedding-004",
             "content": {
                 "parts": [{"text": text}]
             }
@@ -41,6 +41,8 @@ class ProductionGeminiEngine:
             raise RuntimeError(f"Google API Error ({response.status_code}): {response.text}")
             
         response_json = response.json()
+        
+        # The response structure returns the array under the 'embedding' key
         return [float(val) for val in response_json["embedding"]["values"]]
 
     def build_vector_store(self) -> None:
@@ -84,7 +86,7 @@ class ProductionGeminiEngine:
                 ids=[f"doc_chunk_{idx}"]
             )
             
-        print("Vector database built successfully using direct production v1 API endpoints!")
+        print("Vector database built successfully using direct production API endpoints!")
 
     def query_knowledge(self, query_text: str, num_results: int = 2) -> List[str]:
         """Queries the local vector storage database for similar text segments."""
