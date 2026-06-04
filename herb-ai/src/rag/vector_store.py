@@ -15,23 +15,27 @@ CHROMA_DB_DIR: str = "chroma_storage"
 
 class ProductionGeminiEngine:
     def __init__(self) -> None:
-        """Initializes direct HTTP access to the Gemini embedding endpoint."""
+        """Initializes direct HTTP access to Gemini embedding endpoints."""
         self.api_key = os.environ.get("GEMINI_API_KEY")
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY environment variable is missing!")
         
-        # FIXED: The model name MUST be built directly into the URL path before ':embedContent'
-        # Using the stable v1beta endpoint with text-embedding-004
+        # CORRECT ROUTE: Explicit model path for direct REST execution
         self.url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key={self.api_key}"
         self.chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
 
     def get_embedding(self, text: str) -> List[float]:
         """Computes vectors via direct REST call to the Gemini API."""
-        # FIXED: When the model is in the URL path, the body payload only requires 
-        # the content structure containing the text parts.
+        # FIXED SCHEMA: The Gemini REST API schema expects the root property 
+        # to explicitly wrap content chunks in this exact shape.
         payload: Dict[str, Any] = {
+            "model": "models/text-embedding-004",
             "content": {
-                "parts": [{"text": text}]
+                "parts": [
+                    {
+                        "text": text
+                    }
+                ]
             }
         }
         
@@ -42,7 +46,7 @@ class ProductionGeminiEngine:
             
         response_json = response.json()
         
-        # The response structure returns the array under the 'embedding' key
+        # The API returns the vector array inside the 'values' list of the 'embedding' object
         return [float(val) for val in response_json["embedding"]["values"]]
 
     def build_vector_store(self) -> None:
