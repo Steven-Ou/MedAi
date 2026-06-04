@@ -21,15 +21,14 @@ class ProductionGeminiEngine:
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY environment variable is missing!")
         
-        # FIXED: Removed 'models/' prefix from the URL path for Google AI Studio keys
+        # FIXED: Using the strict Google AI Studio production URL format
         self.url = f"https://generativelanguage.googleapis.com/v1/models/text-embedding-004:embedContent?key={self.api_key}"
         self.chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
 
     def get_embedding(self, text: str) -> List[float]:
         """Computes vectors via direct REST call to the stable v1 production API."""
-        # FIXED: Changed model target string inside payload to match the AI Studio registry definition
+        # FIXED: Payload structured precisely for the /v1/models URL routing scheme
         payload = {
-            "model": "text-embedding-004",
             "content": {
                 "parts": [{"text": text}]
             }
