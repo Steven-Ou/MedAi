@@ -1,7 +1,7 @@
 import os
 import sys
-from typing import Dict, List, Any
-import requests
+from typing import List
+from google import genai
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import chromadb
@@ -15,42 +15,28 @@ CHROMA_DB_DIR: str = "chroma_storage"
 
 class ProductionGeminiEngine:
     def __init__(self) -> None:
-        """Initializes direct HTTP access to Gemini embedding endpoints."""
-        self.api_key = os.environ.get("GEMINI_API_KEY")
-        if not self.api_key:
+        """Initializes the official Google GenAI SDK client and Chroma DB client."""
+        # The genai.Client() automatically detects and uses the GEMINI_API_KEY environment variable.
+        if not os.environ.get("GEMINI_API_KEY"):
             raise ValueError("GEMINI_API_KEY environment variable is missing!")
-        
-        # CORRECT ROUTE: Explicit model path for direct REST execution
-        self.url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key={self.api_key}"
+            
+        self.client = genai.Client()
         self.chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
 
     def get_embedding(self, text: str) -> List[float]:
-        """Computes vectors via direct REST call to the Gemini API."""
-        # FIXED SCHEMA: The Gemini REST API schema expects the root property 
-        # to explicitly wrap content chunks in this exact shape.
-        payload: Dict[str, Any] = {
-            "model": "models/text-embedding-004",
-            "content": {
-                "parts": [
-                    {
-                        "text": text
-                    }
-                ]
-            }
-        }
-        
-        response = requests.post(self.url, json=payload)
-        
-        if response.status_code != 200:
-            raise RuntimeError(f"Google API Error ({response.status_code}): {response.text}")
-            
-        response_json = response.json()
-        
-        # The API returns the vector array inside the 'values' list of the 'embedding' object
-        return [float(val) for val in response_json["embedding"]["values"]]
+        """Computes vectors using the official Google GenAI SDK client wrapper."""
+        try:
+            response = self.client.models.embed_content(
+                model="text-embedding-004",
+                contents=text
+            )
+            # The SDK parses the response structure safely into clean attributes
+            return response.embeddings[0].values
+        except Exception as e:
+            raise RuntimeError(f"Google GenAI SDK Error failed to generate embedding: {e}")
 
     def build_vector_store(self) -> None:
-        """Loads text files manually, cuts into chunks, and populates the native Chroma collection."""
+        """Loads text files manually, cuts them into chunks, and populates the native Chroma collection."""
         if not os.path.exists(KNOWLEDGE_BASE_DIR):
             print(f"Creating empty knowledge directory at: {KNOWLEDGE_BASE_DIR}")
             os.makedirs(KNOWLEDGE_BASE_DIR)
@@ -90,7 +76,7 @@ class ProductionGeminiEngine:
                 ids=[f"doc_chunk_{idx}"]
             )
             
-        print("Vector database built successfully using direct production API endpoints!")
+        print("Vector database built successfully using official Google GenAI SDK wrapper!")
 
     def query_knowledge(self, query_text: str, num_results: int = 2) -> List[str]:
         """Queries the local vector storage database for similar text segments."""
