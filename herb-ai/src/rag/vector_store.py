@@ -15,20 +15,21 @@ CHROMA_DB_DIR: str = "chroma_storage"
 
 class ProductionGeminiEngine:
     def __init__(self) -> None:
-        """Initializes direct HTTP access to stable Google AI v1 embedding endpoints."""
+        """Initializes direct HTTP access to stable Google AI v1beta embedding endpoints."""
         self.api_key = os.environ.get("GEMINI_API_KEY")
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY environment variable is missing!")
         
-        # The correct v1 endpoint path for text-embedding-004
-        self.url = f"https://generativelanguage.googleapis.com/v1/models/embedding-001:embedContent?key={self.api_key}"        
+        # CHANGED: Changed v1 to v1beta to ensure text-embedding-004 is found
+        self.url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key={self.api_key}"
         self.chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
 
     def get_embedding(self, text: str) -> List[float]:
         """Computes vectors via direct REST call to the stable v1 production API."""
-
+        # FIXED: To use text-embedding-004 on the v1 API endpoint via REST, 
+        # the model name inside the JSON body MUST match the path string format exactly.
         payload: Dict[str, Any] = {
-            "model": "models/text-embedding-001",
+            "model": "models/text-embedding-004",
             "content": {
                 "parts": [{"text": text}]
             }
