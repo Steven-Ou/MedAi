@@ -1,11 +1,11 @@
 import os
 import sys
 from typing import List
+import requests
 
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import chromadb
-import google.generativeai as genai  # Switching to the classic, stable SDK engine
 
 # Ensure project root is accessible for imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
@@ -14,27 +14,33 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'
 KNOWLEDGE_BASE_DIR: str = "data/knowledge_base"
 CHROMA_DB_DIR: str = "chroma_storage"
 
-class LegacyGeminiChromaEngine:
+class ProductionGeminiEngine:
     def __init__(self) -> None:
-        """Initializes the stable legacy Google Generative AI configurations."""
-        # Grab the key directly from environment variables
-        api_key = os.environ.get("GEMINI_API_KEY")
-        if not api_key:
+        """Initializes direct HTTP access to production Google AI v1 endpoints."""
+        self.api_key = os.environ.get("GEMINI_API_KEY")
+        if not self.api_key:
             raise ValueError("GEMINI_API_KEY environment variable is missing!")
         
-        genai.configure(api_key=api_key)
-        # The legacy engine expects 'models/text-embedding-004' directly and processes it safely
-        self.model_name = "models/text-embedding-004"
+        # Explicitly targeting the stable production v1 endpoint where text-embedding-004 lives
+        self.url = f"https://generativelanguage.googleapis.com/v1/models/text-embedding-004:embedContent?key={self.api_key}"
         self.chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
 
     def get_embedding(self, text: str) -> List[float]:
-        """Directly computes vectors using the stable legacy generative AI SDK endpoint."""
-        response = genai.embed_content(
-            model=self.model_name,
-            content=text,
-            task_type="retrieval_document"
-        )
-        return [float(val) for val in response["embedding"]]
+        """Computes vectors via direct REST call to the stable v1 production API."""
+        payload = {
+            "model": "models/text-embedding-004",
+            "content": {
+                "parts": [{"text": text}]
+            }
+        }
+        
+        response = requests.post(self.url, json=payload)
+        
+        if response.status_code != 200:
+            raise RuntimeError(f"Google API Error ({response.status_code}): {response.text}")
+            
+        response_json = response.json()
+        return [float(val) for val in response_json["embedding"]["values"]]
 
     def build_vector_store(self) -> None:
         """Loads text files, cuts into chunks, and populates the native Chroma collection."""
@@ -72,19 +78,12 @@ class LegacyGeminiChromaEngine:
                 ids=[f"doc_chunk_{idx}"]
             )
             
-        print("Vector database built successfully using legacy Chroma & stable Google SDK paths!")
+        print("Vector database built successfully using direct production v1 API endpoints!")
 
     def query_knowledge(self, query_text: str, num_results: int = 2) -> List[str]:
         """Queries the local vector storage database for similar text segments."""
         collection = self.chroma_client.get_or_create_collection(name="botanical_knowledge")
-        
-        # Embed query text using the appropriate retrieval task type
-        response = genai.embed_content(
-            model=self.model_name,
-            content=query_text,
-            task_type="retrieval_query"
-        )
-        query_vector = [float(val) for val in response["embedding"]]
+        query_vector = self.get_embedding(query_text)
         
         results = collection.query(
             query_embeddings=[query_vector],
@@ -93,5 +92,5 @@ class LegacyGeminiChromaEngine:
         return results['documents'][0] if results['documents'] else []
 
 if __name__ == "__main__":
-    engine = LegacyGeminiChromaEngine()
+    engine = ProductionGeminiEngine()
     engine.build_vector_store()
