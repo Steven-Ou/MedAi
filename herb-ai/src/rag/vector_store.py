@@ -57,7 +57,7 @@ class ProductionGeminiEngine:
             for file in files:
                 if file.endswith(".txt"):
                     file_path = os.path.join(root, file)
-                    with open(file_path, "user-data", encoding="utf-8") as f:
+                    with open(file_path, "r", encoding="utf-8") as f:
                         raw_texts.append(f.read())
 
         if not raw_texts:
