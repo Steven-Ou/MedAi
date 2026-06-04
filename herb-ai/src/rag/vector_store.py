@@ -3,7 +3,7 @@ import sys
 from typing import Dict, List, Any
 import requests
 
-from langchain_community.document_loaders import DirectoryLoader, TextLoader
+# Standalone splitting library to eliminate community deprecation alerts
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import chromadb
 
@@ -16,20 +16,19 @@ CHROMA_DB_DIR: str = "chroma_storage"
 
 class ProductionGeminiEngine:
     def __init__(self) -> None:
-        """Initializes direct HTTP access to production Google AI v1 endpoints."""
+        """Initializes direct HTTP access to stable Google AI v1 embedding endpoints."""
         self.api_key = os.environ.get("GEMINI_API_KEY")
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY environment variable is missing!")
         
-        # Model is explicitly declared here in the endpoint path
-        self.url = f"https://generativelanguage.googleapis.com/v1/models/text-embedding-004:embedContent?key={self.api_key}"
+        # FIXED: Swapped to the universally accessible embedding-001 model endpoint path
+        self.url = f"https://generativelanguage.googleapis.com/v1/models/embedding-001:embedContent?key={self.api_key}"
         self.chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
 
     def get_embedding(self, text: str) -> List[float]:
         """Computes vectors via direct REST call to the stable v1 production API."""
-        # FIXED: Removed the duplicate 'model' key entirely. 
-        # Explicitly typing the dictionary to resolve the Pylance Unknown type warning.
         payload: Dict[str, Any] = {
+            "model": "models/embedding-001",
             "content": {
                 "parts": [{"text": text}]
             }
@@ -44,40 +43,45 @@ class ProductionGeminiEngine:
         return [float(val) for val in response_json["embedding"]["values"]]
 
     def build_vector_store(self) -> None:
-        """Loads text files, cuts into chunks, and populates the native Chroma collection."""
+        """Loads text files manually, cuts into chunks, and populates the native Chroma collection."""
         if not os.path.exists(KNOWLEDGE_BASE_DIR):
             print(f"Creating empty knowledge directory at: {KNOWLEDGE_BASE_DIR}")
             os.makedirs(KNOWLEDGE_BASE_DIR)
             return
 
         print(f"Loading reference articles from '{KNOWLEDGE_BASE_DIR}'...")
-        loader = DirectoryLoader(KNOWLEDGE_BASE_DIR, glob="**/*.txt", loader_cls=TextLoader)
-        documents = loader.load()
+        
+        # FIXED: Pure Python file loading to completely remove the deprecated DirectoryLoader dependency
+        raw_texts: List[str] = []
+        for root, _, files in os.walk(KNOWLEDGE_BASE_DIR):
+            for file in files:
+                if file.endswith(".txt"):
+                    file_path = os.path.join(root, file)
+                    with open(file_path, "user-data", encoding="utf-8") as f:
+                        raw_texts.append(f.read())
 
-        if not documents:
+        if not raw_texts:
             print("No text documents found to parse.")
             return
 
-        print(f"Successfully loaded {len(documents)} document(s). Splitting into semantic chunks...")
+        print(f"Successfully loaded {len(raw_texts)} document(s). Splitting into semantic chunks...")
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-        doc_chunks = text_splitter.split_documents(documents)
+        
+        # Split raw text input directly
+        doc_chunks = text_splitter.split_text("\n\n".join(raw_texts))
         print(f"Created {len(doc_chunks)} distinct document text chunks.")
 
         print("Initializing Chroma Collection...")
         collection = self.chroma_client.get_or_create_collection(name="botanical_knowledge")
 
         print(f"Generating embeddings and indexing directly into: {CHROMA_DB_DIR}...")
-        for idx, chunk in enumerate(doc_chunks):
-            text_content = chunk.page_content
+        for idx, text_content in enumerate(doc_chunks):
             vector = self.get_embedding(text_content)
             
-            # FIXED: Cast the metadata cleanly to string to fix type checking alerts
-            source_file = str(chunk.metadata.get("source", "unknown"))
-
             collection.add(
                 embeddings=[vector],
                 documents=[text_content],
-                metadatas=[{"source": source_file}],
+                metadatas=[{"source": "knowledge_base_profile"}],
                 ids=[f"doc_chunk_{idx}"]
             )
             
