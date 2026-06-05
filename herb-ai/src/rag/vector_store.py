@@ -20,9 +20,9 @@ CHROMA_DB_DIR: str = "chroma_storage"
 class ProductionGeminiEngine:
     def __init__(self) -> None:
         """Initializes the stable production Gemini API configuration using dotenv settings."""
-        api_key = os.getenv("GOOGLE_API_KEY")
+        api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
-            raise ValueError("GOOGLE_API_KEY not found. Did you set it in your .env file?")
+            raise ValueError("GEMINI_API_KEY not found. Did you set it in your .env file?")
             
         # Natively configure the stable library context
         genai.configure(api_key=api_key)
