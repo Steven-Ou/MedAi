@@ -1,7 +1,7 @@
 import os
 import sys
-from typing import List, Any
-import google.generativeai as genai
+from typing import List, Dict, Any
+import requests
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import chromadb
@@ -16,34 +16,37 @@ CHROMA_DB_DIR: str = "chroma_storage"
 
 class ProductionGeminiEngine:
     def __init__(self) -> None:
-        """Initializes the stable production Gemini API configuration and Chroma client."""
-        api_key = os.environ.get("GEMINI_API_KEY")
-        if not api_key:
+        """Initializes the production Gemini client using clean direct HTTP REST endpoints."""
+        self.api_key = os.environ.get("GEMINI_API_KEY")
+        if not self.api_key:
             raise ValueError("GEMINI_API_KEY environment variable is missing!")
 
-        # FIX: Force the global configuration to use HTTP REST instead of gRPC
-        genai.configure(api_key=api_key, transport="rest")
+        # Using the standard v1 endpoint with the universally available model layout
+        self.url = f"https://generativelanguage.googleapis.com/v1/models/embedding-001:embedContent?key={self.api_key}"
         self.chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
 
     def get_embedding(self, text: str) -> List[float]:
-        """Computes vectors safely using the stable text-embedding-004 model."""
+        """Computes vectors safely using standard, universally accessible HTTP REST requests."""
         try:
-            # Removed the invalid 'transport' keyword from here
-            response: Any = genai.embed_content(
-                model="models/text-embedding-004",
-                content=text,
-                task_type="retrieval_document",
-            )
+            payload: Dict[str, Any] = {"content": {"parts": [{"text": text}]}}
 
-            if isinstance(response, dict) and "embedding" in response:
-                return [float(v) for v in response["embedding"]]
+            response = requests.post(self.url, json=payload, timeout=15)
 
-            raise ValueError(
-                "API response missing 'embedding' numerical payload array."
-            )
+            # If the base model is restricted, automatically fallback to a secondary layout format
+            if response.status_code == 404:
+                fallback_url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key={self.api_key}"
+                response = requests.post(fallback_url, json=payload, timeout=15)
+
+            if response.status_code != 200:
+                raise RuntimeError(
+                    f"Google Server Error ({response.status_code}): {response.text}"
+                )
+
+            response_json = response.json()
+            return [float(val) for val in response_json["embedding"]["values"]]
 
         except Exception as e:
-            raise RuntimeError(f"Google API stable layer failure: {e}")
+            raise RuntimeError(f"Failed to fetch embedding: {e}")
 
     def build_vector_store(self) -> None:
         """Loads text files manually, cuts them into chunks, and populates the native Chroma collection."""
@@ -90,20 +93,14 @@ class ProductionGeminiEngine:
                 ids=[f"doc_chunk_{idx}"],
             )
 
-        print("Vector database built successfully using production API endpoints!")
+        print("Vector database built successfully using production REST endpoints!")
 
     def query_knowledge(self, query_text: str, num_results: int = 2) -> List[str]:
         """Queries the local vector storage database for similar text segments."""
         collection = self.chroma_client.get_or_create_collection(
             name="botanical_knowledge"
         )
-
-        query_response: Any = genai.embed_content(
-            model="models/text-embedding-004",
-            content=query_text,
-            task_type="retrieval_query",
-        )
-        query_vector = query_response["embedding"]
+        query_vector = self.get_embedding(query_text)
 
         results = collection.query(
             query_embeddings=[query_vector], n_results=num_results
