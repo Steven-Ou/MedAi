@@ -21,20 +21,18 @@ class ProductionGeminiEngine:
         if not api_key:
             raise ValueError("GEMINI_API_KEY environment variable is missing!")
 
-        # Natively configure the API key context
-        genai.configure(api_key=api_key)
+        # FIX: Force the global configuration to use HTTP REST instead of gRPC
+        genai.configure(api_key=api_key, transport="rest")
         self.chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
 
     def get_embedding(self, text: str) -> List[float]:
-        """Computes vectors safely bypassing picky gRPC endpoint routing limitations."""
+        """Computes vectors safely using the stable text-embedding-004 model."""
         try:
-            # FIX: By specifying transport='rest', we force the library to use standard HTTP POST.
-            # This skips the buggy gRPC layer entirely and lets Google find the model cleanly.
+            # Removed the invalid 'transport' keyword from here
             response: Any = genai.embed_content(
                 model="models/text-embedding-004",
                 content=text,
                 task_type="retrieval_document",
-                transport="rest",
             )
 
             if isinstance(response, dict) and "embedding" in response:
@@ -100,12 +98,10 @@ class ProductionGeminiEngine:
             name="botanical_knowledge"
         )
 
-        # FIX: Ensure transport='rest' is used for query vector retrieval as well
         query_response: Any = genai.embed_content(
             model="models/text-embedding-004",
             content=query_text,
             task_type="retrieval_query",
-            transport="rest",
         )
         query_vector = query_response["embedding"]
 
