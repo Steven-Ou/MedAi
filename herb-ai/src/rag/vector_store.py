@@ -1,8 +1,7 @@
 import os
 import sys
-from typing import List, Optional
+from typing import List
 from google import genai
-from google.genai import types
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import chromadb
@@ -25,56 +24,24 @@ class ProductionGeminiEngine:
 
     def get_embedding(self, text: str) -> List[float]:
         """Computes vectors safely using the official Google GenAI SDK client wrapper."""
-        # Try text-embedding-004 first, fallback to standard text-embedding-004 with explicit task type
-        models_to_try = ["text-embedding-004", "text-embedding-004"]
-        
-        last_exception: Optional[Exception] = None
-        
-        for idx, model_name in enumerate(models_to_try):
-            try:
-                # For the second attempt, let's configure an explicit task type configuration
-                # which can bypass picky routing rules on certain API keys
-                config = None
-                if idx == 1:
-                    config = types.EmbedContentConfig(
-                        task_type="RETRIEVAL_DOCUMENT"
-                    )
-
-                response = self.client.models.embed_content(
-                    model=model_name,
-                    contents=text,
-                    config=config
-                )
-                
-                # Defensively validate response structure to satisfy strict type-checkers
-                if response is not None and response.embeddings is not None:
-                    if len(response.embeddings) > 0:
-                        first_embedding = response.embeddings[0]
-                        if first_embedding is not None and first_embedding.values is not None:
-                            return [float(v) for v in first_embedding.values]
-                        
-                raise ValueError("API responded with an empty or malformed embedding structure.")
-                
-            except Exception as e:
-                last_exception = e
-                if "404" in str(e):
-                    continue
-                raise RuntimeError(f"Google GenAI SDK Error: {e}")
-                
-        # ULTIMATE FALLBACK: If standard embedding endpoints are strictly blocked on your key,
-        # we can route through the core multimodal model engine to obtain the feature vector representation.
         try:
-            # We use text-embedding-004 but explicitly bypass standard routing
+            # Call the clean SDK model identifier directly
             response = self.client.models.embed_content(
-                model="models/text-embedding-004",
+                model="text-embedding-004",
                 contents=text
             )
-            if response and response.embeddings and response.embeddings[0].values:
-                return [float(v) for v in response.embeddings[0].values]
-        except Exception as final_err:
-            last_exception = final_err
-
-        raise RuntimeError(f"All embedding models failed. If this persists, verify your Google AI Studio project status. Last error: {last_exception}")
+            
+            # Since the SDK guarantees an EmbedContentResponse or raises an error,
+            # we directly verify if the array list contains elements to appease the linter.
+            if response.embeddings:
+                values = response.embeddings[0].values
+                if values:
+                    return [float(v) for v in values]
+            
+            raise ValueError("API returned an empty embedding payload structure.")
+            
+        except Exception as e:
+            raise RuntimeError(f"Google GenAI SDK Error: {e}")
 
     def build_vector_store(self) -> None:
         """Loads text files manually, cuts them into chunks, and populates the native Chroma collection."""
