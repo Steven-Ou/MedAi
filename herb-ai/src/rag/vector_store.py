@@ -1,7 +1,9 @@
 import os
 import sys
-from typing import List
-from google import genai
+from typing import List, Any, cast
+
+# FIX: Explicit function import resolves Pylance PrivateImportUsage issues
+from google.generativeai import embed_content
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import chromadb
@@ -16,30 +18,32 @@ CHROMA_DB_DIR: str = "chroma_storage"
 
 class ProductionGeminiEngine:
     def __init__(self) -> None:
-        """Initializes the official Google GenAI SDK client and Chroma DB client."""
+        """Initializes the stable production Gemini API configuration and Chroma client."""
+        # Note: google-generativeai implicitly reads GEMINI_API_KEY from environment variables automatically!
         if not os.environ.get("GEMINI_API_KEY"):
             raise ValueError("GEMINI_API_KEY environment variable is missing!")
 
-        self.client = genai.Client()
         self.chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
 
     def get_embedding(self, text: str) -> List[float]:
-        """Computes vectors safely using the modern text embedding model identifier."""
+        """Computes vectors using the stable text-embedding-004 model."""
         try:
-
-            response = self.client.models.embed_content(
-                model="text-embedding-004", contents=text
+            # FIX: Call the cleanly imported function and type-cast the unknown return value
+            response: Any = embed_content(
+                model="models/text-embedding-004",
+                content=text,
+                task_type="retrieval_document",
             )
 
-            if response.embeddings:
-                values = response.embeddings[0].values
-                if values:
-                    return [float(v) for v in values]
+            if isinstance(response, dict) and "embedding" in response:
+                return [float(v) for v in response["embedding"]]
 
-            raise ValueError("API returned an empty embedding payload structure.")
+            raise ValueError(
+                "API response missing 'embedding' numerical payload array."
+            )
 
         except Exception as e:
-            raise RuntimeError(f"Google GenAI SDK Error: {e}")
+            raise RuntimeError(f"Google API stable layer failure: {e}")
 
     def build_vector_store(self) -> None:
         """Loads text files manually, cuts them into chunks, and populates the native Chroma collection."""
@@ -86,16 +90,21 @@ class ProductionGeminiEngine:
                 ids=[f"doc_chunk_{idx}"],
             )
 
-        print(
-            "Vector database built successfully using official Google GenAI SDK wrapper!"
-        )
+        print("Vector database built successfully using production API endpoints!")
 
     def query_knowledge(self, query_text: str, num_results: int = 2) -> List[str]:
         """Queries the local vector storage database for similar text segments."""
         collection = self.chroma_client.get_or_create_collection(
             name="botanical_knowledge"
         )
-        query_vector = self.get_embedding(query_text)
+
+        # FIX: Call the cleanly imported function for query vectors
+        query_response: Any = embed_content(
+            model="models/text-embedding-004",
+            content=query_text,
+            task_type="retrieval_query",
+        )
+        query_vector = query_response["embedding"]
 
         results = collection.query(
             query_embeddings=[query_vector], n_results=num_results
