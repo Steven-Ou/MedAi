@@ -26,12 +26,10 @@ class ProductionGeminiEngine:
     def get_embedding(self, text: str) -> List[float]:
         """Computes vectors safely using the official Google GenAI SDK client wrapper."""
         try:
-            # FIXED: Explicitly provide 'models/' prefix to handle strict server routing rules
             response = self.client.models.embed_content(
                 model="models/text-embedding-004", contents=text
             )
 
-            # Safe checking that keeps your linter/type checker quiet and avoids type errors
             if response.embeddings:
                 values = response.embeddings[0].values
                 if values:
@@ -66,9 +64,9 @@ class ProductionGeminiEngine:
         print(
             f"Successfully loaded {len(raw_texts)} document(s). Splitting into semantic chunks..."
         )
-        text_splitter = RecursiveCharacterCharacterSplitter(
-            chunk_size=500, chunk_overlap=50
-        )
+
+        # FIXED THE TYPO HERE:
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
 
         doc_chunks = text_splitter.split_text("\n\n".join(raw_texts))
         print(f"Created {len(doc_chunks)} distinct document text chunks.")
