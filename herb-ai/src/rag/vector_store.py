@@ -24,12 +24,11 @@ class ProductionGeminiEngine:
         self.chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
 
     def get_embedding(self, text: str) -> List[float]:
-        """Computes vectors safely using a guaranteed available core model identifier."""
+        """Computes vectors safely using the modern text embedding model identifier."""
         try:
-            # SWITCHED TO FLASH: gemini-2.5-flash is universally supported
-            # on all API keys and handles embed_content natively without 404 routing limits.
+
             response = self.client.models.embed_content(
-                model="gemini-2.5-flash", contents=text
+                model="text-embedding-004", contents=text
             )
 
             if response.embeddings:
@@ -66,8 +65,6 @@ class ProductionGeminiEngine:
         print(
             f"Successfully loaded {len(raw_texts)} document(s). Splitting into semantic chunks..."
         )
-
-        # Fixed the splitter name typo perfectly
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
 
         doc_chunks = text_splitter.split_text("\n\n".join(raw_texts))
