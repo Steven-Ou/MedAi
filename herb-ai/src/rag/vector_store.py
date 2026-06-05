@@ -1,9 +1,7 @@
 import os
 import sys
-from typing import List, Any, cast
-
-# FIX: Explicit function import resolves Pylance PrivateImportUsage issues
-from google.generativeai import embed_content
+from typing import List, Any
+import google.generativeai as genai
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import chromadb
@@ -19,20 +17,24 @@ CHROMA_DB_DIR: str = "chroma_storage"
 class ProductionGeminiEngine:
     def __init__(self) -> None:
         """Initializes the stable production Gemini API configuration and Chroma client."""
-        # Note: google-generativeai implicitly reads GEMINI_API_KEY from environment variables automatically!
-        if not os.environ.get("GEMINI_API_KEY"):
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
             raise ValueError("GEMINI_API_KEY environment variable is missing!")
 
+        # Natively configure the API key context
+        genai.configure(api_key=api_key)
         self.chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
 
     def get_embedding(self, text: str) -> List[float]:
-        """Computes vectors using the stable text-embedding-004 model."""
+        """Computes vectors safely bypassing picky gRPC endpoint routing limitations."""
         try:
-            # FIX: Call the cleanly imported function and type-cast the unknown return value
-            response: Any = embed_content(
+            # FIX: By specifying transport='rest', we force the library to use standard HTTP POST.
+            # This skips the buggy gRPC layer entirely and lets Google find the model cleanly.
+            response: Any = genai.embed_content(
                 model="models/text-embedding-004",
                 content=text,
                 task_type="retrieval_document",
+                transport="rest",
             )
 
             if isinstance(response, dict) and "embedding" in response:
@@ -98,11 +100,12 @@ class ProductionGeminiEngine:
             name="botanical_knowledge"
         )
 
-        # FIX: Call the cleanly imported function for query vectors
-        query_response: Any = embed_content(
+        # FIX: Ensure transport='rest' is used for query vector retrieval as well
+        query_response: Any = genai.embed_content(
             model="models/text-embedding-004",
             content=query_text,
             task_type="retrieval_query",
+            transport="rest",
         )
         query_vector = query_response["embedding"]
 
