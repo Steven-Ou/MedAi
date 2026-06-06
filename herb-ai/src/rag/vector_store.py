@@ -1,49 +1,58 @@
 import os
 import sys
-from typing import List, Any
+from typing import List
 from dotenv import load_dotenv
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import chromadb
 
 # Ensure project root is accessible for imports
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 
-# 1. Safely load the environment variables from the .env file
+# Load environmental configurations from the .env file
 load_dotenv()
 
 # Constants
 KNOWLEDGE_BASE_DIR: str = "data/knowledge_base"
 CHROMA_DB_DIR: str = "chroma_storage"
 
+
 class ProductionGeminiEngine:
     def __init__(self) -> None:
-        """Initializes the stable production Gemini API configuration and Chroma client."""
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("GEMINI_API_KEY not found. Did you set it in your .env file?")
-            
-        genai.configure(api_key=api_key, transport="rest")
+        """Initializes the modern Google GenAI Client and native Chroma client."""
+        if not os.getenv("GEMINI_API_KEY"):
+            raise ValueError(
+                "GEMINI_API_KEY not found. Did you set it in your .env file?"
+            )
+
+        self.client = genai.Client()
         self.chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
 
-    def get_embedding(self, text: str) -> List[float]:
-        """Computes vectors safely using the stable, universally open embedding-001 model."""
+    def get_embedding(self, text: str, is_query: bool = False) -> List[float]:
+        """Computes vectors using the active mainline gemini-embedding-001 model layout."""
         try:
-            # Using models/embedding-001 eliminates the selective regional 404 blockages
-            response: Any = genai.embed_content(
-                model="models/embedding-001",
-                content=text,
-                task_type="retrieval_document"
+            # Set the appropriate task type configuration to ensure optimal vector grouping
+            task_type = "RETRIEVAL_QUERY" if is_query else "RETRIEVAL_DOCUMENT"
+
+            # Use the active mainline embedding model string identifier
+            response = self.client.models.embed_content(
+                model="gemini-embedding-001",
+                contents=text,
+                config=types.EmbedContentConfig(task_type=task_type),
             )
-            
-            if isinstance(response, dict) and "embedding" in response:
-                return [float(v) for v in response["embedding"]]
-                
-            raise ValueError("API response missing 'embedding' numerical payload array.")
-            
+
+            # Safe parsing ensures the strict local type checkers stay completely silent
+            if response.embeddings:
+                values = response.embeddings[0].values
+                if values:
+                    return [float(v) for v in values]
+
+            raise ValueError("API responded with an empty embedding vector structure.")
+
         except Exception as e:
-            raise RuntimeError(f"Google API stable layer failure: {e}")
+            raise RuntimeError(f"Google GenAI SDK pipeline failure: {e}")
 
     def build_vector_store(self) -> None:
         """Loads text files manually, cuts them into chunks, and populates the native Chroma collection."""
@@ -53,7 +62,7 @@ class ProductionGeminiEngine:
             return
 
         print(f"Loading reference articles from '{KNOWLEDGE_BASE_DIR}'...")
-        
+
         raw_texts: List[str] = []
         for root, _, files in os.walk(KNOWLEDGE_BASE_DIR):
             for file in files:
@@ -66,44 +75,46 @@ class ProductionGeminiEngine:
             print("No text documents found to parse.")
             return
 
-        print(f"Successfully loaded {len(raw_texts)} document(s). Splitting into semantic chunks...")
+        print(
+            f"Successfully loaded {len(raw_texts)} document(s). Splitting into semantic chunks..."
+        )
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-        
+
         doc_chunks = text_splitter.split_text("\n\n".join(raw_texts))
         print(f"Created {len(doc_chunks)} distinct document text chunks.")
 
         print("Initializing Chroma Collection...")
-        collection = self.chroma_client.get_or_create_collection(name="botanical_knowledge")
+        collection = self.chroma_client.get_or_create_collection(
+            name="botanical_knowledge"
+        )
 
         print(f"Generating embeddings and indexing directly into: {CHROMA_DB_DIR}...")
         for idx, text_content in enumerate(doc_chunks):
-            vector = self.get_embedding(text_content)
-            
+            vector = self.get_embedding(text_content, is_query=False)
+
             collection.add(
                 embeddings=[vector],
                 documents=[text_content],
                 metadatas=[{"source": "knowledge_base_profile"}],
-                ids=[f"doc_chunk_{idx}"]
+                ids=[f"doc_chunk_{idx}"],
             )
-            
-        print("Vector database built successfully using production API endpoints!")
+
+        print(
+            "Vector database built successfully using official modern GenAI SDK architecture!"
+        )
 
     def query_knowledge(self, query_text: str, num_results: int = 2) -> List[str]:
         """Queries the local vector storage database for similar text segments."""
-        collection = self.chroma_client.get_or_create_collection(name="botanical_knowledge")
-        
-        query_response: Any = genai.embed_content(
-            model="models/embedding-001",
-            content=query_text,
-            task_type="retrieval_query"
+        collection = self.chroma_client.get_or_create_collection(
+            name="botanical_knowledge"
         )
-        query_vector = query_response["embedding"]
-        
+        query_vector = self.get_embedding(query_text, is_query=True)
+
         results = collection.query(
-            query_embeddings=[query_vector],
-            n_results=num_results
+            query_embeddings=[query_vector], n_results=num_results
         )
-        return results['documents'][0] if results['documents'] else []
+        return results["documents"][0] if results["documents"] else []
+
 
 if __name__ == "__main__":
     engine = ProductionGeminiEngine()
