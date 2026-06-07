@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'
 from database.db_manager import insert_telemetry, add_new_plant
 
 # FIXED: Hooking up your RAG and Knowledge Generator pipeline dependencies
-from src.rag.knowledge_generator import AutoKnowledgeGenerator
+from src.rag.know_gen import AutoKnowledgeGenerator
 from src.rag.vector_store import ProductionGeminiEngine
 
 class BotanicalTracker:
