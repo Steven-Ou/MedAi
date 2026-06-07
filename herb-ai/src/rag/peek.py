@@ -1,7 +1,7 @@
 # cspell:disable
 import os
 import sys
-from typing import Dict, Any, cast
+from typing import Dict, Any, List, cast
 import chromadb
 
 # Ensure project root is accessible for imports
@@ -28,12 +28,11 @@ def peek_database() -> None:
     
     print("--- PULLING INDEXED DATABASE CONTENT ---")
     
-    # FIX: Safely check for None explicitly to avoid triggering NumPy truth value ambiguity panics
-    ids_list = results.get("ids") if results.get("ids") is not None else []
-    docs_list = results.get("documents") if results.get("documents") is not None else []
-    
-    metadata_list = cast(list[dict[Any, Any]], results.get("metadatas")) if results.get("metadatas") is not None else []
-    embeddings_list = results.get("embeddings") if results.get("embeddings") is not None else []
+    # FIX: Safely extract and type-cast the lists upfront to prevent Pylance from seeing Optional/None references later
+    ids_list: List[str] = results.get("ids") if results.get("ids") is not None else []
+    docs_list: List[str] = cast(List[str], results.get("documents")) if results.get("documents") is not None else []
+    metadata_list = cast(List[Dict[str, Any]], results.get("metadatas")) if results.get("metadatas") is not None else []
+    embeddings_list = cast(List[List[float]], results.get("embeddings")) if results.get("embeddings") is not None else []
 
     for idx in range(total_count):
         doc_id = ids_list[idx]
@@ -42,7 +41,6 @@ def peek_database() -> None:
         raw_metadata = metadata_list[idx] if idx < len(metadata_list) else {}
         metadata: Dict[str, Any] = {str(k): v for k, v in raw_metadata.items()}
         
-        # FIX: Check the length or shape of the index position safely
         vector_dimensions = len(embeddings_list[idx]) if idx < len(embeddings_list) else 0
         
         print(f"\n[Item Index {idx + 1}] ID: {doc_id}")
