@@ -28,22 +28,21 @@ def peek_database() -> None:
     
     print("--- PULLING INDEXED DATABASE CONTENT ---")
     
-    ids_list = results.get("ids") or []
-    docs_list = results.get("documents") or []
+    # FIX: Safely check for None explicitly to avoid triggering NumPy truth value ambiguity panics
+    ids_list = results.get("ids") if results.get("ids") is not None else []
+    docs_list = results.get("documents") if results.get("documents") is not None else []
     
-    # FIX: Cast to list[dict[Any, Any]] instead of list[Any] so Pylance knows it can safely call .items()
-    metadata_list = cast(list[dict[Any, Any]], results.get("metadatas") or [])
-    embeddings_list = results.get("embeddings") or []
+    metadata_list = cast(list[dict[Any, Any]], results.get("metadatas")) if results.get("metadatas") is not None else []
+    embeddings_list = results.get("embeddings") if results.get("embeddings") is not None else []
 
     for idx in range(total_count):
         doc_id = ids_list[idx]
         document_text = docs_list[idx] if idx < len(docs_list) else "None"
         
         raw_metadata = metadata_list[idx] if idx < len(metadata_list) else {}
-        
-        # Now Pylance knows k and v are valid objects within a mapping structure
         metadata: Dict[str, Any] = {str(k): v for k, v in raw_metadata.items()}
         
+        # FIX: Check the length or shape of the index position safely
         vector_dimensions = len(embeddings_list[idx]) if idx < len(embeddings_list) else 0
         
         print(f"\n[Item Index {idx + 1}] ID: {doc_id}")
