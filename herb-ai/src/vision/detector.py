@@ -118,7 +118,7 @@ if __name__ == "__main__":
     SAMPLE_VIDEO = "data/processed/sample_garden_walk.mp4" 
     
     if os.path.exists(SAMPLE_VIDEO):
-        tracker = BotanicalTracker()
-        tracker.process_video(SAMPLE_VIDEO, show_live_feed=True)
+        tracker = BotanicalTracker(model_path="weights/best.pt")
+        tracker.process_video("data/processed/sample_garden_walk.mp4", show_live_feed=True)
     else:
         print(f"Please place a valid test video file at '{SAMPLE_VIDEO}' to run local testing.")
