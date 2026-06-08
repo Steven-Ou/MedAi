@@ -2,7 +2,7 @@
 import cv2
 import os
 import sys
-from typing import Dict, Any, cast
+from typing import Dict, Any, Tuple
 import numpy as np
 from ultralytics import YOLO
 
@@ -13,12 +13,12 @@ from src.rag.know_gen import AutoKnowledgeGenerator
 from src.rag.vector_store import ProductionGeminiEngine
 
 class BotanicalTracker:
-    def __init__(self, model_path: str = "yolov8n.pt") -> None:
-        """Initializes the YOLO vision model and links up the automated RAG engines."""
+    def __init__(self, model_path: str = "weights/best.pt") -> None:
+        """Initializes the YOLO vision model and hooks up the autonomous RAG engines."""
         print(f"Loading Computer Vision model: {model_path}...")
         self.model = YOLO(model_path)
         
-        # FIX: Explicitly type hint the dictionary tracker map to resolve reportUnknownMemberType
+        # Explicitly type hint the tracking map dictionary to prevent type inference failures
         self.track_to_db_map: Dict[int, int] = {}
         
         self.knowledge_gen = AutoKnowledgeGenerator()
@@ -44,28 +44,26 @@ class BotanicalTracker:
 
             frame_number += 1
 
-            # Run tracking inference on the current frame
-            results: Any = self.model.track(frame, persist=True, verbose=False)
+            # FIX: Type-hint variable target to suppress reportUnknownMemberType on dynamic library method
+            results_list: Any = self.model.track(frame, persist=True, verbose=False)
 
-            # FIX: Use safe structural variable extraction to prevent Pylance attribute access checks
-            if results and results[0].boxes is not None and results[0].boxes.id is not None:
-                boxes_obj = results[0].boxes
+            # Check if boxes were detected with valid tracking IDs
+            if results_list and results_list[0].boxes is not None and results_list[0].boxes.id is not None:
+                boxes_obj = results_list[0].boxes
                 
-                # Explicitly cast items to clear up the untyped multi-layer duck typing layers
-                boxes: np.ndarray[Any, Any] = cast(np.ndarray[Any, Any], boxes_obj.xyxy.numpy())
-                track_ids: np.ndarray[Any, Any] = cast(np.ndarray[Any, Any], boxes_obj.id.numpy().astype(int))
-                confidences: np.ndarray[Any, Any] = cast(np.ndarray[Any, Any], boxes_obj.conf.numpy())
-                class_ids: np.ndarray[Any, Any] = cast(np.ndarray[Any, Any], boxes_obj.cls.numpy().astype(int))
+                # Sift out tensor primitives into NumPy matrices
+                boxes: np.ndarray[Any, Any] = boxes_obj.xyxy.cpu().numpy()
+                track_ids: np.ndarray[Any, Any] = boxes_obj.id.cpu().numpy().astype(int)
+                confidences: np.ndarray[Any, Any] = boxes_obj.conf.cpu().numpy()
+                class_ids: np.ndarray[Any, Any] = boxes_obj.cls.cpu().numpy().astype(int)
 
-                # Fetch class name map from model metadata safely
-                names: Dict[int, str] = cast(Dict[int, str], self.model.names)
+                # FIX: Removed the unnecessary cast function wrapper around names array mapping
+                names: Dict[int, str] = self.model.names
                 rebuild_vector_store: bool = False
 
                 for b, t_id, c, cls_id in zip(boxes, track_ids, confidences, class_ids):
-                    bbox: np.ndarray[Any, Any] = cast(np.ndarray[Any, Any], b)
                     track_id: int = int(t_id)
                     conf: float = float(c)
-                    
                     species_name: str = names[int(cls_id)]
 
                     # If this is a brand new track ID unseen by the system, log it to SQL and RAG
@@ -81,17 +79,22 @@ class BotanicalTracker:
                     # Retrieve the assigned persistent database primary key
                     assigned_plant_id: int = self.track_to_db_map[track_id]
 
+                    # FIX: Safely parse array components into standard Python Float Tuple to pass types cleanly
+                    bbox_tuple: Tuple[float, float, float, float] = (
+                        float(b[0]), float(b[1]), float(b[2]), float(b[3])
+                    )
+
                     # Insert spatial metrics and boundary coordinates for this specific frame
                     insert_telemetry(
                         plant_id=assigned_plant_id,
                         frame_number=frame_number,
-                        bbox=bbox,
+                        bbox=bbox_tuple,
                         confidence_score=conf
                     )
 
                     # Optional UI: Draw bounding boxes and labels on screen
                     if show_live_feed:
-                        xmin, ymin, xmax, ymax = map(int, bbox)
+                        xmin, ymin, xmax, ymax = int(b[0]), int(b[1]), int(b[2]), int(b[3])
                         cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
                         label: str = f"ID {assigned_plant_id}: {species_name} ({conf:.2f})"
                         cv2.putText(frame, label, (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
@@ -114,10 +117,10 @@ class BotanicalTracker:
         print(f"Video pipeline finished. Total processed frames: {frame_number}")
 
 if __name__ == "__main__":
-    SAMPLE_VIDEO: str = "data/processed/sample_garden_walk.mp4" 
+    tracker = BotanicalTracker(model_path="weights/best.pt")
     
+    SAMPLE_VIDEO: str = "data/processed/sample_garden_walk.mp4"
     if os.path.exists(SAMPLE_VIDEO):
-        tracker = BotanicalTracker()
         tracker.process_video(SAMPLE_VIDEO, show_live_feed=True)
     else:
         print(f"Please place a valid test video file at '{SAMPLE_VIDEO}' to run local testing.")
