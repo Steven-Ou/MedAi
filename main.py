@@ -1,11 +1,15 @@
-# herb-ai/main.py
 # cspell:disable
 import os
 import sys
 
-# Add current root directory to the python path references
-sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+# FIX: Dynamically detect the inner 'herb-ai' project root directory path
+# and append it to sys.path before any local package components load.
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.join(current_dir, "herb-ai")
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
+# Now Python and Pylance can cleanly resolve the modules
 from src.vision.detector import BotanicalTracker
 from src.rag.query_engine import BotanicalQueryEngine
 
@@ -18,11 +22,11 @@ def start_herb_ai() -> None:
     run_scan = input("Do you want to run the computer vision scanning pipeline? (y/n): ")
     
     if run_scan.strip().lower() == 'y':
-        video_path = "data/processed/sample_garden_walk.mp4"
+        # FIX: Point directly to the correct path within the herb-ai subdirectory folder
+        video_path = os.path.join(project_root, "data/processed/sample_garden_walk.mp4")
         if os.path.exists(video_path):
             print(f"\nInitializing real-time plant tracking on: {video_path}")
-            # Automatically uses yolov8n.pt until your custom weights are exported
-            tracker = BotanicalTracker(model_path="yolov8n.pt")
+            tracker = BotanicalTracker(model_path=os.path.join(project_root, "yolov8n.pt"))
             tracker.process_video(video_path, show_live_feed=True)
         else:
             print(f"\nClip missing at '{video_path}'. Skipping video tracking layer.")
