@@ -44,8 +44,9 @@ class BotanicalTracker:
 
             frame_number += 1
 
-            # FIX: Type-hint variable target to suppress reportUnknownMemberType on dynamic library method
-            results_list: Any = self.model.track(frame, persist=True, verbose=False)
+            # FIX: Cast model to Any before accessing .track to fully mute reportUnknownMemberType warnings
+            model_any: Any = self.model
+            results_list: list[Any] = model_any.track(frame, persist=True, verbose=False)
 
             # Check if boxes were detected with valid tracking IDs
             if results_list and results_list[0].boxes is not None and results_list[0].boxes.id is not None:
@@ -57,7 +58,6 @@ class BotanicalTracker:
                 confidences: np.ndarray[Any, Any] = boxes_obj.conf.cpu().numpy()
                 class_ids: np.ndarray[Any, Any] = boxes_obj.cls.cpu().numpy().astype(int)
 
-                # FIX: Removed the unnecessary cast function wrapper around names array mapping
                 names: Dict[int, str] = self.model.names
                 rebuild_vector_store: bool = False
 
@@ -79,7 +79,7 @@ class BotanicalTracker:
                     # Retrieve the assigned persistent database primary key
                     assigned_plant_id: int = self.track_to_db_map[track_id]
 
-                    # FIX: Safely parse array components into standard Python Float Tuple to pass types cleanly
+                    # Safely parse array components into standard Python Float Tuple to pass types cleanly
                     bbox_tuple: Tuple[float, float, float, float] = (
                         float(b[0]), float(b[1]), float(b[2]), float(b[3])
                     )
