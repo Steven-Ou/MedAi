@@ -12,15 +12,18 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'
 
 load_dotenv()
 
-CHROMA_DB_DIR: str = "chroma_storage"
+# FIX: Compute absolute database storage path relative to this script file location
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+CHROMA_DB_DIR: str = os.path.abspath(os.path.join(CURRENT_DIR, "../../chroma_storage"))
 
 class BotanicalQueryEngine:
     def __init__(self) -> None:
-        """Initializes the modern GenAI Client and connects to the active Chroma vector store."""
+        """Initializes the GenAI Client and connects to the active Chroma vector store."""
         if not os.getenv("GEMINI_API_KEY"):
             raise ValueError("GEMINI_API_KEY environment variable is missing.")
             
         self.client = genai.Client()
+        # Uses the pristine absolute path structure
         self.chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
         self.collection = self.chroma_client.get_collection(name="botanical_knowledge")
 
@@ -41,10 +44,8 @@ class BotanicalQueryEngine:
     def query_botanical_knowledge(self, user_query: str, n_results: int = 1) -> str:
         """Retrieves semantically close text chunks and uses Gemini to synthesize a grounded answer."""
         try:
-            # 1. Convert user question into a vector coordinate
             query_vector = self._get_query_embedding(user_query)
             
-            # 2. Search Chroma for the closest matching scanned records
             search_results = self.collection.query(
                 query_embeddings=[query_vector],
                 n_results=n_results
@@ -53,7 +54,6 @@ class BotanicalQueryEngine:
             documents = search_results.get("documents")
             retrieved_context = documents[0][0] if (documents and documents[0]) else "No relevant context found."
             
-            # 3. Formulate system guidelines restricting hallucinations
             system_instruction = (
                 "You are Herb-AI, an expert medical botanical knowledge agent. "
                 "Answer the user's question accurately using only the provided context material. "
@@ -62,13 +62,12 @@ class BotanicalQueryEngine:
             
             prompt = f"Scanned Plant Context:\n{retrieved_context}\n\nUser Question: {user_query}"
             
-            # 4. Generate the final answer using gemini-2.5-flash
             generation_response = self.client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     system_instruction=system_instruction,
-                    temperature=0.1,  # Kept low to enforce context accuracy
+                    temperature=0.1,
                 )
             )
             
@@ -79,10 +78,7 @@ class BotanicalQueryEngine:
 
 if __name__ == "__main__":
     engine = BotanicalQueryEngine()
-    
-    # Let's run a test query to find information our system scanned from the video feed!
-    question = "What plant contains menthol and helps clear nasal congestion?"
+    question = "What plant handles tension headaches and clears nasal congestion?"
     print(f"Asking Herb-AI: '{question}'\n")
-    
     answer = engine.query_botanical_knowledge(question)
     print(f"Herb-AI Response:\n{answer}")

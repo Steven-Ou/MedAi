@@ -15,9 +15,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"
 load_dotenv()
 
 # Constants
-KNOWLEDGE_BASE_DIR: str = "data/knowledge_base"
-CHROMA_DB_DIR: str = "chroma_storage"
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+CHROMA_DB_DIR: str = os.path.abspath(os.path.join(CURRENT_DIR, "../../chroma_storage"))
 
+KNOWLEDGE_BASE_DIR: str = os.path.abspath(os.path.join(CURRENT_DIR, "../../data/knowledge_base"))
 
 class ProductionGeminiEngine:
     def __init__(self) -> None:
