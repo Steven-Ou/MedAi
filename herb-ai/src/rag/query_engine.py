@@ -16,8 +16,6 @@ load_dotenv()
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 CHROMA_DB_DIR: str = os.path.abspath(os.path.join(CURRENT_DIR, "../../chroma_storage"))
-# Locate your local SQLite telemetry file path
-DB_PATH: str = os.path.abspath(os.path.join(CURRENT_DIR, "../../database/botany_telemetry.db"))
 
 class BotanicalQueryEngine:
     def __init__(self) -> None:
@@ -29,18 +27,43 @@ class BotanicalQueryEngine:
         self.chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
         self.collection = self.chroma_client.get_collection(name="botanical_knowledge")
 
+    def _get_database_connection(self) -> sqlite3.Connection:
+        """Finds and returns a connection to the SQLite database by checking potential path paths."""
+        # Check inside herb-ai/database/
+        path_opts = [
+            os.path.abspath(os.path.join(CURRENT_DIR, "../../database/botany_telemetry.db")),
+            os.path.abspath(os.path.join(CURRENT_DIR, "../../../database/botany_telemetry.db")),
+            os.path.abspath(os.path.join(os.getcwd(), "database/botany_telemetry.db")),
+            os.path.abspath(os.path.join(os.getcwd(), "herb-ai/database/botany_telemetry.db"))
+        ]
+        
+        for path in path_opts:
+            if os.path.exists(path):
+                # Verify it's a valid database with a plants table
+                try:
+                    conn = sqlite3.connect(path)
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='plants';")
+                    if cursor.fetchone():
+                        return conn
+                    conn.close()
+                except sqlite3.Error:
+                    continue
+                    
+        # Fallback to default path if none exists yet
+        default_path = os.path.abspath(os.path.join(CURRENT_DIR, "../../database/botany_telemetry.db"))
+        os.makedirs(os.path.dirname(default_path), exist_ok=True)
+        return sqlite3.connect(default_path)
+
     def _get_video_summary_context(self) -> str:
         """Queries the local SQL database to summarize what species the camera actually tracked."""
-        if not os.path.exists(DB_PATH):
-            return "No tracking telemetry recorded from active video runs yet."
-        
         try:
-            conn = sqlite3.connect(DB_PATH)
+            conn = self._get_database_connection()
             cursor = conn.cursor()
             
-            # Query the exact unique plants seen and count how many frames they appeared in
+            # Query the exact unique plants seen and find their frame counts
             cursor.execute("""
-                SELECT p.species_name, COUNT(t.id) 
+                SELECT p.species_name, COUNT(t.id), MAX(t.confidence_score)
                 FROM plants p
                 JOIN telemetry t ON p.id = t.plant_id
                 GROUP BY p.species_name
@@ -49,11 +72,12 @@ class BotanicalQueryEngine:
             conn.close()
             
             if not rows:
-                return "The camera stream ran, but zero distinct plant species were verified."
+                return "The camera stream was processed, but no unique target plants have been saved to the tracking tables yet."
                 
-            summary = "Real-Time Video Scan Session Analytics:\n"
+            summary = "REAL-TIME SCANNING SESSION DATA SUMMARY:\n"
+            summary += "You recently ran a video scanning session. Here is what your computer vision system saw:\n"
             for row in rows:
-                summary += f"- Detected '{row[0]}' across {row[1]} frames in this session.\n"
+                summary += f"- Identified '{row[0]}' in the video stream across {row[1]} separate frames, with a maximum confidence score of {row[2]:.2f}.\n"
             return summary
         except Exception as e:
             return f"Could not read session telemetry: {e}"
@@ -79,7 +103,7 @@ class BotanicalQueryEngine:
                 raise RuntimeError(f"Query embedding step failed: {e}")
         return []
 
-    def query_botanical_knowledge(self, user_query: str, n_results: int = 1) -> str:
+    def query_botanical_knowledge(self, user_query: str, n_results: int = 2) -> str:
         """Retrieves semantically close text chunks and uses Gemini to synthesize a grounded answer."""
         try:
             # 1. Gather SQL tracking telemetry context
@@ -95,18 +119,23 @@ class BotanicalQueryEngine:
             )
             
             documents = search_results.get("documents")
-            retrieved_context = documents[0][0] if (documents and documents[0]) else "No relevant context found."
+            retrieved_context = ""
+            if documents and documents[0]:
+                retrieved_context = "\n---\n".join([doc for doc in documents[0] if doc is not None])
             
+            # Refined system prompt explaining exactly how it should answer meta-questions
             system_instruction = (
-                "You are Herb-AI, an expert medical botanical knowledge agent. "
-                "You have access to both the textbook database context AND the actual tracking metrics from the video scan session. "
-                "Answer the question accurately using these two sets of background information."
+                "You are Herb-AI, an expert medical botanical knowledge agent assistant.\n"
+                "You are provided with two streams of reference material:\n"
+                "1. REAL-TIME SCANNING SESSION DATA SUMMARY (Shows what plants were actually seen in the video clip by the user).\n"
+                "2. Scanned Plant Botanical Properties (The dictionary/textbook info about those plants).\n\n"
+                "Use BOTH streams to answer the user's questions completely. If they ask what you saw, reference the video telemetry summary. "
+                "If they ask general medical questions, use the botanical properties context. Always match the reality of what was seen with your knowledge base."
             )
             
-            # 4. Inject both the Video Session Summary AND the Textbook profile information
             prompt = (
-                f"{video_summary}\n"
-                f"Scanned Plant Botanical Properties:\n{retrieved_context}\n\n"
+                f"{video_summary}\n\n"
+                f"Scanned Plant Botanical Properties textbook data:\n{retrieved_context}\n\n"
                 f"User Question: {user_query}"
             )
             
