@@ -29,17 +29,16 @@ class BotanicalQueryEngine:
 
     def _get_database_connection(self) -> sqlite3.Connection:
         """Finds and returns a connection to the SQLite database by checking potential path paths."""
-        # Check inside herb-ai/database/
+        # FIX: Changed file target checks from botany_telemetry.db to telemetry.db to match db_manager.py
         path_opts = [
-            os.path.abspath(os.path.join(CURRENT_DIR, "../../database/botany_telemetry.db")),
-            os.path.abspath(os.path.join(CURRENT_DIR, "../../../database/botany_telemetry.db")),
-            os.path.abspath(os.path.join(os.getcwd(), "database/botany_telemetry.db")),
-            os.path.abspath(os.path.join(os.getcwd(), "herb-ai/database/botany_telemetry.db"))
+            os.path.abspath(os.path.join(CURRENT_DIR, "../../database/telemetry.db")),
+            os.path.abspath(os.path.join(CURRENT_DIR, "../../../database/telemetry.db")),
+            os.path.abspath(os.path.join(os.getcwd(), "database/telemetry.db")),
+            os.path.abspath(os.path.join(os.getcwd(), "herb-ai/database/telemetry.db"))
         ]
         
         for path in path_opts:
             if os.path.exists(path):
-                # Verify it's a valid database with a plants table
                 try:
                     conn = sqlite3.connect(path)
                     cursor = conn.cursor()
@@ -51,7 +50,7 @@ class BotanicalQueryEngine:
                     continue
                     
         # Fallback to default path if none exists yet
-        default_path = os.path.abspath(os.path.join(CURRENT_DIR, "../../database/botany_telemetry.db"))
+        default_path = os.path.abspath(os.path.join(CURRENT_DIR, "../../database/telemetry.db"))
         os.makedirs(os.path.dirname(default_path), exist_ok=True)
         return sqlite3.connect(default_path)
 
