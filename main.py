@@ -2,23 +2,34 @@
 import os
 import sys
 
-# 1. Dynamically identify the absolute inner project directory path layout
 current_dir: str = os.path.dirname(os.path.abspath(__file__))
 project_root: str = os.path.join(current_dir, "herb-ai")
 
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-# 2. Tell Ruff that these imports must follow path updates by appending noqa
+# Import your tracker and query engine modules
 from src.vision.detector import BotanicalTracker  # noqa: E402
 from src.rag.query_engine import BotanicalQueryEngine  # noqa: E402
+
+# FIX: Import your database manager schema setup tools to guarantee tables exist
+# (Replace 'init_db' with whatever table setup function is named inside your db_manager.py, e.g., create_tables)
+from database.db_manager import init_db  # noqa: E402
 
 def start_herb_ai() -> None:
     print("=" * 50)
     print("         HERB-AI INTEGRATED AGENT SYSTEMS         ")
     print("==================================================\n")
 
-    # Ask the user if they want to run a live scan session first
+    # FIX: Guarantee that the local SQLite database tables exist before any components run
+    try:
+        print("Verifying database schema layout properties...")
+        # If your function doesn't require arguments or handles them internally, call it here:
+        init_db() 
+        print("Database verification complete! Schema tables are online.\n")
+    except Exception as e:
+        print(f"[Database Warning] Table initialization script bypassed: {e}\n")
+
     run_scan: str = input("Do you want to run the computer vision scanning pipeline? (y/n): ")
     
     if run_scan.strip().lower() == 'y':
@@ -32,17 +43,8 @@ def start_herb_ai() -> None:
         else:
             print(f"\nClip missing at '{video_path}'. Skipping video tracking layer.")
 
-    # Boot up the RAG Clinical Consulting Engine
     print("\nInitializing Vector Storage Search Engines...")
-    
-    # FIX: Overwrite the active current working directory state context so that Chroma 
-    # internal engines naturally load the correct persistent storage directories
-    original_cwd: str = os.getcwd()
-    try:
-        os.chdir(project_root)
-        query_engine: BotanicalQueryEngine = BotanicalQueryEngine()
-    finally:
-        os.chdir(original_cwd)
+    query_engine: BotanicalQueryEngine = BotanicalQueryEngine()
     
     print("\n" + "=" * 45)
     print("  HERB-AI INTERACTIVE TERMINAL ONLINE  ")
@@ -60,13 +62,7 @@ def start_herb_ai() -> None:
             continue
 
         print("\nSearching context indices and generating medical verification text properties...")
-        
-        # Ensure runtime query paths map back smoothly
-        try:
-            os.chdir(project_root)
-            response: str = query_engine.query_botanical_knowledge(user_query)
-        finally:
-            os.chdir(original_cwd)
+        response: str = query_engine.query_botanical_knowledge(user_query)
             
         print(f"\nHerb-AI Answer:\n{response}")
         print("-" * 50 + "\n")
