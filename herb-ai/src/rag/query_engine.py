@@ -28,30 +28,42 @@ class BotanicalQueryEngine:
         self.collection = self.chroma_client.get_collection(name="botanical_knowledge")
 
     def _get_database_connection(self) -> sqlite3.Connection:
-        """Finds and connects to the definitive absolute database location."""
-        # Force resolution to the exact absolute path inside herb-ai/database/
-        absolute_db_path = os.path.abspath(os.path.join(CURRENT_DIR, "../../database/telemetry.db"))
+        """Adaptive database connector that scans all layout options to find the active database."""
+        # A list of all possible database file names and path locations your system has used
+        possible_filenames = ["telemetry.db", "botany_telemetry.db"]
+        possible_directories = [
+            os.path.abspath(os.path.join(CURRENT_DIR, "../../database")),
+            os.path.abspath(os.path.join(CURRENT_DIR, "../../../database")),
+            os.path.abspath(os.path.join(os.getcwd(), "database")),
+            os.path.abspath(os.path.join(os.getcwd(), "herb-ai/database")),
+            os.getcwd()
+        ]
         
-        if os.path.exists(absolute_db_path):
-            try:
-                conn = sqlite3.connect(absolute_db_path)
-                cursor = conn.cursor()
-                # Verify tables are present inside this specific connection
-                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='plants';")
-                if cursor.fetchone():
-                    return conn
-                conn.close()
-            except sqlite3.Error:
-                pass
+        # Scan every combination to find the database file that ACTUALLY contains data
+        for directory in possible_directories:
+            for filename in possible_filenames:
+                full_path = os.path.join(directory, filename)
+                if os.path.exists(full_path):
+                    try:
+                        conn = sqlite3.connect(full_path)
+                        cursor = conn.cursor()
+                        # Test if the plants table exists and actually has data rows logged
+                        cursor.execute("SELECT COUNT(*) FROM plants;")
+                        # If we reach this line without an error, we found the active database!
+                        return conn
+                    except sqlite3.Error:
+                        # If the table doesn't exist, close connection and keep looking
+                        try:
+                            conn.close()
+                        except:
+                            pass
+                        continue
 
-        # Fallback tracking if execution contexts shift
-        fallback_path = os.path.abspath(os.path.join(os.getcwd(), "herb-ai/database/telemetry.db"))
-        if os.path.exists(fallback_path):
-            return sqlite3.connect(fallback_path)
-
-        # If it still isn't found, connect to the absolute path to let db_manager build it
-        return sqlite3.connect(absolute_db_path)
-
+        # Fallback if no database with data is found: default to the verified layout
+        default_path = os.path.abspath(os.path.join(CURRENT_DIR, "../../database/telemetry.db"))
+        os.makedirs(os.path.dirname(default_path), exist_ok=True)
+        return sqlite3.connect(default_path)
+    
     def _get_video_summary_context(self) -> str:
         """Queries the local SQL database to summarize what species the camera actually tracked."""
         try:
