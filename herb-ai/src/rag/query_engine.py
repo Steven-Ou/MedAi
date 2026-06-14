@@ -9,6 +9,7 @@ from google import genai
 from google.genai import types
 import chromadb
 
+# Ensure project root is accessible for imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
 load_dotenv()
@@ -16,7 +17,7 @@ load_dotenv()
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 CHROMA_DB_DIR: str = os.path.abspath(os.path.join(CURRENT_DIR, "../../chroma_storage"))
 
-# FIX: Explicitly target the definitive database file location inside the database subfolder
+# Targeted definitive absolute file path matching database engine targets
 DB_PATH: str = os.path.abspath(os.path.join(CURRENT_DIR, "../../database/telemetry.db"))
 
 class BotanicalQueryEngine:
@@ -30,7 +31,7 @@ class BotanicalQueryEngine:
         self.collection = self.chroma_client.get_collection(name="botanical_knowledge")
 
     def _get_video_summary_context(self) -> str:
-        """Queries the definitive local SQL database to summarize what species the camera actually tracked."""
+        """Queries the local SQL database to summarize what species the camera actually tracked."""
         if not os.path.exists(DB_PATH):
             return "No tracking telemetry database file found on disk yet."
             
@@ -38,26 +39,26 @@ class BotanicalQueryEngine:
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
             
-            # Query unique plants seen and aggregate their logged frame count telemetry metrics
+            # FIX: Added the missing "BY" keyword back into the GROUP BY clause to prevent syntax errors
             cursor.execute("""
                 SELECT p.species_name, COUNT(t.id), MAX(t.confidence_score)
                 FROM plants p
                 JOIN telemetry t ON p.id = t.plant_id
-                GROUP p.species_name
+                GROUP BY p.species_name
             """)
             rows = cursor.fetchall()
             conn.close()
             
             if not rows:
-                return "The video scan ran, but no data entries are populated inside the tracking tables yet."
+                return "The video scan ran, but no entries are populated inside the tracking telemetry tables yet."
                 
             summary = "REAL-TIME SCANNED VIDEO SESSION TELEMETRY SUMMARY:\n"
             summary += "You recently processed a video file with your computer vision model. Here is exactly what it tracked:\n"
             for row in rows:
-                summary += f"- Identified and tracked the class '{row[0]}' in your video file across {row[1]} frames, with a maximum tracking confidence of {row[2]:.2f}.\n"
+                summary += f"- Identified and tracked the class '{row[0]}' in your video file across {row[1]} frames, with a maximum tracking confidence score of {row[2]:.2f}.\n"
             return summary
         except Exception as e:
-            return f"Could not read session telemetry: {e}"
+            return f"Could not read session telemetry due to database engine execution failure: {e}"
 
     def _get_query_embedding_with_retry(self, text: str, retries: int = 3, delay: float = 2.0) -> List[float]:
         """Generates a query embedding with automatic retry logic to handle temporary 503 spikes."""
