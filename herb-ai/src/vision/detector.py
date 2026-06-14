@@ -44,69 +44,68 @@ class BotanicalTracker:
 
             frame_number += 1
 
-            # FIX: Cast self.model to Any right here to completely hide un-typed internal library signatures from Pylance
+            # Run tracking inference on the current frame
             model_any: Any = self.model
-            results: List[Any] = model_any.track(frame, persist=True, verbose=False)
+            results_list: list[Any] = model_any.track(frame, persist=True, verbose=False)
 
-            # Check if boxes were detected with valid tracking IDs
-            if results and results[0].boxes is not None and results[0].boxes.id is not None:
-                boxes_obj = results[0].boxes
+            # FIX: Make detection parsing robust enough to track items even if .id is None
+            if results_list and results_list[0].boxes is not None:
+                boxes_obj = results_list[0].boxes
                 
-                # Explicitly cast items to clear up the untyped multi-layer duck typing layers
-                boxes: np.ndarray[Any, Any] = cast(np.ndarray[Any, Any], boxes_obj.xyxy.numpy())
-                track_ids: np.ndarray[Any, Any] = cast(np.ndarray[Any, Any], boxes_obj.id.numpy().astype(int))
-                confidences: np.ndarray[Any, Any] = cast(np.ndarray[Any, Any], boxes_obj.conf.numpy())
-                class_ids: np.ndarray[Any, Any] = cast(np.ndarray[Any, Any], boxes_obj.cls.numpy().astype(int))
-
-                # Fetch class name map from model metadata safely (removed redundant cast)
-                names: Dict[int, str] = self.model.names
-                rebuild_vector_store: bool = False
-
-                for b, t_id, c, cls_id in zip(boxes, track_ids, confidences, class_ids):
-                    bbox: np.ndarray[Any, Any] = cast(np.ndarray[Any, Any], b)
-                    track_id: int = int(t_id)
-                    conf: float = float(c)
+                # Check if we have boxes to iterate over
+                if len(boxes_obj) > 0:
+                    boxes: np.ndarray[Any, Any] = boxes_obj.xyxy.cpu().numpy()
+                    confidences: np.ndarray[Any, Any] = boxes_obj.conf.cpu().numpy()
+                    class_ids: np.ndarray[Any, Any] = boxes_obj.cls.cpu().numpy().astype(int)
                     
-                    species_name: str = names[int(cls_id)]
+                    # Fallback to an array of fake unique IDs if tracking engine didn't assign them
+                    if boxes_obj.id is not None:
+                        track_ids: np.ndarray[Any, Any] = boxes_obj.id.cpu().numpy().astype(int)
+                    else:
+                        # Use class ID as a temporary fallback tracking identifier
+                        track_ids = class_ids
 
-                    # If this is a brand new track ID unseen by the system, log it to SQL and RAG
-                    if track_id not in self.track_to_db_map:
-                        db_plant_id: int = add_new_plant(species_name)
-                        self.track_to_db_map[track_id] = db_plant_id
-                        print(f"[NEW ENTITY] Detected {species_name} - Logged to Database with Plant ID: {db_plant_id}")
+                    names: Dict[int, str] = self.model.names
+                    rebuild_vector_store: bool = False
+
+                    for b, t_id, c, cls_id in zip(boxes, track_ids, confidences, class_ids):
+                        track_id: int = int(t_id)
+                        conf: float = float(c)
+                        species_name: str = names[int(cls_id)]
+
+                        # If this track ID is new to this application run, save it
+                        if track_id not in self.track_to_db_map:
+                            db_plant_id: int = add_new_plant(species_name)
+                            self.track_to_db_map[track_id] = db_plant_id
+                            print(f"[NEW ENTITY LOGGED] Detected: {species_name} -> Saved to database.")
+                            
+                            was_generated: bool = self.knowledge_gen.generate_profile_if_new(species_name)
+                            if was_generated:
+                                rebuild_vector_store = True
                         
-                        was_generated: bool = self.knowledge_gen.generate_profile_if_new(species_name)
-                        if was_generated:
-                            rebuild_vector_store = True
-                    
-                    # Retrieve the assigned persistent database primary key
-                    assigned_plant_id: int = self.track_to_db_map[track_id]
+                        assigned_plant_id: int = self.track_to_db_map[track_id]
 
-                    # FIX: Explicitly convert the bounding box to a pure Tuple[float, float, float, float]
-                    # This satisfies the strict tuple schema contract required by insert_telemetry
-                    bbox_tuple: Tuple[float, float, float, float] = (
-                        float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])
-                    )
+                        bbox_tuple: Tuple[float, float, float, float] = (
+                            float(b[0]), float(b[1]), float(b[2]), float(b[3])
+                        )
 
-                    # Insert spatial metrics and boundary coordinates for this specific frame
-                    insert_telemetry(
-                        plant_id=assigned_plant_id,
-                        frame_number=frame_number,
-                        bbox=bbox_tuple,
-                        confidence_score=conf
-                    )
+                        # Write tracking data directly to the telemetry database
+                        insert_telemetry(
+                            plant_id=assigned_plant_id,
+                            frame_number=frame_number,
+                            bbox=bbox_tuple,
+                            confidence_score=conf
+                        )
 
-                    # Optional UI: Draw bounding boxes and labels on screen
-                    if show_live_feed:
-                        xmin, ymin, xmax, ymax = map(int, bbox)
-                        cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
-                        label: str = f"ID {assigned_plant_id}: {species_name} ({conf:.2f})"
-                        cv2.putText(frame, label, (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                        if show_live_feed:
+                            xmin, ymin, xmax, ymax = int(b[0]), int(b[1]), int(b[2]), int(b[3])
+                            cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
+                            label: str = f"ID {assigned_plant_id}: {species_name} ({conf:.2f})"
+                            cv2.putText(frame, label, (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-                if rebuild_vector_store:
-                    print("New knowledge base profiles detected. Updating Chroma vector index storage...")
-                    self.vector_engine.build_vector_store()
-                    print("Vector database sync complete!")
+                    if rebuild_vector_store:
+                        print("Updating Chroma vector store indexing structures...")
+                        self.vector_engine.build_vector_store()
 
             # Display window frame if active
             if show_live_feed:
