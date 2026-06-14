@@ -9,13 +9,15 @@ from google import genai
 from google.genai import types
 import chromadb
 
-# Ensure project root is accessible for imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
 load_dotenv()
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 CHROMA_DB_DIR: str = os.path.abspath(os.path.join(CURRENT_DIR, "../../chroma_storage"))
+
+# FIX: Explicitly target the definitive database file location inside the database subfolder
+DB_PATH: str = os.path.abspath(os.path.join(CURRENT_DIR, "../../database/telemetry.db"))
 
 class BotanicalQueryEngine:
     def __init__(self) -> None:
@@ -27,66 +29,32 @@ class BotanicalQueryEngine:
         self.chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
         self.collection = self.chroma_client.get_collection(name="botanical_knowledge")
 
-    def _get_database_connection(self) -> sqlite3.Connection:
-        """Adaptive database connector that scans all layout options to find the active database."""
-        # A list of all possible database file names and path locations your system has used
-        possible_filenames = ["telemetry.db", "botany_telemetry.db"]
-        possible_directories = [
-            os.path.abspath(os.path.join(CURRENT_DIR, "../../database")),
-            os.path.abspath(os.path.join(CURRENT_DIR, "../../../database")),
-            os.path.abspath(os.path.join(os.getcwd(), "database")),
-            os.path.abspath(os.path.join(os.getcwd(), "herb-ai/database")),
-            os.getcwd()
-        ]
-        
-        # Scan every combination to find the database file that ACTUALLY contains data
-        for directory in possible_directories:
-            for filename in possible_filenames:
-                full_path = os.path.join(directory, filename)
-                if os.path.exists(full_path):
-                    try:
-                        conn = sqlite3.connect(full_path)
-                        cursor = conn.cursor()
-                        # Test if the plants table exists and actually has data rows logged
-                        cursor.execute("SELECT COUNT(*) FROM plants;")
-                        # If we reach this line without an error, we found the active database!
-                        return conn
-                    except sqlite3.Error:
-                        # If the table doesn't exist, close connection and keep looking
-                        try:
-                            conn.close()
-                        except:
-                            pass
-                        continue
-
-        # Fallback if no database with data is found: default to the verified layout
-        default_path = os.path.abspath(os.path.join(CURRENT_DIR, "../../database/telemetry.db"))
-        os.makedirs(os.path.dirname(default_path), exist_ok=True)
-        return sqlite3.connect(default_path)
-    
     def _get_video_summary_context(self) -> str:
-        """Queries the local SQL database to summarize what species the camera actually tracked."""
+        """Queries the definitive local SQL database to summarize what species the camera actually tracked."""
+        if not os.path.exists(DB_PATH):
+            return "No tracking telemetry database file found on disk yet."
+            
         try:
-            conn = self._get_database_connection()
+            conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
             
-            # Query the exact unique plants seen and find their frame counts
+            # Query unique plants seen and aggregate their logged frame count telemetry metrics
             cursor.execute("""
                 SELECT p.species_name, COUNT(t.id), MAX(t.confidence_score)
                 FROM plants p
                 JOIN telemetry t ON p.id = t.plant_id
-                GROUP BY p.species_name
+                GROUP p.species_name
             """)
             rows = cursor.fetchall()
             conn.close()
             
             if not rows:
-                return "The camera stream was processed, but no unique target plants have been saved to the tracking tables yet."
+                return "The video scan ran, but no data entries are populated inside the tracking tables yet."
                 
-            summary = "REAL-TIME SCANNING SESSION DATA SUMMARY:\n"
-            summary += "You recently ran a video scanning session. Here is what your computer vision system saw:\n"
+            summary = "REAL-TIME SCANNED VIDEO SESSION TELEMETRY SUMMARY:\n"
+            summary += "You recently processed a video file with your computer vision model. Here is exactly what it tracked:\n"
             for row in rows:
-                summary += f"- Identified '{row[0]}' in the video stream across {row[1]} separate frames, with a maximum confidence score of {row[2]:.2f}.\n"
+                summary += f"- Identified and tracked the class '{row[0]}' in your video file across {row[1]} frames, with a maximum tracking confidence of {row[2]:.2f}.\n"
             return summary
         except Exception as e:
             return f"Could not read session telemetry: {e}"
@@ -115,13 +83,9 @@ class BotanicalQueryEngine:
     def query_botanical_knowledge(self, user_query: str, n_results: int = 2) -> str:
         """Retrieves semantically close text chunks and uses Gemini to synthesize a grounded answer."""
         try:
-            # 1. Gather SQL tracking telemetry context
             video_summary = self._get_video_summary_context()
-            
-            # 2. Convert user question into a vector coordinate
             query_vector = self._get_query_embedding_with_retry(user_query)
             
-            # 3. Search Chroma for matching profiles
             search_results = self.collection.query(
                 query_embeddings=[query_vector],
                 n_results=n_results
@@ -132,14 +96,12 @@ class BotanicalQueryEngine:
             if documents and documents[0]:
                 retrieved_context = "\n---\n".join([doc for doc in documents[0] if doc is not None])
             
-            # Refined system prompt explaining exactly how it should answer meta-questions
             system_instruction = (
                 "You are Herb-AI, an expert medical botanical knowledge agent assistant.\n"
                 "You are provided with two streams of reference material:\n"
-                "1. REAL-TIME SCANNING SESSION DATA SUMMARY (Shows what plants were actually seen in the video clip by the user).\n"
-                "2. Scanned Plant Botanical Properties (The dictionary/textbook info about those plants).\n\n"
-                "Use BOTH streams to answer the user's questions completely. If they ask what you saw, reference the video telemetry summary. "
-                "If they ask general medical questions, use the botanical properties context. Always match the reality of what was seen with your knowledge base."
+                "1. REAL-TIME SCANNED VIDEO SESSION TELEMETRY SUMMARY (Shows what plants were seen in the video clip).\n"
+                "2. Scanned Plant Botanical Properties textbook data (The textbook properties details about those plants).\n\n"
+                "Use BOTH streams to accurately answer the user's questions completely. If they ask what you saw, directly reference your video telemetry summary data points."
             )
             
             prompt = (
