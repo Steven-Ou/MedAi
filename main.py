@@ -34,7 +34,7 @@ def start_herb_ai() -> None:
     
     if run_scan.strip().lower() == 'y':
         video_path: str = os.path.join(project_root, "data/processed/sample_garden_walk.mp4")
-        model_path: str = os.path.join(project_root, "yolov8n.pt")
+        model_path = os.path.join(project_root, "weights/best.pt")        
         
         if os.path.exists(video_path):
             print(f"\nInitializing real-time plant tracking on: {video_path}")
