@@ -1,92 +1,83 @@
-import sqlite3
+# cspell:disable
 import os
-from contextlib import contextmanager
-from typing import Generator, Tuple, Optional
+import sqlite3
+from typing import Tuple, Any
 
-DB_PATH: str = os.path.join(os.path.dirname(__file__), "telemetry.db")
+# FIX: Force DB_PATH to resolve as an absolute path relative to this file's location
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH: str = os.path.abspath(os.path.join(CURRENT_DIR, "telemetry.db"))
 
-@contextmanager
-def get_db_connection() -> Generator[sqlite3.Connection, None, None]:
-    """Context manager to handle safe database connections and closures."""
-    conn: sqlite3.Connection = sqlite3.connect(DB_PATH)
-    conn.execute("PRAGMA foreign_keys = ON;")
-    try:
-        yield conn
-    finally:
-        conn.close()
 
 def init_db() -> None:
-    """Initializes the relational database schema for video tracking telemetry."""
-    with get_db_connection() as conn:
-        cursor: sqlite3.Cursor = conn.cursor()
-        
-        # Table 1: Unique tracked plant entities
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS tracked_plants (
-                plant_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                species_name TEXT NOT NULL,
-                first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        ''')
+    """Initializes the SQLite database and ensures the schema layout is strictly structured."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
 
-        # Table 2: Per-frame visual telemetry
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS video_telemetry (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                plant_id INTEGER,
-                frame_number INTEGER NOT NULL,
-                bbox_xmin REAL NOT NULL,
-                bbox_ymin REAL NOT NULL,
-                bbox_xmax REAL NOT NULL,
-                bbox_ymax REAL NOT NULL,
-                confidence_score REAL NOT NULL,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (plant_id) REFERENCES tracked_plants(plant_id) ON DELETE CASCADE
-            );
-        ''')
-        conn.commit()
+    # Structure the target plants tracking directory index
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS plants (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            species_name TEXT NOT NULL UNIQUE
+        );
+    """)
+
+    # Structure spatial boundary logs and confidence thresholds
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS telemetry (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            plant_id INTEGER NOT NULL,
+            frame_number INTEGER NOT NULL,
+            xmin REAL NOT NULL,
+            ymin REAL NOT NULL,
+            xmax REAL NOT NULL,
+            ymax REAL NOT NULL,
+            confidence_score REAL NOT NULL,
+            FOREIGN KEY (plant_id) REFERENCES plants(id)
+        );
+    """)
+
+    conn.commit()
+    conn.close()
     print(f"Database successfully initialized at: {DB_PATH}")
 
+
 def add_new_plant(species_name: str) -> int:
-    """Inserts a newly detected unique plant entity and returns its ID."""
-    with get_db_connection() as conn:
-        cursor: sqlite3.Cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO tracked_plants (species_name) 
-            VALUES (?);
-        ''', (species_name,))
-        conn.commit()
-        last_id: Optional[int] = cursor.lastrowid
-        return last_id if last_id is not None else 0
+    """Inserts a new plant species entry if it doesn't exist and returns its primary key."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
 
-def update_plant_last_seen(plant_id: int) -> None:
-    """Updates the last_seen timestamp when a tracking ID is active in a frame."""
-    with get_db_connection() as conn:
-        cursor: sqlite3.Cursor = conn.cursor()
-        cursor.execute('''
-            UPDATE tracked_plants 
-            SET last_seen = CURRENT_TIMESTAMP 
-            WHERE plant_id = ?;
-        ''', (plant_id,))
-        conn.commit()
+    cursor.execute("SELECT id FROM plants WHERE species_name = ?;", (species_name,))
+    row = cursor.fetchone()
 
-def insert_telemetry(plant_id: int, frame_number: int, bbox: Tuple[float, float, float, float], confidence_score: float) -> None:
-    """
-    Logs spatial coordinates for a plant track at a specific video frame.
-    bbox expected format: (xmin, ymin, xmax, ymax)
-    """
+    if row:
+        plant_id = int(row[0])
+    else:
+        cursor.execute("INSERT INTO plants (species_name) VALUES (?);", (species_name,))
+        conn.commit()
+        plant_id = int(cursor.lastrowid)
+
+    conn.close()
+    return plant_id
+
+
+def insert_telemetry(
+    plant_id: int,
+    frame_number: int,
+    bbox: Tuple[float, float, float, float],
+    confidence_score: float,
+) -> None:
+    """Logs raw frame tracking metrics and spatial coordinates directly into SQLite tables."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
     xmin, ymin, xmax, ymax = bbox
-    with get_db_connection() as conn:
-        cursor: sqlite3.Cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO video_telemetry (plant_id, frame_number, bbox_xmin, bbox_ymin, bbox_xmax, bbox_ymax, confidence_score)
-            VALUES (?, ?, ?, ?, ?, ?, ?);
-        ''', (plant_id, frame_number, float(xmin), float(ymin), float(xmax), float(ymax), confidence_score))
-        conn.commit()
-    
-    # Keeping timestamps fresh as frames process
-    update_plant_last_seen(plant_id)
+    cursor.execute(
+        """
+        INSERT INTO telemetry (plant_id, frame_number, xmin, ymin, xmax, ymax, confidence_score)
+        VALUES (?, ?, ?, ?, ?, ?, ?);
+    """,
+        (plant_id, frame_number, xmin, ymin, xmax, ymax, confidence_score),
+    )
 
-if __name__ == "__main__":
-    init_db()
+    conn.commit()
+    conn.close()
