@@ -13,7 +13,7 @@ from src.rag.know_gen import AutoKnowledgeGenerator
 from src.rag.vector_store import ProductionGeminiEngine
 
 class BotanicalTracker:
-    def __init__(self, model_path: str = "yolov8n.pt") -> None:
+    def __init__(self, model_path: str = "/Users/steve/CS/MedAi/herb-ai/research/herb_runs/botany_yolo/weights/best.pt") -> None:
         """Initializes the YOLO vision model and links up the automated RAG engines."""
         print(f"Loading Computer Vision model: {model_path}...")
         self.model = YOLO(model_path)
