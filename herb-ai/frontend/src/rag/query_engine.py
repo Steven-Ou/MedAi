@@ -6,6 +6,7 @@ import time
 import sqlite3
 from typing import List, Any
 from dotenv import load_dotenv
+from sentence_transformers import SentenceTransformer
 import httpx
 import chromadb
 
@@ -93,16 +94,14 @@ class BotanicalQueryEngine:
 
         return summary
 
+    model = SentenceTransformer('all-MiniLM-L6-v2')
     def _get_query_embedding_with_retry(self, text: str) -> List[float]:
         """Generates a query embedding using local Ollama."""
-        url = "http://localhost:11434/api/embeddings"
-        payload = {"model": "nomic-embed-text", "prompt": text}
-
-        with httpx.Client() as client:
-            response = client.post(url, json=payload, timeout=30.0)
-            if response.status_code == 200:
-                return response.json().get("embedding", [])
-        return []
+        try:
+            return self.model.encode(text).tolist()
+        except Exception as e:
+            print(f"Embedding error: {e}")
+            return []
 
     def query_botanical_knowledge(self, user_query: str, n_results: int = 6) -> str:
         """Retrieves textbook reference vectors and synthesizes an answer using local Ollama."""
