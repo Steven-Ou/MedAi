@@ -177,7 +177,7 @@ def upload_image_inference(file: UploadFile = File(...)):
     image = Image.open(io.BytesIO(contents))
 
     # 1. Local YOLO Inference (Fastest Edge)
-    temp_target = "temp_inference_target.jpg"
+    temp_target = "/tmp/temp_inference_target.jpg"
     image.save(temp_target)
 
     results = model(temp_target, verbose=False)
