@@ -23,17 +23,11 @@ class LocalVectorStoreEngine:
 
     def _get_local_embedding(self, text: str) -> List[float]:
         """Generates embedding using local Ollama nomic-embed-text."""
-        url = "http://localhost:11434/api/embeddings"
-        payload = {"model": "nomic-embed-text", "prompt": text}
-
         try:
-            with httpx.Client() as client:
-                response = client.post(url, json=payload, timeout=30.0)
-                if response.status_code == 200:
-                    return response.json().get("embedding", [])
+            return self.model.encode(text).tolist()
         except Exception as e:
             print(f"Local Embedding Error: {e}")
-        return []
+            return []
 
     def build_vector_store(self):
         """Rebuilds the Chroma vector store from local knowledge files."""
