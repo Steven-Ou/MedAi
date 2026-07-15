@@ -1,0 +1,26 @@
+matplotlib
+seaborn
+pandas
+
+# Computer Vision
+ultralytics
+opencv-python
+
+# Vector DB & LLM Orchestration
+chromadb
+langchain
+langchain-community
+langchain-text-splitters
+langchain-google-genai
+
+# Database Utilities
+psycopg2-binary
+
+google-generativeai
+python-dotenv
+
+fastapi
+uvicorn
+python-multipart
+
+sentence-transformers

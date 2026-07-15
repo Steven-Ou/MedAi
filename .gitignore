@@ -1,0 +1,37 @@
+# Virtual Environments (Matches anywhere in the repository)
+.venv/
+**/__pycache__/
+*.pyc
+
+# Data and Datasets
+data/
+**/data/
+research/data/
+
+# Databases & Vector Stores
+*.db
+*.sqlite
+**/database/telemetry.db
+**/chroma_storage/
+
+# Environment and System
+.env
+.ipynb_checkpoints/
+
+.DS_Store
+
+node_modules
+
+# Ignore YOLOv8 Training Runs and Model Weights
+**/herb_runs/
+**/runs/
+*.pt
+
+**/node_modules/
+**/.venv/
+**/venv/
+**/__pycache__/
+.DS_Storeherb-ai/best.pt
+herb-ai/best.pt
+herb-ai/best.pt
+herb-ai/research
