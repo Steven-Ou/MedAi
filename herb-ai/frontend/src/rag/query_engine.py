@@ -94,7 +94,8 @@ class BotanicalQueryEngine:
 
         return summary
 
-    model = SentenceTransformer('all-MiniLM-L6-v2')
+    model = SentenceTransformer("all-MiniLM-L6-v2")
+
     def _get_query_embedding_with_retry(self, text: str) -> List[float]:
         """Generates a query embedding using local Ollama."""
         try:
@@ -151,7 +152,7 @@ class BotanicalQueryEngine:
             }
             print("🔄 Querying local Ollama engine...")
             with httpx.Client() as client:
-                response = client.post(ollama_url, json=payload, timeout=120.0)
+                response = client.post(ollama_url, json=payload, timeout=300.0)
                 if response.status_code == 200:
                     answer = response.json().get("response", "").strip()
 

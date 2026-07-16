@@ -58,7 +58,7 @@ class AutoKnowledgeGenerator:
         try:
             # We set a high timeout (120s) because local generation can take a minute on slower hardware
             with httpx.Client() as client:
-                response = client.post(self.ollama_url, json=payload, timeout=120.0)
+                response = client.post(self.ollama_url, json=payload, timeout=300.0)
 
                 if response.status_code == 200:
                     response_text = response.json().get("response", "").strip()
