@@ -24,3 +24,6 @@ uvicorn
 python-multipart
 
 sentence-transformers
+
+
+huggingface_hub

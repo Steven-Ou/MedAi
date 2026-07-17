@@ -1,8 +1,8 @@
 # herb-ai/src/rag/know_gen.py
 # cspell:disable
 import os
+from huggingface_hub import InferenceClient
 import sys
-import httpx
 from dotenv import load_dotenv
 
 # Ensure project root is accessible for imports
@@ -21,14 +21,19 @@ os.makedirs(KNOWLEDGE_BASE_DIR, exist_ok=True)
 
 
 class AutoKnowledgeGenerator:
-    def __init__(self, model_name="llama3.2"):
-        # You can change 'llama3' to a smaller model here if it's lagging
+    def __init__(self, model_name="meta-llama/Llama-3.2-1B-Instruct"):
+        # We swapped the model name to the Hugging Face repo ID
         self.model_name = model_name
         self.kb_dir = KNOWLEDGE_BASE_DIR
-        self.ollama_url = "http://localhost:11434/api/generate"
+        
+        # Initialize the serverless Hugging Face client
+        self.client = InferenceClient(
+            provider="hf-inference",
+            api_key=os.getenv("HF_TOKEN")
+        )
 
     def generate_profile_if_new(self, plant_name: str) -> bool:
-        """Generates a text profile for discovered herbs using local Ollama."""
+        """Generates a text profile for discovered herbs using Hugging Face."""
         os.makedirs(self.kb_dir, exist_ok=True)
         file_filename = f"{plant_name.lower().replace(' ', '_')}.txt"
         target_path = os.path.join(self.kb_dir, file_filename)
@@ -40,7 +45,7 @@ class AutoKnowledgeGenerator:
             return False
 
         print(
-            f"New plant discovered: '{plant_name}'! Generating medical and botanical background using Ollama ({self.model_name})..."
+            f"New plant discovered: '{plant_name}'! Generating medical and botanical background using Hugging Face ({self.model_name})..."
         )
 
         prompt = (
@@ -53,28 +58,31 @@ class AutoKnowledgeGenerator:
             f"Keep it concise, accurate, and professional."
         )
 
-        payload = {"model": self.model_name, "prompt": prompt, "stream": False}
+        # Format the prompt for the Chat API
+        messages = [{"role": "user", "content": prompt}]
 
         try:
-            # We set a high timeout (120s) because local generation can take a minute on slower hardware
-            with httpx.Client() as client:
-                response = client.post(self.ollama_url, json=payload, timeout=300.0)
+            # Replaced the local httpx/Ollama call with the Hugging Face call
+            completion = self.client.chat.completions.create(
+                model=self.model_name, 
+                messages=messages, 
+                max_tokens=512 # This strictly fixes the 18-token cutoff!
+            )
+            
+            response_text = completion.choices[0].message.content.strip()
 
-                if response.status_code == 200:
-                    response_text = response.json().get("response", "").strip()
-
-                    if response_text:
-                        with open(target_path, "w", encoding="utf-8") as f:
-                            f.write(response_text)
-                        print(
-                            f"Successfully saved new knowledge base file to: {target_path}"
-                        )
-                        return True
-                else:
-                    print(f"❌ Ollama API Error: Status {response.status_code}")
+            if response_text:
+                with open(target_path, "w", encoding="utf-8") as f:
+                    f.write(response_text)
+                print(
+                    f"Successfully saved new knowledge base file to: {target_path}"
+                )
+                return True
+            else:
+                print(f"❌ Hugging Face API Error: Empty response received.")
 
         except Exception as e:
-            print(f"❌ Local generation failure via Ollama: {e}")
+            print(f"❌ Remote generation failure via Hugging Face API: {e}")
 
         return False
 
