@@ -15,8 +15,10 @@ PROJECT_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, "../../"))
 
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
-    
-KNOWLEDGE_BASE_DIR = os.path.abspath(os.path.join(PROJECT_ROOT, "../data/knowledge_base"))
+
+KNOWLEDGE_BASE_DIR = os.path.abspath(
+    os.path.join(PROJECT_ROOT, "../data/knowledge_base")
+)
 os.makedirs(KNOWLEDGE_BASE_DIR, exist_ok=True)
 
 
@@ -25,11 +27,10 @@ class AutoKnowledgeGenerator:
         # We swapped the model name to the Hugging Face repo ID
         self.model_name = model_name
         self.kb_dir = KNOWLEDGE_BASE_DIR
-        
+
         # Initialize the serverless Hugging Face client
         self.client = InferenceClient(
-            provider="hf-inference",
-            api_key=os.getenv("HF_TOKEN")
+            model=self.model_name, token=os.getenv("HF_TOKEN")
         )
 
     def generate_profile_if_new(self, plant_name: str) -> bool:
@@ -64,19 +65,17 @@ class AutoKnowledgeGenerator:
         try:
             # Replaced the local httpx/Ollama call with the Hugging Face call
             completion = self.client.chat.completions.create(
-                model=self.model_name, 
-                messages=messages, 
-                max_tokens=512 # This strictly fixes the 18-token cutoff!
+                model=self.model_name,
+                messages=messages,
+                max_tokens=512,  # This strictly fixes the 18-token cutoff!
             )
-            
+
             response_text = completion.choices[0].message.content.strip()
 
             if response_text:
                 with open(target_path, "w", encoding="utf-8") as f:
                     f.write(response_text)
-                print(
-                    f"Successfully saved new knowledge base file to: {target_path}"
-                )
+                print(f"Successfully saved new knowledge base file to: {target_path}")
                 return True
             else:
                 print(f"❌ Hugging Face API Error: Empty response received.")
