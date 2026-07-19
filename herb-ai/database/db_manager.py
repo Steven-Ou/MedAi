@@ -36,6 +36,15 @@ def init_db() -> None:
         );
     """)
 
+    # NEW: Cache table to save Ollama's long response times
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS ai_cache (
+            query_text TEXT PRIMARY KEY,
+            ai_response TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+
     conn.commit()
     conn.close()
     print(f"Database successfully initialized at: {DB_PATH}")
@@ -79,5 +88,31 @@ def insert_telemetry(
         (plant_id, frame_number, xmin, ymin, xmax, ymax, confidence_score),
     )
 
+    conn.commit()
+    conn.close()
+
+# --- NEW CACHING FUNCTIONS ---
+
+def get_cached_response(query_text: str) -> str | None:
+    """Checks if the exact query has been answered before."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT ai_response FROM ai_cache WHERE query_text = ?;", (query_text,))
+        row = cursor.fetchone()
+        conn.close()
+        return row[0] if row else None
+    except sqlite3.OperationalError:
+        # Failsafe if the table hasn't been created yet
+        return None
+
+def save_to_cache(query_text: str, ai_response: str) -> None:
+    """Saves a successful Ollama response to the database."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT OR REPLACE INTO ai_cache (query_text, ai_response) VALUES (?, ?);",
+        (query_text, ai_response)
+    )
     conn.commit()
     conn.close()
