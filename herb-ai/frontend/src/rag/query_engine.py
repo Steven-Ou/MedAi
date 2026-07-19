@@ -13,6 +13,9 @@ import chromadb
 # Ensure project root is accessible for imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 
+# Import the new cache functions from your db_manager
+from database.db_manager import get_cached_response, save_to_cache
+
 load_dotenv()
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -107,12 +110,19 @@ class BotanicalQueryEngine:
     def query_botanical_knowledge(self, user_query: str, n_results: int = 6) -> str:
         """Retrieves textbook reference vectors and synthesizes an answer using local Ollama."""
         try:
-            # Add user query to history
+            # 1. Add user query to history
             self.chat_history.append(f"User: {user_query}")
 
-            session_context = self._get_unified_session_context()
+            # 2. CHECK CACHE FIRST (Speed Optimization)
+            cached_answer = get_cached_response(user_query)
+            if cached_answer:
+                print("⚡ Cache hit! Returning saved answer instantly.")
+                self.chat_history.append(f"Herb-AI: {cached_answer}")
+                return cached_answer
 
-            # if you want this to be 100% offline, you'd need a local embedding model like 'nomic-embed-text'
+            # 3. IF NO CACHE: Proceed with full vector search and generation
+            print("🔄 Cache miss. Proceeding with vector search and Ollama generation...")
+            session_context = self._get_unified_session_context()
             query_vector = self._get_query_embedding_with_retry(user_query)
 
             search_results = self.collection.query(
@@ -150,7 +160,7 @@ class BotanicalQueryEngine:
                 "stream": False,
                 "options": {"temperature": 0.3},
             }
-            print("🔄 Querying local Ollama engine...")
+            
             with httpx.Client() as client:
                 response = client.post(ollama_url, json=payload, timeout=300.0)
                 if response.status_code == 200:
@@ -158,6 +168,10 @@ class BotanicalQueryEngine:
 
                     # Add AI answer to history
                     self.chat_history.append(f"Herb-AI: {answer}")
+                    
+                    # 4. SAVE TO CACHE FOR NEXT TIME
+                    save_to_cache(user_query, answer)
+                    print("💾 Saved new answer to database cache.")
 
                     return answer
                 else:
