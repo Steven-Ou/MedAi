@@ -27,3 +27,5 @@ sentence-transformers
 
 
 huggingface_hub
+
+requests
