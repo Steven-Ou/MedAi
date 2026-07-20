@@ -31,7 +31,5 @@ node_modules
 **/.venv/
 **/venv/
 **/__pycache__/
-.DS_Storeherb-ai/best.pt
-herb-ai/best.pt
-herb-ai/best.pt
+
 herb-ai/research
