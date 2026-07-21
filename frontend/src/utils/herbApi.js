@@ -1,7 +1,6 @@
 // src/utils/herbApi.js
 
-const BASE_URL = 'https://steveo223-herb-ai-backend.hf.space';
-
+const BASE_URL = 'http://localhost:7860';
 /**
  * Fetches real-time structured plant metrics logged into the SQLite tables.
  * @returns {Promise<Array>} List of detected plant objects

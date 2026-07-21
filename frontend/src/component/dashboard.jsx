@@ -1,5 +1,10 @@
 // frontend/src/component/dashboard.jsx
 import React, { useState, useEffect, useRef } from "react";
+import {
+  fetchDetectedPlants,
+  triggerVisionScan,
+  askBotanicalQuestion,
+} from "../utils/herbApi";
 
 export default function HerbAiDashboard() {
   const [telemetry, setTelemetry] = useState([]);
@@ -7,7 +12,6 @@ export default function HerbAiDashboard() {
   const [messages, setMessages] = useState([]);
   const [inputQuery, setInputQuery] = useState("");
 
-  // NEW: State to track if the backend is actually alive
   const [apiOnline, setApiOnline] = useState(false);
   const [bgColor, setBgColor] = useState("#eef4fa");
   const [videoSrc, setVideoSrc] = useState(null);
@@ -16,17 +20,18 @@ export default function HerbAiDashboard() {
 
   const fetchTelemetry = async () => {
     try {
-      const res = await fetch("https://steveo223-herb-ai-backend.hf.space/api/telemetry");
-      if (res.ok) {
-        const json = await res.json();
-        setTelemetry(json.data);
-        setApiOnline(true); // Backend answered!
+      // REPLACED RAW FETCH WITH WRAPPER
+      const data = await fetchDetectedPlants();
+      if (data) {
+        // Assuming your wrapper returns the JSON payload directly
+        setTelemetry(data.data || data);
+        setApiOnline(true);
       } else {
         setApiOnline(false);
       }
     } catch (err) {
       console.error("Failed fetching database telemetry strings:", err);
-      setApiOnline(false); // Connection refused
+      setApiOnline(false);
     }
   };
 
@@ -59,11 +64,16 @@ export default function HerbAiDashboard() {
       ]);
       try {
         const formData = new FormData();
-        formData.append("file", file); // Fixed: backend maps file binary stream directly
-        const res = await fetch("https://steveo223-herb-ai-backend.hf.space/api/upload-image",{
-          method: "POST",
-          body: formData,
-        });
+        formData.append("file", file);
+
+        // NOTE: You still need to create an uploadImage wrapper in herbApi.js for this
+        const res = await fetch(
+          "https://steveo223-herb-ai-backend.hf.space/api/upload-image",
+          {
+            method: "POST",
+            body: formData,
+          },
+        );
         const data = await res.json();
 
         setMessages((prev) => [
@@ -89,7 +99,8 @@ export default function HerbAiDashboard() {
     setIsScanning(true);
     if (videoRef.current) videoRef.current.play();
     try {
-      await fetch("https://steveo223-herb-ai-backend.hf.space/api/scan", { method: "POST" });
+      // REPLACED RAW FETCH WITH WRAPPER
+      await triggerVisionScan();
     } catch (err) {
       console.error("Failed reaching scan ports.");
     }
@@ -97,53 +108,44 @@ export default function HerbAiDashboard() {
   };
 
   const handleSendMessage = async (e) => {
-    e.preventDefault(); // Always stop default form submission FIRST
-    
+    e.preventDefault();
+
     if (!inputQuery.trim()) return;
 
-    const userMessageText = inputQuery; // Save it before clearing
-    setInputQuery(""); // Clear the input box instantly for a snappy UI
+    const userMessageText = inputQuery;
+    setInputQuery("");
 
-    // 1. Add the User's Message AND the "Thinking" Message in ONE state update
     setMessages((prev) => [
       ...prev,
       { role: "user", text: userMessageText },
-      { 
-        role: "agent", 
+      {
+        role: "agent",
         text: "🤖 Herb-AI: Starting analysis pipeline...\n📚 Retrieving botanical knowledge...\n🔄 Querying local Ollama engine...",
-        isTyping: true // Optional flag if you want to style the loading text differently
-      }
+        isTyping: true,
+      },
     ]);
 
     try {
-      // 2. Make the API Call
-      const res = await fetch("https://steveo223-herb-ai-backend.hf.space/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: userMessageText }),
-      });
-      
-      const data = await res.json();
+      // REPLACED RAW FETCH WITH WRAPPER
+      const data = await askBotanicalQuestion(userMessageText);
 
-      // 3. Overwrite ONLY the last "Thinking" message with the real answer
       setMessages((prev) => {
         const newHistory = [...prev];
-        // Ensure we are replacing the agent's message, not the user's
         if (newHistory[newHistory.length - 1].role === "agent") {
-            newHistory[newHistory.length - 1].text = data.answer; 
-            newHistory[newHistory.length - 1].isTyping = false;
+          // Assuming your wrapper returns the parsed JSON object
+          newHistory[newHistory.length - 1].text = data.answer;
+          newHistory[newHistory.length - 1].isTyping = false;
         }
         return newHistory;
       });
-
     } catch (err) {
       console.error(err);
-      // 4. Overwrite the "Thinking" message with an error
       setMessages((prev) => {
         const newHistory = [...prev];
         if (newHistory[newHistory.length - 1].role === "agent") {
-            newHistory[newHistory.length - 1].text = "❌ Error fetching data from the Herb-AI model."; 
-            newHistory[newHistory.length - 1].isTyping = false;
+          newHistory[newHistory.length - 1].text =
+            "❌ Error fetching data from the Herb-AI model.";
+          newHistory[newHistory.length - 1].isTyping = false;
         }
         return newHistory;
       });
@@ -237,7 +239,6 @@ export default function HerbAiDashboard() {
             </p>
           </div>
 
-          {/* DYNAMIC API HEALTH PILL INDICATOR */}
           <div
             style={{
               backgroundColor: apiOnline
