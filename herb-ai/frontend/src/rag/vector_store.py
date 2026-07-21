@@ -1,15 +1,12 @@
 import os
-import sqlite3
-import httpx
 import chromadb
+import httpx
 from typing import List
-from sentence_transformers import SentenceTransformer
 
 # Ensure project root is accessible
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_dir, "../../"))
 CHROMA_DB_DIR = os.path.join(project_root, "chroma_storage")
-DB_PATH = os.path.join(project_root, "database/telemetry.db")
 
 
 class LocalVectorStoreEngine:
@@ -18,16 +15,19 @@ class LocalVectorStoreEngine:
         self.collection = self.chroma_client.get_or_create_collection(
             name="botanical_knowledge"
         )
-    
-    model = SentenceTransformer('all-MiniLM-L6-v2')
 
     def _get_local_embedding(self, text: str) -> List[float]:
-        """Generates embedding using local Ollama nomic-embed-text."""
+        """Generates embedding using local Ollama nomic-embed-text to match ingest.py."""
+        url = "http://localhost:11434/api/embeddings"
+        payload = {"model": "nomic-embed-text", "prompt": text}
         try:
-            return self.model.encode(text).tolist()
+            with httpx.Client() as client:
+                response = client.post(url, json=payload, timeout=30.0)
+                if response.status_code == 200:
+                    return response.json().get("embedding", [])
         except Exception as e:
             print(f"Local Embedding Error: {e}")
-            return []
+        return []
 
     def build_vector_store(self):
         """Rebuilds the Chroma vector store from local knowledge files."""
@@ -49,15 +49,14 @@ class LocalVectorStoreEngine:
                     metadatas.append({"source": filename})
                     ids.append(filename)
 
-        # 2. Generate embeddings and upsert to Chroma
         print(f"Building vector store with {len(documents)} documents...")
         for i, doc in enumerate(documents):
             embedding = self._get_local_embedding(doc)
-            
-            if embedding is None or len(embedding) == 0:
+
+            if not embedding:
                 print(f"⚠️ Skipping document {ids[i]}: Could not generate embedding.")
                 continue
-            
+
             self.collection.upsert(
                 ids=[ids[i]],
                 embeddings=[embedding],
