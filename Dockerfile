@@ -10,6 +10,9 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
+# Force YOLO to use a specific, writable directory inside the container
+ENV YOLO_CONFIG_DIR=/app/herb-ai/config
+
 # Copy the requirements file from the herb-ai folder
 COPY herb-ai/requirements.txt .
 
