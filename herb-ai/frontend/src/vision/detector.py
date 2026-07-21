@@ -1,131 +1,108 @@
-# cspell:disable
-import cv2
 import os
+import io
+import base64
+import httpx
 import sys
-from typing import Dict, Any, Tuple, List, cast
-import numpy as np
+from PIL import Image
 from ultralytics import YOLO
+from google import genai
+from dotenv import load_dotenv
 
-# Ensure database module can be imported cleanly depending on how main.py is executed
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
-from database.db_manager import insert_telemetry, add_new_plant
+# Ensure database/rag imports work cleanly
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(current_dir, '../../../../'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
 from frontend.src.rag.know_gen import AutoKnowledgeGenerator
 from frontend.src.rag.vector_store import LocalVectorStoreEngine
 
-class BotanicalTracker:
-    def __init__(self, model_path: str ="herb-ai/best.pt") -> None:
-        """Initializes the YOLO vision model and links up the automated RAG engines."""
-        print(f"Loading Computer Vision model: {model_path}...")
+class BotanicalDetector:
+    def __init__(self, model_path: str = "herb-ai/best.pt"):
+        """Initializes the YOLO vision model and Cloud AI fallback clients."""
+        print(f"Loading Static Image Vision model: {model_path}...")
         self.model = YOLO(model_path)
         
-        # FIX: Type hint the tracker dictionary map to silence member resolution alerts
-        self.track_to_db_map: Dict[int, int] = {}
+        load_dotenv()
+        self.api_key = os.getenv("GEMINI_API_KEY")
+        self.gemini_client = genai.Client(api_key=self.api_key) if self.api_key else None
+
+    def analyze_image(self, image_bytes: bytes) -> dict:
+        """Processes a single static image through Edge YOLO, Cloud Gemini, and Edge Moondream fallbacks."""
+        image = Image.open(io.BytesIO(image_bytes))
         
-        self.knowledge_gen = AutoKnowledgeGenerator()
-        self.vector_engine = LocalVectorStoreEngine()
+        # 1. Local YOLO Inference (Fastest Edge)
+        temp_target = "/tmp/temp_inference_target.jpg"
+        image.save(temp_target)
 
-    def process_video(self, video_path: str, show_live_feed: bool = True) -> None:
-        """
-        Processes a video file frame-by-frame, runs tracking inference,
-        and saves spatial telemetry metadata into the SQL database.
-        """
-        cap = cv2.VideoCapture(video_path)
-        if not cap.isOpened():
-            print(f"Error: Could not open video file at {video_path}")
-            return
+        results = self.model(temp_target, verbose=False)
+        top_idx = results[0].probs.top1
+        predicted_class = results[0].names[top_idx]
+        confidence = float(results[0].probs.top1conf)
 
-        frame_number: int = 0
-        print(f"Starting video ingestion pipeline for: {video_path}")
-
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break  # Video has ended or frame drop occurred
-
-            frame_number += 1
-
-            # Run tracking inference on the current frame
-            model_any: Any = self.model
-            results_list: list[Any] = model_any.track(frame, persist=True, verbose=False)
-
-            # FIX: Make detection parsing robust enough to track items even if .id is None
-            if results_list and results_list[0].boxes is not None:
-                boxes_obj = results_list[0].boxes
+        # 2. Hybrid LLM Vision Pivot
+        if confidence < 0.70:
+            print("🔍 YOLO confidence low. Attempting Cloud Vision...")
+            try:
+                if not self.gemini_client:
+                    raise ValueError("Gemini Client not initialized.")
                 
-                # Check if we have boxes to iterate over
-                if len(boxes_obj) > 0:
-                    boxes: np.ndarray[Any, Any] = boxes_obj.xyxy.cpu().numpy()
-                    confidences: np.ndarray[Any, Any] = boxes_obj.conf.cpu().numpy()
-                    class_ids: np.ndarray[Any, Any] = boxes_obj.cls.cpu().numpy().astype(int)
+                prompt = "Identify this plant. Reply only with the common name. Do not include punctuation or extra text."
+                # Using 1.5-flash as the primary fast fallback based on your cascade
+                response = self.gemini_client.models.generate_content(
+                    model="gemini-1.5-flash", contents=[prompt, image]
+                )
+                
+                discovered_name = response.text.strip()
+                if "Unidentified" in discovered_name or not discovered_name:
+                    predicted_class = "Unidentified Anomaly"
+                    confidence = 0.0
+                else:
+                    print(f"☁️ Cloud Vision Success: {discovered_name}")
+                    predicted_class = discovered_name
+                    confidence = 0.95
                     
-                    # Fallback to an array of fake unique IDs if tracking engine didn't assign them
-                    if boxes_obj.id is not None:
-                        track_ids: np.ndarray[Any, Any] = boxes_obj.id.cpu().numpy().astype(int)
-                    else:
-                        # Use class ID as a temporary fallback tracking identifier
-                        track_ids = class_ids
+            except Exception as cloud_error:
+                print(f"☁️ Cloud Vision Exhausted ({cloud_error}). Auto-failing over to Edge Vision (Ollama)...")
+                
+                # Compress image to save RAM before sending to local model
+                buffered = io.BytesIO()
+                img_converted = image.convert("RGB") if image.mode != "RGB" else image
+                img_converted.thumbnail((512, 512))
+                img_converted.save(buffered, format="JPEG", quality=85)
+                base64_image = base64.b64encode(buffered.getvalue()).decode("utf-8")
 
-                    names: Dict[int, str] = self.model.names
-                    rebuild_vector_store: bool = False
-
-                    for b, t_id, c, cls_id in zip(boxes, track_ids, confidences, class_ids):
-                        track_id: int = int(t_id)
-                        conf: float = float(c)
-                        species_name: str = names[int(cls_id)]
-
-                        # If this track ID is new to this application run, save it
-                        if track_id not in self.track_to_db_map:
-                            db_plant_id: int = add_new_plant(species_name)
-                            self.track_to_db_map[track_id] = db_plant_id
-                            print(f"[NEW ENTITY LOGGED] Detected: {species_name} -> Saved to database.")
-                            
-                            was_generated: bool = self.knowledge_gen.generate_profile_if_new(species_name)
-                            if was_generated:
-                                rebuild_vector_store = True
+                try:
+                    with httpx.Client() as client:
+                        resp = client.post("http://localhost:11434/api/generate", json={
+                            "model": "moondream",
+                            "prompt": "Identify this plant. Reply only with the common name.",
+                            "images": [base64_image],
+                            "stream": False
+                        }, timeout=120.0)
                         
-                        assigned_plant_id: int = self.track_to_db_map[track_id]
+                        if resp.status_code == 200:
+                            discovered_name = resp.json().get("response", "").strip()
+                            if "Unidentified" in discovered_name or not discovered_name:
+                                predicted_class = "Unidentified Anomaly"
+                                confidence = 0.0
+                            else:
+                                print(f"🔌 Edge Vision Success: {discovered_name}")
+                                predicted_class = discovered_name
+                                confidence = 0.85
+                except Exception as e:
+                    print(f"❌ Both Cloud and Edge vision inferences failed: {e}")
+                    predicted_class = f"Uncertain: {predicted_class} (Total Offline Mode)"
+        
+        # 3. Handle Auto-Knowledge Generation
+        if confidence > 0.70 and predicted_class != "Unidentified Anomaly":
+            knowledge_gen = AutoKnowledgeGenerator()
+            if knowledge_gen.generate_profile_if_new(predicted_class):
+                print(f"📝 Syncing local vector knowledge for: {predicted_class}")
+                engine = LocalVectorStoreEngine()
+                engine.build_vector_store()
+        
+        if os.path.exists(temp_target):
+            os.remove(temp_target)
 
-                        bbox_tuple: Tuple[float, float, float, float] = (
-                            float(b[0]), float(b[1]), float(b[2]), float(b[3])
-                        )
-
-                        # Write tracking data directly to the telemetry database
-                        insert_telemetry(
-                            plant_id=assigned_plant_id,
-                            frame_number=frame_number,
-                            bbox=bbox_tuple,
-                            confidence_score=conf
-                        )
-
-                        if show_live_feed:
-                            xmin, ymin, xmax, ymax = int(b[0]), int(b[1]), int(b[2]), int(b[3])
-                            cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
-                            label: str = f"ID {assigned_plant_id}: {species_name} ({conf:.2f})"
-                            cv2.putText(frame, label, (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-
-                    if rebuild_vector_store:
-                        print("Updating Chroma vector store indexing structures...")
-                        self.vector_engine.build_vector_store()
-
-            # Display window frame if active
-            if show_live_feed:
-                cv2.imshow("Herb-AI Live Vision Tracking Stream", frame)
-                # Press 'q' on keyboard to cancel video stream manual override
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    print("Processing terminated by user command.")
-                    break
-
-        cap.release()
-        cv2.destroyAllWindows()
-        print(f"Video pipeline finished. Total processed frames: {frame_number}")
-
-if __name__ == "__main__":
-    SAMPLE_VIDEO: str = "data/processed/sample_garden_walk.mp4" 
-    
-    # We default back to yolov8n.pt for safety so the program runs fine locally.
-    # When your training completes in data.ipynb, change this path parameter to "weights/best.pt"
-    if os.path.exists(SAMPLE_VIDEO):
-        tracker = BotanicalTracker(model_path="/Users/steve/CS/MedAi/herb-ai/research/herb_runs/botany_yolo/weights/best.pt")
-        tracker.process_video(SAMPLE_VIDEO, show_live_feed=True)
-    else:
-        print(f"Please place a valid test video file at '{SAMPLE_VIDEO}' to run local testing.")
+        return {"predicted_class": predicted_class, "confidence": round(confidence, 2)}
