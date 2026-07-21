@@ -53,6 +53,9 @@ app.add_middleware(
 # Initialize Database Schema on API boot
 init_db()
 
+@app.get("/")
+def read_root():
+    return {"status": "Herb-AI Backend is running"}
 
 class QueryRequest(BaseModel):
     question: str
