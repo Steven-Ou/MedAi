@@ -125,7 +125,7 @@ if __name__ == "__main__":
     # We default back to yolov8n.pt for safety so the program runs fine locally.
     # When your training completes in data.ipynb, change this path parameter to "weights/best.pt"
     if os.path.exists(SAMPLE_VIDEO):
-        tracker = BotanicalTracker(model_path="/Users/steve/CS/MedAi/herb-ai/research/herb_runs/botany_yolo/weights/best.pt")
+        tracker = BotanicalTracker(model_path="herb-ai/best.pt")
         tracker.process_video(SAMPLE_VIDEO, show_live_feed=True)
     else:
         print(f"Please place a valid test video file at '{SAMPLE_VIDEO}' to run local testing.")
