@@ -101,9 +101,8 @@ class BotanicalDetector:
                                 confidence = 0.85
                 except Exception as e:
                     print(f"❌ Both Cloud and Edge vision inferences failed: {e}")
-                    predicted_class = (
-                        f"Uncertain: {predicted_class} (Total Offline Mode)"
-                    )
+                    predicted_class = "Unidentified Anomaly"
+                    confidence = 0.0
 
         # 3. Handle Auto-Knowledge Generation
         if confidence > 0.70 and predicted_class != "Unidentified Anomaly":
