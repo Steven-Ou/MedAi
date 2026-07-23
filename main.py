@@ -10,9 +10,6 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # Import your tracker and query engine modules
-__import__('pysqlite3')
-import sys
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 from frontend.src.vision.detector import BotanicalDetector  # noqa: E402
 from frontend.src.rag.query_engine import BotanicalQueryEngine  # noqa: E402
 
