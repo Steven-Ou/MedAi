@@ -1,7 +1,7 @@
 # cspell:disable
 import os
 import sqlite3
-from typing import Tuple, Any
+from typing import Tuple, Optional, Any
 
 # FIX: Force DB_PATH to resolve as an absolute path relative to this file's location
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -93,7 +93,7 @@ def insert_telemetry(
 
 # --- NEW CACHING FUNCTIONS ---
 
-def get_cached_response(query_text: str) -> str | None:
+def get_cached_response(query_text: str) -> Optional[str]:
     """Checks if the exact query has been answered before."""
     try:
         conn = sqlite3.connect(DB_PATH)

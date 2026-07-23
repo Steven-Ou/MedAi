@@ -2,7 +2,8 @@
 import os
 import glob
 import sys
-
+from fastapi import FastAPI
+app= FastAPI()
 current_dir: str = os.path.dirname(os.path.abspath(__file__))
 project_root: str = os.path.join(current_dir, "herb-ai")
 
