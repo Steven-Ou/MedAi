@@ -10,7 +10,7 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # Import your tracker and query engine modules
-from frontend.src.vision.detector import BotanicalTracker  # noqa: E402
+from frontend.src.vision.detector import BotanicalDetector  # noqa: E402
 from frontend.src.rag.query_engine import BotanicalQueryEngine  # noqa: E402
 
 # FIX: Import your database manager schema setup tools to guarantee tables exist
