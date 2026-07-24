@@ -3,7 +3,27 @@ import os
 import glob
 import sys
 from fastapi import FastAPI
-app= FastAPI()
+from pydantic import BaseModel
+
+app= FastAPI(title="Herb-AI Vision API")
+
+class QueryRequest(BaseModel):
+    query_text: str
+
+@app.get("/")
+def health_check():
+    return {"status": "Online", "message": "Herb-AI is actively listening."}
+
+@app.post("/api/detect")
+def run_detection():
+    # TODO: Connect your BotanicalDetector logic here
+    return {"status": "success", "message": "Detection endpoint reached."}
+
+@app.post("/api/query")
+def run_rag_query(request: QueryRequest):
+    # TODO: Connect your BotanicalQueryEngine here
+    return {"response": f"Processed query: {request.query_text}"}
+
 current_dir: str = os.path.dirname(os.path.abspath(__file__))
 project_root: str = os.path.join(current_dir, "herb-ai")
 
