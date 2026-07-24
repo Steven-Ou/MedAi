@@ -1,12 +1,22 @@
-# cspell:disable
 import os
-import glob
-import sys
-from fastapi import FastAPI
+import shutil
+from fastapi import FastAPI, UploadFile, File
 from pydantic import BaseModel
 
-app= FastAPI(title="Herb-AI Vision API")
+# 1. Import your actual AI engines
+from herb_ai.frontend.src.vision.detector import BotanicalDetector
+from herb_ai.frontend.src.rag.query_engine import BotanicalQueryEngine
 
+app = FastAPI(title="Herb-AI Vision API")
+
+# 2. Initialize the heavy models ONCE at startup to prevent memory crashes
+print("Loading Botanical Detector...")
+vision_engine = BotanicalDetector()
+
+print("Loading Vector Storage Engine...")
+rag_engine = BotanicalQueryEngine()
+
+# 3. Define the expected shape of the JSON request for the query endpoint
 class QueryRequest(BaseModel):
     query_text: str
 
@@ -15,14 +25,30 @@ def health_check():
     return {"status": "Online", "message": "Herb-AI is actively listening."}
 
 @app.post("/api/detect")
-def run_detection():
-    # TODO: Connect your BotanicalDetector logic here
-    return {"status": "success", "message": "Detection endpoint reached."}
+async def run_detection(file: UploadFile = File(...)):
+    # Create a temporary file path to store the incoming image upload
+    temp_file_path = f"temp_{file.filename}"
+    
+    # Save the incoming web file to your local disk so YOLO can read it
+    with open(temp_file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    # Pass the local file to your vision tracker
+    # NOTE: Change '.process_image' to whatever actual method name you wrote in detector.py
+    inference_result = vision_engine.process_image(temp_file_path) 
+    
+    # Delete the temporary image so your hard drive doesn't fill up
+    os.remove(temp_file_path)
+    
+    return {"status": "success", "results": inference_result}
 
 @app.post("/api/query")
 def run_rag_query(request: QueryRequest):
-    # TODO: Connect your BotanicalQueryEngine here
-    return {"response": f"Processed query: {request.query_text}"}
+    # Pass the JSON string to your ChromaDB query chain
+    # NOTE: Change '.ask' to whatever actual method name you wrote in query_engine.py
+    answer = rag_engine.ask(request.query_text)
+    
+    return {"response": answer}
 
 current_dir: str = os.path.dirname(os.path.abspath(__file__))
 project_root: str = os.path.join(current_dir, "herb-ai")
