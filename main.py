@@ -23,38 +23,34 @@ vision_engine = BotanicalDetector()
 print("Loading Vector Storage Engine...")
 rag_engine = BotanicalQueryEngine()
 
+
 class QueryRequest(BaseModel):
     query_text: str
+
 
 @app.get("/")
 def health_check():
     return {"status": "Online", "message": "Herb-AI is actively listening."}
 
+
 @app.post("/api/detect")
 async def run_detection(file: UploadFile = File(...)):
-    # Create a temporary file path to store the incoming image upload
-    temp_file_path = f"temp_{file.filename}"
-    
-    # Save the incoming web file to your local disk so YOLO can read it
-    with open(temp_file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    
-    # Pass the local file to your vision tracker
-    # NOTE: Change '.process_image' to whatever actual method name you wrote in detector.py
-    inference_result = vision_engine.process_image(temp_file_path) 
-    
-    # Delete the temporary image so your hard drive doesn't fill up
-    os.remove(temp_file_path)
-    
+    # Read the file directly into memory as bytes (Matches detector.py requirement)
+    image_bytes = await file.read()
+
+    # Pass the bytes directly to your actual method name
+    inference_result = vision_engine.analyze_image(image_bytes)
+
     return {"status": "success", "results": inference_result}
+
 
 @app.post("/api/query")
 def run_rag_query(request: QueryRequest):
-    # Pass the JSON string to your ChromaDB query chain
-    # NOTE: Change '.ask' to whatever actual method name you wrote in query_engine.py
-    answer = rag_engine.ask(request.query_text)
-    
+    # Pass the JSON string to your actual query method
+    answer = rag_engine.query_botanical_knowledge(request.query_text)
+
     return {"response": answer}
+
 
 # FIX: Import your database manager schema setup tools to guarantee tables exist
 # (Replace 'init_db' with whatever table setup function is named inside your db_manager.py, e.g., create_tables)
@@ -78,14 +74,16 @@ def start_herb_ai() -> None:
     try:
         from frontend.src.rag.vector_store import LocalVectorStoreEngine
         import chromadb
-        
+
         vector_engine = LocalVectorStoreEngine()
         # Test if the collection exists, if not, force a full clean build
         try:
             vector_engine.chroma_client.get_collection(name="botanical_knowledge")
             print("Vector storage engines online and verified.")
         except (chromadb.errors.NotFoundError, Exception):
-            print("[Vector Storage Warning] Collection missing. Compiling reference vectors...")
+            print(
+                "[Vector Storage Warning] Collection missing. Compiling reference vectors..."
+            )
             vector_engine.build_vector_store()
             print("Vector storage rebuild complete.\n")
     except Exception as e:
@@ -97,7 +95,9 @@ def start_herb_ai() -> None:
     )
 
     if run_scan.strip().lower() == "y":
-        video_path: str = os.path.join(project_root, "data/processed/sample_garden_walk.mp4")
+        video_path: str = os.path.join(
+            project_root, "data/processed/sample_garden_walk.mp4"
+        )
         model_path = "/Users/steve/CS/MedAi/herb-ai/research/herb_runs/botany_classification-2/weights/best.pt"
 
         if os.path.exists(model_path) and os.path.exists(video_path):
@@ -121,7 +121,7 @@ def start_herb_ai() -> None:
 
             from frontend.src.rag.know_gen import AutoKnowledgeGenerator
             from frontend.src.rag.vector_store import LocalVectorStoreEngine
-            
+
             knowledge_gen = AutoKnowledgeGenerator()
             new_plant_discovered = False
             # -------------------------------------------------------
@@ -146,8 +146,10 @@ def start_herb_ai() -> None:
                         confidence = float(results[0].probs.top1conf)
 
                         if confidence > 0.35:
-                            print(f"[Frame {frame_count}] Identified: {class_name} ({confidence:.2f}) -> Logging...")
-                            
+                            print(
+                                f"[Frame {frame_count}] Identified: {class_name} ({confidence:.2f}) -> Logging..."
+                            )
+
                             plant_id = add_new_plant(class_name)
                             dummy_bbox = (0.0, 0.0, 0.0, 0.0)
 
@@ -157,20 +159,24 @@ def start_herb_ai() -> None:
                                 bbox=dummy_bbox,
                                 confidence_score=confidence,
                             )
-                            
+
                             # --- AUTOMATIC DISCOVERY AND PROFILE GENERATION TRIGGER ---
                             # If it's a new plant, generate its medical profile text file
-                            was_generated = knowledge_gen.generate_profile_if_new(class_name)
+                            was_generated = knowledge_gen.generate_profile_if_new(
+                                class_name
+                            )
                             if was_generated:
                                 new_plant_discovered = True
                             # ----------------------------------------------------------
 
             cap.release()
             print(f"Video pipeline finished. Total processed frames: {frame_count}")
-            
+
             # --- REBUILD THE VECTOR DATABASE IF NEW SPECIES WERE FOUND ---
             if new_plant_discovered:
-                print("\nNew botanical profiles generated! Syncing vector store indices...")
+                print(
+                    "\nNew botanical profiles generated! Syncing vector store indices..."
+                )
                 vector_engine = LocalVectorStoreEngine()
                 vector_engine.build_vector_store()
             # -------------------------------------------------------------
