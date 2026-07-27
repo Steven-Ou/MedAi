@@ -51,10 +51,19 @@ class BotanicalDetector:
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         engine = LocalVectorStoreEngine()
 
+        # Add a dedicated client for visual memory isolation
+        import chromadb
+
+        chroma_client = chromadb.PersistentClient(
+            path=os.path.join(project_root, "chroma_storage")
+        )
+        visual_collection = chroma_client.get_or_create_collection(name="visual_memory")
+
         # STEP 1: CHECK CHROMADB VISUAL MEMORY (Free, 0ms API Cost)
         image_vector = self._get_image_vector(image)
         try:
-            memory_query = engine.collection.query(
+            # CHANGE: Query the visual collection, not engine.collection
+            memory_query = visual_collection.query(
                 query_embeddings=[image_vector], n_results=1
             )
             # If distance is under threshold, we already "learned" this image
@@ -156,9 +165,9 @@ class BotanicalDetector:
 
         # STEP 4: SAVE VISUAL EMBEDDING & KNOWLEDGE TO CHROMADB
         if confidence > 0.70 and predicted_class != "Unidentified Anomaly":
-            # Save visual vector so the app recognizes this plant next time without calling APIs
             try:
-                engine.collection.add(
+                # CHANGE: Add to visual_collection, not engine.collection
+                visual_collection.add(
                     embeddings=[image_vector],
                     metadatas=[{"plant_name": predicted_class}],
                     ids=[f"img_{predicted_class}_{os.urandom(4).hex()}"],
@@ -173,7 +182,7 @@ class BotanicalDetector:
             knowledge_gen = AutoKnowledgeGenerator()
             if knowledge_gen.generate_profile_if_new(predicted_class):
                 print(f"📝 Syncing local vector knowledge for: {predicted_class}")
-                engine.build_vector_store()
+                visual_collection.build_vector_store()
 
         if os.path.exists(temp_target):
             os.remove(temp_target)
