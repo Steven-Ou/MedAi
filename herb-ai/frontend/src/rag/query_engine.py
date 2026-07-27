@@ -28,7 +28,7 @@ class BotanicalQueryEngine:
         """Initializes the GenAI Client and connects to the active Chroma vector store."""
 
         project_root = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "../../")
+            os.path.join(os.path.dirname(__file__), "../../../../")
         )
         self.chroma_client = chromadb.PersistentClient(
             path=os.path.join(project_root, "chroma_storage")
