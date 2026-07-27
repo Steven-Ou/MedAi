@@ -97,7 +97,7 @@ class BotanicalQueryEngine:
 
         return summary
 
-    model = SentenceTransformer('all-MiniLM-L6-v2')
+    model = SentenceTransformer('all-mpnet-base-v2')
 
     def _get_query_embedding_with_retry(self, text: str) -> List[float]:
         """Generates a query embedding using local SentenceTransformer."""
