@@ -37,17 +37,17 @@ export async function triggerVisionScan() {
  */
 export async function askBotanicalQuestion(userQuestion) {
   try {
-    const response = await fetch(`${BASE_URL}/api/chat`, {
+    const response = await fetch(`${BASE_URL}/api/query`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ question: userQuestion }),
+      body: JSON.stringify({ query_text: userQuestion }),
     });
     
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const result = await response.json();
-    return result.answer; 
+    return result.response; 
   } catch (error) {
     console.error("Chat routing query engine mapping failed:", error);
     return "Error generating response from the RAG query server.";
