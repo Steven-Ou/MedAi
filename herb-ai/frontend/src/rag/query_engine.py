@@ -22,7 +22,6 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 CHROMA_DB_DIR: str = os.path.abspath(os.path.join(CURRENT_DIR, "../../chroma_storage"))
 DB_PATH: str = os.path.abspath(os.path.join(CURRENT_DIR, "../../database/telemetry.db"))
 
-
 class BotanicalQueryEngine:
     def __init__(self) -> None:
         """Initializes the GenAI Client and connects to the active Chroma vector store."""
