@@ -98,7 +98,7 @@ def start_herb_ai() -> None:
         video_path: str = os.path.join(
             project_root, "data/processed/sample_garden_walk.mp4"
         )
-        model_path = "/Users/steve/CS/MedAi/herb-ai/research/herb_runs/botany_classification-2/weights/best.pt"
+        model_path = os.path.join(project_root, "best.pt")
 
         if os.path.exists(model_path) and os.path.exists(video_path):
             print(f"\nInitializing classification parsing pipeline on: {video_path}")
