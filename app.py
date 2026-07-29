@@ -38,6 +38,37 @@ def read_root():
 class QueryRequest(BaseModel):
     query_text: str
 
+
+def background_video_scan():
+    """Runs the tracking pipeline cleanly via the BotanicalTracker object."""
+    video_path = os.path.join(project_root, "data/processed/sample_garden_walk.mp4")
+    model_path = os.path.join(project_root, "best.pt")
+    
+    if not os.path.exists(model_path) or not os.path.exists(video_path):
+        print("Missing weights or video file for scanning.")
+        return
+
+    # Clear tables for fresh session
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM telemetry;")
+    cursor.execute("DELETE FROM plants;")
+    conn.commit()
+    conn.close()
+
+    # Execute the modular tracker
+    tracker = BotanicalTracker(model_path=model_path)
+    tracker.process_video(video_path, show_live_feed=False)
+
+@app.post("/api/scan")
+def trigger_scan(background_tasks: BackgroundTasks):
+    background_tasks.add_task(background_video_scan)
+    return {
+        "status": "processing",
+        "message": "Video scanning pipeline kicked off successfully.",
+    }
+    
+    
 # --- TELEMETRY ENDPOINT (Fixes the 404s) ---
 @app.get("/api/telemetry")
 def get_telemetry():
