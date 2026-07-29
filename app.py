@@ -31,45 +31,18 @@ app.add_middleware(
 # Initialize Database Schema on API boot
 init_db()
 
+
 @app.get("/")
 def read_root():
     return {"status": "Herb-AI Backend is running"}
 
+
 class QueryRequest(BaseModel):
-    query_text: str
+    query_text: str = None
+    question: str = None
 
 
-def background_video_scan():
-    """Runs the tracking pipeline cleanly via the BotanicalTracker object."""
-    video_path = os.path.join(project_root, "data/processed/sample_garden_walk.mp4")
-    model_path = os.path.join(project_root, "best.pt")
-    
-    if not os.path.exists(model_path) or not os.path.exists(video_path):
-        print("Missing weights or video file for scanning.")
-        return
-
-    # Clear tables for fresh session
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM telemetry;")
-    cursor.execute("DELETE FROM plants;")
-    conn.commit()
-    conn.close()
-
-    # Execute the modular tracker
-    tracker = BotanicalTracker(model_path=model_path)
-    tracker.process_video(video_path, show_live_feed=False)
-
-@app.post("/api/scan")
-def trigger_scan(background_tasks: BackgroundTasks):
-    background_tasks.add_task(background_video_scan)
-    return {
-        "status": "processing",
-        "message": "Video scanning pipeline kicked off successfully.",
-    }
-    
-    
-# --- TELEMETRY ENDPOINT (Fixes the 404s) ---
+# --- TELEMETRY ENDPOINT ---
 @app.get("/api/telemetry")
 def get_telemetry():
     if not os.path.exists(DB_PATH):
@@ -96,36 +69,86 @@ def get_telemetry():
         ]
     }
 
-# --- DETECT ENDPOINT (Fixes the 422 and matches frontend requests) ---
-@app.post("/api/detect")
-async def upload_image_inference(file: UploadFile = File(...)):
+
+# --- IMAGE DETECTION (Supports both /api/detect and /api/upload-image) ---
+async def handle_image_upload(file: UploadFile):
     global CURRENT_SESSION_PLANT
-    
     contents = await file.read()
     model_path = os.path.join(project_root, "best.pt")
-    
+
     detector = BotanicalDetector(model_path=model_path)
     result = detector.analyze_image(contents)
-    
-    # Store for RAG context
+
     CURRENT_SESSION_PLANT = result.get("predicted_class")
-    
     return {"status": "success", "results": result}
 
-# --- RAG QUERY ENDPOINT ---
-@app.post("/api/query")
-def query_agent(payload: QueryRequest):
-    print(f"🤖 Herb-AI: Starting analysis pipeline for question: {payload.query_text}")
+
+@app.post("/api/detect")
+async def detect_alias(file: UploadFile = File(...)):
+    return await handle_image_upload(file)
+
+
+@app.post("/api/upload-image")
+async def upload_image_alias(file: UploadFile = File(...)):
+    return await handle_image_upload(file)
+
+
+# --- CHAT & RAG QUERY (Supports both /api/query and /api/chat) ---
+def process_query_text(text: str):
+    print(f"🤖 Herb-AI: Starting analysis pipeline for question: {text}")
     try:
         query_engine = BotanicalQueryEngine()
-        augmented_query = payload.query_text
-        
+        augmented_query = text
+
         if CURRENT_SESSION_PLANT and CURRENT_SESSION_PLANT != "Unidentified Anomaly":
-            augmented_query = f"Context: We are discussing the plant '{CURRENT_SESSION_PLANT}'. User Question: {payload.query_text}"
+            augmented_query = f"Context: We are discussing the plant '{CURRENT_SESSION_PLANT}'. User Question: {text}"
 
         answer = query_engine.query_botanical_knowledge(augmented_query)
-        return {"response": answer}
+        return {"response": answer, "answer": answer}
 
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/query")
+def query_alias(payload: QueryRequest):
+    q = payload.query_text or payload.question
+    return process_query_text(q)
+
+
+@app.post("/api/chat")
+def chat_alias(payload: QueryRequest):
+    q = payload.query_text or payload.question
+    return process_query_text(q)
+
+
+# --- VIDEO SCANNING BACKGROUND TASK ---
+def background_video_scan():
+    video_path = os.path.join(project_root, "data/processed/sample_garden_walk.mp4")
+    model_path = os.path.join(project_root, "best.pt")
+
+    if not os.path.exists(model_path) or not os.path.exists(video_path):
+        print(
+            f"Missing weights ({model_path}) or video file ({video_path}) for scanning."
+        )
+        return
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM telemetry;")
+    cursor.execute("DELETE FROM plants;")
+    conn.commit()
+    conn.close()
+
+    tracker = BotanicalTracker(model_path=model_path)
+    tracker.process_video(video_path, show_live_feed=False)
+
+
+@app.post("/api/scan")
+def trigger_scan(background_tasks: BackgroundTasks):
+    background_tasks.add_task(background_video_scan)
+    return {
+        "status": "processing",
+        "message": "Video scanning pipeline kicked off successfully.",
+    }
