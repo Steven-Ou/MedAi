@@ -1,60 +1,100 @@
 import os
 import sys
-import shutil
-from fastapi import FastAPI, UploadFile, File
+import sqlite3
+import traceback
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# 1. Inject the hyphenated folder into Python's path so imports work
+# Ensure project root is accessible for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.join(current_dir, "herb-ai")
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-# 2. Import your actual AI engines using the corrected path
-from frontend.src.vision.detector import BotanicalDetector
+from database.db_manager import init_db, DB_PATH
 from frontend.src.rag.query_engine import BotanicalQueryEngine
+from frontend.src.vision.detector import BotanicalDetector
+from frontend.src.vision.tracker import BotanicalTracker
 
-app = FastAPI(title="Herb-AI Vision API")
+app = FastAPI(title="Herb-AI Medical Botanical API Hub")
+CURRENT_SESSION_PLANT = None
 
-# 3. Initialize the heavy models ONCE at startup to prevent memory crashes
-print("Loading Botanical Detector...")
-vision_engine = BotanicalDetector()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-print("Loading Vector Storage Engine...")
-rag_engine = BotanicalQueryEngine()
+# Initialize Database Schema on API boot
+init_db()
 
+@app.get("/")
+def read_root():
+    return {"status": "Herb-AI Backend is running"}
 
 class QueryRequest(BaseModel):
     query_text: str
 
+# --- TELEMETRY ENDPOINT (Fixes the 404s) ---
+@app.get("/api/telemetry")
+def get_telemetry():
+    if not os.path.exists(DB_PATH):
+        return {"data": []}
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT p.species_name, COUNT(t.id), MAX(t.confidence_score)
+        FROM plants p
+        JOIN telemetry t ON p.id = t.plant_id
+        GROUP BY p.species_name
+    """)
+    rows = cursor.fetchall()
+    conn.close()
 
-@app.get("/")
-def health_check():
-    return {"status": "Online", "message": "Herb-AI is actively listening."}
+    return {
+        "data": [
+            {
+                "species": row[0],
+                "framesTracked": row[1],
+                "maxConfidence": round(row[2], 2),
+            }
+            for row in rows
+        ]
+    }
 
-
+# --- DETECT ENDPOINT (Fixes the 422 and matches frontend requests) ---
 @app.post("/api/detect")
-async def run_detection(file: UploadFile = File(...)):
-    # Read the file directly into memory as bytes (Matches detector.py requirement)
-    image_bytes = await file.read()
+async def upload_image_inference(file: UploadFile = File(...)):
+    global CURRENT_SESSION_PLANT
+    
+    contents = await file.read()
+    model_path = os.path.join(project_root, "best.pt")
+    
+    detector = BotanicalDetector(model_path=model_path)
+    result = detector.analyze_image(contents)
+    
+    # Store for RAG context
+    CURRENT_SESSION_PLANT = result.get("predicted_class")
+    
+    return {"status": "success", "results": result}
 
-    # Pass the bytes directly to your actual method name
-    inference_result = vision_engine.analyze_image(image_bytes)
-
-    return {"status": "success", "results": inference_result}
-
-
+# --- RAG QUERY ENDPOINT ---
 @app.post("/api/query")
-def run_rag_query(request: QueryRequest):
-    # Pass the JSON string to your actual query method
-    answer = rag_engine.query_botanical_knowledge(request.query_text)
+def query_agent(payload: QueryRequest):
+    print(f"🤖 Herb-AI: Starting analysis pipeline for question: {payload.query_text}")
+    try:
+        query_engine = BotanicalQueryEngine()
+        augmented_query = payload.query_text
+        
+        if CURRENT_SESSION_PLANT and CURRENT_SESSION_PLANT != "Unidentified Anomaly":
+            augmented_query = f"Context: We are discussing the plant '{CURRENT_SESSION_PLANT}'. User Question: {payload.query_text}"
 
-    return {"response": answer}
+        answer = query_engine.query_botanical_knowledge(augmented_query)
+        return {"response": answer}
 
-
-# FIX: Import your database manager schema setup tools to guarantee tables exist
-# (Replace 'init_db' with whatever table setup function is named inside your db_manager.py, e.g., create_tables)
-from database.db_manager import init_db  # noqa: E402
-
-
-
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
