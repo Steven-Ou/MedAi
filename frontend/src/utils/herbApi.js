@@ -1,6 +1,6 @@
 // src/utils/herbApi.js
 
-const BASE_URL = 'http://localhost:7860';
+const BASE_URL = "http://localhost:7860";
 /**
  * Fetches real-time structured plant metrics logged into the SQLite tables.
  * @returns {Promise<Array>} List of detected plant objects
@@ -23,7 +23,7 @@ export async function fetchDetectedPlants() {
  */
 export async function triggerVisionScan() {
   try {
-    const response = await fetch(`${BASE_URL}/api/scan`, { method: 'POST' });
+    const response = await fetch(`${BASE_URL}/api/scan`, { method: "POST" });
     return response.ok;
   } catch (error) {
     console.error("Failed to trigger backend computer vision scan:", error);
@@ -38,16 +38,17 @@ export async function triggerVisionScan() {
 export async function askBotanicalQuestion(userQuestion) {
   try {
     const response = await fetch(`${BASE_URL}/api/query`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ query_text: userQuestion }),
     });
-    
+
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const result = await response.json();
-    return result.response; 
+
+    return result.response;
   } catch (error) {
     console.error("Chat routing query engine mapping failed:", error);
     return "Error generating response from the RAG query server.";

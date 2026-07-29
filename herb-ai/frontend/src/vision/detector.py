@@ -49,6 +49,7 @@ class BotanicalDetector:
 
     def analyze_image(self, image_bytes: bytes) -> dict:
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        image.thumbnail((640, 640))
         engine = LocalVectorStoreEngine()
 
         # Add a dedicated client for visual memory isolation
