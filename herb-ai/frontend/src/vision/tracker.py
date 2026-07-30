@@ -46,7 +46,7 @@ class BotanicalTracker:
 
             # Run tracking inference on the current frame
             model_any: Any = self.model
-            results_list: list[Any] = model_any.track(frame, persist=True, verbose=False)
+            results_list: list[Any] = model_any.track(frame, verbose=False)
 
             # FIX: Make detection parsing robust enough to track items even if .id is None
             if results_list and results_list[0].boxes is not None:
