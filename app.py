@@ -74,17 +74,24 @@ def get_telemetry():
 async def handle_image_upload(file: UploadFile):
     global CURRENT_SESSION_PLANT
     contents = await file.read()
-    
+
     if not contents:
-        raise HTTPException(status_code=400, detail="No image file provided. Please select a file.")
-    
+        raise HTTPException(
+            status_code=400, detail="No image file provided. Please select a file."
+        )
+
     model_path = os.path.join(project_root, "best.pt")
 
     detector = BotanicalDetector(model_path=model_path)
     result = detector.analyze_image(contents)
 
     CURRENT_SESSION_PLANT = result.get("predicted_class")
-    return {"status": "success", "results": result}
+    return {
+        "status": "success",
+        "predicted_class": result.get("predicted_class"),
+        "confidence": result.get("confidence"),
+        "results": result,
+    }
 
 
 @app.post("/api/detect")
