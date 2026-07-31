@@ -2,6 +2,8 @@ import os
 import sys
 import sqlite3
 import traceback
+import shutil
+import tempfile
 from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -135,14 +137,12 @@ def chat_alias(payload: QueryRequest):
 
 
 # --- VIDEO SCANNING BACKGROUND TASK ---
-def background_video_scan():
-    video_path = os.path.join(project_root, "data/processed/sample_garden_walk.mp4")
+def background_video_scan(video_path: str):
+    """Runs the tracking pipeline cleanly via the BotanicalTracker object on any dynamic video."""
     model_path = os.path.join(project_root, "best.pt")
-
+    
     if not os.path.exists(model_path) or not os.path.exists(video_path):
-        print(
-            f"Missing weights ({model_path}) or video file ({video_path}) for scanning."
-        )
+        print(f"Missing weights or video file for scanning. Path: {video_path}")
         return
 
     conn = sqlite3.connect(DB_PATH)
@@ -155,11 +155,16 @@ def background_video_scan():
     tracker = BotanicalTracker(model_path=model_path)
     tracker.process_video(video_path, show_live_feed=False)
 
-
 @app.post("/api/scan")
-def trigger_scan(background_tasks: BackgroundTasks):
-    background_tasks.add_task(background_video_scan)
+async def trigger_scan(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+    temp_video = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+    
+    with open(temp_video.name, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    background_tasks.add_task(background_video_scan, temp_video.name)
+    
     return {
         "status": "processing",
-        "message": "Video scanning pipeline kicked off successfully.",
+        "message": f"Video scanning pipeline kicked off successfully for {file.filename}.",
     }
