@@ -112,9 +112,16 @@ def process_query_text(text: str):
     try:
         query_engine = BotanicalQueryEngine()
         augmented_query = text
-
+        
+        # Override the LLM's natural refusal by explicitly telling it what it "saw"
         if CURRENT_SESSION_PLANT and CURRENT_SESSION_PLANT != "Unidentified Anomaly":
-            augmented_query = f"Context: We are discussing the plant '{CURRENT_SESSION_PLANT}'. User Question: {text}"
+            augmented_query = (
+                f"System Context: You are Herb-AI's advanced vision agent. "
+                f"You just successfully analyzed the user's uploaded media (image/video) "
+                f"and visually detected the plant '{CURRENT_SESSION_PLANT}'. "
+                f"Use this context to directly answer their question. "
+                f"User Question: {text}"
+            )
 
         answer = query_engine.query_botanical_knowledge(augmented_query)
         return {"response": answer, "answer": answer}
