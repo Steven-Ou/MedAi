@@ -1,15 +1,15 @@
 import os
 import sys
-import sqlite3
-import traceback
 import shutil
 import tempfile
+import sqlite3
+import traceback
 import cv2
 from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# Ensure project root is accessible for imports
+# 1. Path Setup
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.join(current_dir, "herb-ai")
 if project_root not in sys.path:
@@ -18,10 +18,8 @@ if project_root not in sys.path:
 from database.db_manager import init_db, DB_PATH
 from frontend.src.rag.query_engine import BotanicalQueryEngine
 from frontend.src.vision.detector import BotanicalDetector
-from frontend.src.vision.tracker import BotanicalTracker
 
 app = FastAPI(title="Herb-AI Medical Botanical API Hub")
-CURRENT_SESSION_PLANT = None
 
 app.add_middleware(
     CORSMiddleware,
@@ -31,18 +29,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Database Schema on API boot
+# 2. Database Schema Initialization
 init_db()
 
+# 3. SINGLETON INSTANTIATION (Pre-loads heavy models into memory ONCE at boot)
+print("⚡ [BOOT] Pre-loading Vision Engine (YOLO + OpenCLIP)...")
+vision_engine = BotanicalDetector(model_path=os.path.join(project_root, "best.pt"))
 
-@app.get("/")
-def read_root():
-    return {"status": "Herb-AI Backend is running"}
+print("⚡ [BOOT] Pre-loading Vector RAG Engine...")
+query_engine = BotanicalQueryEngine()
+
+CURRENT_SESSION_PLANT = None
 
 
 class QueryRequest(BaseModel):
     query_text: str = None
     question: str = None
+
+
+@app.get("/")
+def read_root():
+    return {"status": "Herb-AI Backend is running smoothly."}
 
 
 # --- TELEMETRY ENDPOINT ---
@@ -73,22 +80,17 @@ def get_telemetry():
     }
 
 
-# --- IMAGE DETECTION (Supports both /api/detect and /api/upload-image) ---
+# --- INSTANT IMAGE DETECTION ---
 async def handle_image_upload(file: UploadFile):
     global CURRENT_SESSION_PLANT
     contents = await file.read()
-
     if not contents:
-        raise HTTPException(
-            status_code=400, detail="No image file provided. Please select a file."
-        )
+        raise HTTPException(status_code=400, detail="No image file provided.")
 
-    model_path = os.path.join(project_root, "best.pt")
-
-    detector = BotanicalDetector(model_path=model_path)
-    result = detector.analyze_image(contents)
-
+    # Re-use pre-loaded singleton instance (sub-second inference)
+    result = vision_engine.analyze_image(contents)
     CURRENT_SESSION_PLANT = result.get("predicted_class")
+
     return {
         "status": "success",
         "predicted_class": result.get("predicted_class"),
@@ -107,23 +109,20 @@ async def upload_image_alias(file: UploadFile = File(...)):
     return await handle_image_upload(file)
 
 
-# --- CHAT & RAG QUERY (Supports both /api/query and /api/chat) ---
+# --- ULTRA-FAST CHAT / RAG PIPELINE ---
 def process_query_text(text: str):
-    print(f"🤖 Herb-AI: Starting analysis pipeline for question: {text}")
+    print(f"🤖 [QUERY] Processing: '{text}'")
     try:
-        query_engine = BotanicalQueryEngine()
         augmented_query = text
-
-        # Override the LLM's natural refusal by explicitly telling it what it "saw"
         if CURRENT_SESSION_PLANT and CURRENT_SESSION_PLANT != "Unidentified Anomaly":
             augmented_query = (
-                f"System Context: You are Herb-AI's advanced vision agent. "
-                f"You just successfully analyzed the user's uploaded media (image/video) "
-                f"and visually detected the plant '{CURRENT_SESSION_PLANT}'. "
-                f"Use this context to directly answer their question. "
-                f"User Question: {text}"
+                f"System Context: You are Herb-AI, an expert medical botanical agent. "
+                f"The user uploaded media showing the plant '{CURRENT_SESSION_PLANT}'. "
+                f"CRITICAL OVERRIDE: Synthesize evidence-based information for '{CURRENT_SESSION_PLANT}' "
+                f"to directly answer this inquiry: {text}"
             )
 
+        # Re-use pre-loaded singleton query engine
         answer = query_engine.query_botanical_knowledge(augmented_query)
         return {"response": answer, "answer": answer}
 
@@ -134,60 +133,81 @@ def process_query_text(text: str):
 
 @app.post("/api/query")
 def query_alias(payload: QueryRequest):
-    q = payload.query_text or payload.question
+    q = payload.question or payload.query_text
+    if not q or q.strip() == "string":
+        return {"response": "Please enter a specific question about the plant."}
     return process_query_text(q)
 
 
 @app.post("/api/chat")
 def chat_alias(payload: QueryRequest):
-    q = payload.query_text or payload.question
+    q = payload.question or payload.query_text
+    if not q or q.strip() == "string":
+        return {"response": "Please enter a specific question about the plant."}
     return process_query_text(q)
 
 
-# --- VIDEO SCANNING BACKGROUND TASK ---
+# --- INSTANT VIDEO FRAME CLASSIFICATION ---
 def background_video_scan(video_path: str):
-    """Extracts a frame from the video and runs it through the working image classifier."""
     global CURRENT_SESSION_PLANT
     model_path = os.path.join(project_root, "best.pt")
 
-    if not os.path.exists(model_path) or not os.path.exists(video_path):
-        print(f"Missing weights or video file. Path: {video_path}")
-        return
-
-    print("📸 Extracting frame from video for classification...")
+    print(f"📸 [VIDEO] Snapping keyframe from {video_path}...")
     cap = cv2.VideoCapture(video_path)
-
-    # Fast-forward 30 frames in to avoid a blurry/black starting frame
-    cap.set(cv2.CAP_PROP_POS_FRAMES, 30)
+    cap.set(cv2.CAP_PROP_POS_FRAMES, 30)  # Jump 30 frames in for a clear image
     success, frame = cap.read()
     cap.release()
 
     if success:
-        # Convert the raw video frame into bytes
         _, buffer = cv2.imencode(".jpg", frame)
-
-        # Pass the bytes directly to your already working BotanicalDetector!
-        detector = BotanicalDetector(model_path=model_path)
-        result = detector.analyze_image(buffer.tobytes())
-
+        result = vision_engine.analyze_image(buffer.tobytes())
         CURRENT_SESSION_PLANT = result.get("predicted_class")
-        print(
-            f"✅ Video Scan Complete. RAG Agent Context updated to: {CURRENT_SESSION_PLANT}"
-        )
-    else:
-        print("❌ Error: Failed to extract a readable frame from the video.")
+        print(f"✅ [VIDEO SCAN COMPLETE] Plant identified as: {CURRENT_SESSION_PLANT}")
+
+        # Write to SQLite database so the frontend telemetry updates
+        if CURRENT_SESSION_PLANT:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT OR IGNORE INTO plants (species_name) VALUES (?);",
+                (CURRENT_SESSION_PLANT,),
+            )
+            cursor.execute(
+                "SELECT id FROM plants WHERE species_name = ?;",
+                (CURRENT_SESSION_PLANT,),
+            )
+            plant_id = cursor.fetchone()[0]
+            cursor.execute(
+                "INSERT INTO telemetry (plant_id, confidence_score) VALUES (?, ?);",
+                (plant_id, result.get("confidence", 0.95)),
+            )
+            conn.commit()
+            conn.close()
+
+    # Cleanup temp file if created
+    if video_path.startswith(tempfile.gettempdir()):
+        try:
+            os.remove(video_path)
+        except OSError:
+            pass
 
 
 @app.post("/api/scan")
-async def trigger_scan(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
-    temp_video = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+async def trigger_scan(
+    background_tasks: BackgroundTasks, file: UploadFile = File(None)
+):
+    if file:
+        temp_video = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+        with open(temp_video.name, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        video_target = temp_video.name
+    else:
+        video_target = os.path.join(
+            project_root, "data/processed/sample_garden_walk.mp4"
+        )
 
-    with open(temp_video.name, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    background_tasks.add_task(background_video_scan, temp_video.name)
-
+    background_tasks.add_task(background_video_scan, video_target)
     return {
         "status": "processing",
-        "message": f"Video scanning pipeline kicked off successfully for {file.filename}.",
+        "message": "Video keyframe extraction initiated.",
     }
