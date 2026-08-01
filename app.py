@@ -4,6 +4,7 @@ import sqlite3
 import traceback
 import shutil
 import tempfile
+import cv2
 from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -112,7 +113,7 @@ def process_query_text(text: str):
     try:
         query_engine = BotanicalQueryEngine()
         augmented_query = text
-        
+
         # Override the LLM's natural refusal by explicitly telling it what it "saw"
         if CURRENT_SESSION_PLANT and CURRENT_SESSION_PLANT != "Unidentified Anomaly":
             augmented_query = (
@@ -145,50 +146,47 @@ def chat_alias(payload: QueryRequest):
 
 # --- VIDEO SCANNING BACKGROUND TASK ---
 def background_video_scan(video_path: str):
+    """Extracts a frame from the video and runs it through the working image classifier."""
     global CURRENT_SESSION_PLANT
     model_path = os.path.join(project_root, "best.pt")
-    
+
     if not os.path.exists(model_path) or not os.path.exists(video_path):
-        print(f"Missing weights or video file for scanning. Path: {video_path}")
+        print(f"Missing weights or video file. Path: {video_path}")
         return
 
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM telemetry;")
-    cursor.execute("DELETE FROM plants;")
-    conn.commit()
-    conn.close()
+    print("📸 Extracting frame from video for classification...")
+    cap = cv2.VideoCapture(video_path)
 
-    tracker = BotanicalTracker(model_path=model_path)
-    tracker.process_video(video_path, show_live_feed=False)
+    # Fast-forward 30 frames in to avoid a blurry/black starting frame
+    cap.set(cv2.CAP_PROP_POS_FRAMES, 30)
+    success, frame = cap.read()
+    cap.release()
 
-    # NEW: After scanning, fetch the most prominent plant from the SQL database
-    # and update the Chat Agent's active context so it knows what to talk about!
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT p.species_name 
-        FROM plants p 
-        JOIN telemetry t ON p.id = t.plant_id 
-        GROUP BY p.species_name 
-        ORDER BY COUNT(t.id) DESC LIMIT 1
-    """)
-    row = cursor.fetchone()
-    conn.close()
+    if success:
+        # Convert the raw video frame into bytes
+        _, buffer = cv2.imencode(".jpg", frame)
 
-    if row:
-        CURRENT_SESSION_PLANT = row[0]
-        print(f"✅ Video Scan Complete. RAG Agent Context updated to: {CURRENT_SESSION_PLANT}")
+        # Pass the bytes directly to your already working BotanicalDetector!
+        detector = BotanicalDetector(model_path=model_path)
+        result = detector.analyze_image(buffer.tobytes())
+
+        CURRENT_SESSION_PLANT = result.get("predicted_class")
+        print(
+            f"✅ Video Scan Complete. RAG Agent Context updated to: {CURRENT_SESSION_PLANT}"
+        )
+    else:
+        print("❌ Error: Failed to extract a readable frame from the video.")
+
 
 @app.post("/api/scan")
 async def trigger_scan(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     temp_video = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
-    
+
     with open(temp_video.name, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
-        
+
     background_tasks.add_task(background_video_scan, temp_video.name)
-    
+
     return {
         "status": "processing",
         "message": f"Video scanning pipeline kicked off successfully for {file.filename}.",
