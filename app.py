@@ -145,7 +145,7 @@ def chat_alias(payload: QueryRequest):
 
 # --- VIDEO SCANNING BACKGROUND TASK ---
 def background_video_scan(video_path: str):
-    """Runs the tracking pipeline cleanly via the BotanicalTracker object on any dynamic video."""
+    global CURRENT_SESSION_PLANT
     model_path = os.path.join(project_root, "best.pt")
     
     if not os.path.exists(model_path) or not os.path.exists(video_path):
@@ -161,6 +161,24 @@ def background_video_scan(video_path: str):
 
     tracker = BotanicalTracker(model_path=model_path)
     tracker.process_video(video_path, show_live_feed=False)
+
+    # NEW: After scanning, fetch the most prominent plant from the SQL database
+    # and update the Chat Agent's active context so it knows what to talk about!
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT p.species_name 
+        FROM plants p 
+        JOIN telemetry t ON p.id = t.plant_id 
+        GROUP BY p.species_name 
+        ORDER BY COUNT(t.id) DESC LIMIT 1
+    """)
+    row = cursor.fetchone()
+    conn.close()
+
+    if row:
+        CURRENT_SESSION_PLANT = row[0]
+        print(f"✅ Video Scan Complete. RAG Agent Context updated to: {CURRENT_SESSION_PLANT}")
 
 @app.post("/api/scan")
 async def trigger_scan(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
