@@ -177,9 +177,11 @@ def background_video_scan(video_path: str):
                 (CURRENT_SESSION_PLANT,),
             )
             plant_id = cursor.fetchone()[0]
+
+            # THE FIX: Added frame_number (30) to satisfy the strict SQL constraints!
             cursor.execute(
-                "INSERT INTO telemetry (plant_id, confidence_score) VALUES (?, ?);",
-                (plant_id, result.get("confidence", 0.95)),
+                "INSERT INTO telemetry (plant_id, frame_number, confidence_score) VALUES (?, ?, ?);",
+                (plant_id, 30, result.get("confidence", 0.95)),
             )
             conn.commit()
             conn.close()
