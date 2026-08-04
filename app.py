@@ -8,6 +8,7 @@ import cv2
 from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from ultralytics import YOLO
 
 # 1. Path Setup
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -154,55 +155,77 @@ def chat_alias(payload: QueryRequest):
 # --- INSTANT VIDEO FRAME CLASSIFICATION ---
 def background_video_scan(video_path: str):
     global CURRENT_SESSION_PLANT
+    model_path = os.path.join(project_root, "best.pt")
     
-    print(f"📸 [VIDEO] Snapping keyframe from {video_path}...")
+    # Load the model directly 
+    model = YOLO(model_path)
+    
+    print(f"🎬 [VIDEO TRACKING] Initiating full-court frame-by-frame analysis...")
+    
+    # 1. Setup OpenCV Video Writer to actively draw and save the green boxes
     cap = cv2.VideoCapture(video_path)
-    cap.set(cv2.CAP_PROP_POS_FRAMES, 30)  # Jump 30 frames in for a clear image
-    success, frame = cap.read()
-    cap.release()
-
-    if success:
-        _, buffer = cv2.imencode('.jpg', frame)
-        result = vision_engine.analyze_image(buffer.tobytes())
-        CURRENT_SESSION_PLANT = result.get("predicted_class")
-        confidence = result.get("confidence", 0.95)
-        
-        print(f"✅ [VIDEO SCAN COMPLETE] Plant identified as: {CURRENT_SESSION_PLANT}")
-        
-        # Write to SQLite database so the frontend telemetry updates
-        if CURRENT_SESSION_PLANT:
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.cursor()
-            
-            # Clear out the old session data first
-            cursor.execute("DELETE FROM telemetry;")
-            cursor.execute("DELETE FROM plants;")
-            
-            # Insert the new plant
-            cursor.execute(
-                "INSERT OR IGNORE INTO plants (species_name) VALUES (?);", 
-                (CURRENT_SESSION_PLANT,)
-            )
-            cursor.execute(
-                "SELECT id FROM plants WHERE species_name = ?;", 
-                (CURRENT_SESSION_PLANT,)
-            )
-            plant_id = cursor.fetchone()[0]
-            
-            # THE FIX: Added frame_number (30) to satisfy the strict SQL constraint!
-            cursor.execute(
-                "INSERT INTO telemetry (plant_id, frame_number, confidence_score) VALUES (?, ?, ?);",
-                (plant_id, 30, confidence)
-            )
-            conn.commit()
-            conn.close()
+    width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps    = int(cap.get(cv2.CAP_PROP_FPS))
     
-    # Cleanup temp file if created
-    if video_path.startswith(tempfile.gettempdir()):
-        try:
-            os.remove(video_path)
-        except OSError:
-            pass
+    # We will save the tracked video to a temporary output path first
+    output_path = video_path.replace(".mp4", "_tracked.mp4")
+    out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
+    
+    # 2. Run YOLO's native tracker (persist=True keeps IDs locked onto the object)
+    results = model.track(source=video_path, stream=True, persist=True, conf=0.5)
+    
+    # 3. Prepare the Database
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM telemetry;")
+    cursor.execute("DELETE FROM plants;")
+    
+    detected_plants = {}
+    frame_number = 0
+    
+    # 4. The Analytics Loop
+    for r in results:
+        frame_number += 1
+        
+        # r.plot() generates the image frame WITH the green bounding boxes and tracking IDs!
+        annotated_frame = r.plot()
+        out.write(annotated_frame)
+        
+        # If YOLO successfully locked onto an object and assigned an ID in this frame
+        if r.boxes is not None and r.boxes.id is not None:
+            for box, track_id, cls, conf in zip(r.boxes.xyxy, r.boxes.id, r.boxes.cls, r.boxes.conf):
+                plant_name = model.names[int(cls)]
+                
+                # Keep a running tally of what we see the most
+                detected_plants[plant_name] = detected_plants.get(plant_name, 0) + 1
+                
+                # Insert Telemetry
+                cursor.execute("INSERT OR IGNORE INTO plants (species_name) VALUES (?);", (plant_name,))
+                cursor.execute("SELECT id FROM plants WHERE species_name = ?;", (plant_name,))
+                plant_id = cursor.fetchone()[0]
+                
+                cursor.execute(
+                    "INSERT INTO telemetry (plant_id, frame_number, confidence_score) VALUES (?, ?, ?);",
+                    (plant_id, frame_number, float(conf))
+                )
+    
+    # 5. Cleanup and Save
+    out.release()
+    cap.release()
+    conn.commit()
+    conn.close()
+    
+    # Replace the original video with the new one so your frontend displays the boxes
+    os.replace(output_path, video_path)
+    
+    # 6. Update the RAG Agent Context
+    if detected_plants:
+        # Set the RAG context to the plant that appeared in the highest volume of frames
+        CURRENT_SESSION_PLANT = max(detected_plants, key=detected_plants.get)
+        print(f"✅ [TRACKING COMPLETE] {frame_number} frames analyzed. Agent context locked to: {CURRENT_SESSION_PLANT}")
+    else:
+        print("⚠️ [TRACKING COMPLETE] No stable objects tracked.")
 
 @app.post("/api/scan")
 async def trigger_scan(
