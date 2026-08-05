@@ -114,11 +114,9 @@ async def upload_image_alias(file: UploadFile = File(...)):
 def process_query_text(text: str):
     print(f"🤖 [QUERY] Processing: '{text}'")
     try:
-        query_engine = BotanicalQueryEngine()
         augmented_query = text
 
         if CURRENT_SESSION_PLANT and CURRENT_SESSION_PLANT != "Unidentified Anomaly":
-            # Force the LLM to adopt the persona of the vision agent
             augmented_query = (
                 f"System Context: You are Herb-AI, an advanced medical botanical vision agent. "
                 f"You just analyzed the user's video/image and successfully detected the plant '{CURRENT_SESSION_PLANT}'. "
@@ -157,110 +155,97 @@ def background_video_scan(video_path: str):
     global CURRENT_SESSION_PLANT
     model_path = os.path.join(project_root, "best.pt")
 
-    # Load the model directly
-    model = YOLO(model_path)
+    try:
+        model = YOLO(model_path)
+        print(f"🎬 [VIDEO TRACKING] Initiating frame-by-frame analysis...")
 
-    print(f"🎬 [VIDEO TRACKING] Initiating full-court frame-by-frame analysis...")
+        cap = cv2.VideoCapture(video_path)
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = int(cap.get(cv2.CAP_PROP_FPS)) or 30
 
-    # 1. Setup OpenCV Video Writer to actively draw and save the green boxes
-    cap = cv2.VideoCapture(video_path)
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = int(cap.get(cv2.CAP_PROP_FPS))
-
-    # We will save the tracked video to a temporary output path first
-    output_path = video_path.replace(".mp4", "_tracked.mp4")
-    out = cv2.VideoWriter(
-        output_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height)
-    )
-
-    # 2. Run YOLO's native tracker (persist=True keeps IDs locked onto the object)
-    results = model.track(source=video_path, stream=True, persist=True, conf=0.5)
-
-    # 3. Prepare the Database
-    conn = sqlite3.connect(DB_PATH, timeout=15.0)
-
-    # Enable Write-Ahead Logging (CRITICAL for allowing concurrent frontend reads)
-    conn.execute("PRAGMA journal_mode=WAL;")
-    cursor = conn.cursor()
-
-    # Execute the wipe and commit IMMEDIATELY to free the database
-    cursor.execute("DELETE FROM telemetry;")
-    cursor.execute("DELETE FROM plants;")
-    conn.commit()
-
-    detected_plants = {}
-    frame_number = 0
-
-    # 4. The Analytics Loop
-    for r in results:
-        frame_number += 1
-
-        # r.plot() generates the image frame WITH the green bounding boxes and tracking IDs!
-        annotated_frame = r.plot()
-        out.write(annotated_frame)
-
-        # If YOLO successfully locked onto an object and assigned an ID in this frame
-        if r.boxes is not None and r.boxes.id is not None:
-            for box, track_id, cls, conf in zip(
-                r.boxes.xyxy, r.boxes.id, r.boxes.cls, r.boxes.conf
-            ):
-                plant_name = model.names[int(cls)]
-
-                # Keep a running tally of what we see the most
-                detected_plants[plant_name] = detected_plants.get(plant_name, 0) + 1
-
-                # Insert Telemetry
-                cursor.execute(
-                    "INSERT OR IGNORE INTO plants (species_name) VALUES (?);",
-                    (plant_name,),
-                )
-                cursor.execute(
-                    "SELECT id FROM plants WHERE species_name = ?;", (plant_name,)
-                )
-                plant_id = cursor.fetchone()[0]
-
-                cursor.execute(
-                    "INSERT INTO telemetry (plant_id, frame_number, confidence_score) VALUES (?, ?, ?);",
-                    (plant_id, frame_number, float(conf)),
-                )
-
-    # 5. Cleanup and Save
-    out.release()
-    cap.release()
-    conn.commit()
-    conn.close()
-
-    # Replace the original video with the new one so your frontend displays the boxes
-    os.replace(output_path, video_path)
-
-    # 6. Update the RAG Agent Context
-    if detected_plants:
-        # Set the RAG context to the plant that appeared in the highest volume of frames
-        CURRENT_SESSION_PLANT = max(detected_plants, key=detected_plants.get)
-        print(
-            f"✅ [TRACKING COMPLETE] {frame_number} frames analyzed. Agent context locked to: {CURRENT_SESSION_PLANT}"
+        output_path = video_path.replace(".mp4", "_tracked.mp4")
+        out = cv2.VideoWriter(
+            output_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height)
         )
-    else:
-        print("⚠️ [TRACKING COMPLETE] No stable objects tracked.")
+
+        results = model.track(source=video_path, stream=True, persist=True, conf=0.5)
+
+        conn = sqlite3.connect(DB_PATH, timeout=15.0)
+        conn.execute("PRAGMA journal_mode=WAL;")
+        cursor = conn.cursor()
+
+        cursor.execute("DELETE FROM telemetry;")
+        cursor.execute("DELETE FROM plants;")
+        conn.commit()
+
+        detected_plants = {}
+        frame_number = 0
+
+        for r in results:
+            frame_number += 1
+            annotated_frame = r.plot()
+            out.write(annotated_frame)
+
+            if r.boxes is not None and r.boxes.id is not None:
+                for box, track_id, cls, conf in zip(
+                    r.boxes.xyxy, r.boxes.id, r.boxes.cls, r.boxes.conf
+                ):
+                    plant_name = model.names[int(cls)]
+                    detected_plants[plant_name] = detected_plants.get(plant_name, 0) + 1
+
+                    cursor.execute(
+                        "INSERT OR IGNORE INTO plants (species_name) VALUES (?);",
+                        (plant_name,),
+                    )
+                    cursor.execute(
+                        "SELECT id FROM plants WHERE species_name = ?;", (plant_name,)
+                    )
+                    plant_id = cursor.fetchone()[0]
+
+                    cursor.execute(
+                        "INSERT INTO telemetry (plant_id, frame_number, confidence_score) VALUES (?, ?, ?);",
+                        (plant_id, frame_number, float(conf)),
+                    )
+
+        out.release()
+        cap.release()
+        conn.commit()
+        conn.close()
+
+        if detected_plants:
+            CURRENT_SESSION_PLANT = max(detected_plants, key=detected_plants.get)
+            print(
+                f"✅ [TRACKING COMPLETE] {frame_number} frames analyzed. Context locked to: {CURRENT_SESSION_PLANT}"
+            )
+        else:
+            print("⚠️ [TRACKING COMPLETE] No stable objects tracked.")
+
+    finally:
+        # Cleanup temp video file after processing
+        if os.path.exists(video_path):
+            os.remove(video_path)
+        output_path = video_path.replace(".mp4", "_tracked.mp4")
+        if os.path.exists(output_path):
+            os.remove(output_path)
 
 
 @app.post("/api/scan")
 async def trigger_scan(
     background_tasks: BackgroundTasks, file: UploadFile = File(None)
 ):
-    if file:
-        temp_video = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
-        with open(temp_video.name, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        video_target = temp_video.name
-    else:
-        video_target = os.path.join(
-            project_root, "data/processed/sample_garden_walk.mp4"
+    if not file or not file.filename:
+        raise HTTPException(
+            status_code=400, detail="No video file provided for scanning."
         )
+
+    temp_video = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+    with open(temp_video.name, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    video_target = temp_video.name
 
     background_tasks.add_task(background_video_scan, video_target)
     return {
         "status": "processing",
-        "message": "Video keyframe extraction initiated.",
+        "message": "Video keyframe extraction initiated successfully.",
     }
