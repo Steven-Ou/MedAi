@@ -33,3 +33,7 @@ node_modules
 **/__pycache__/
 
 herb-ai/research
+
+# AI Dump Files
+gemini-dump.txt
+repomix-output.xml
