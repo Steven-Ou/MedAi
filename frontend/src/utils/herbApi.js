@@ -1,39 +1,70 @@
-// src/utils/herbApi.js
+// frontend/src/utils/herbApi.js
 
-const BASE_URL = "http://localhost:7860";
+const BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "https://steveo223-herb-ai-backend.hf.space";
+
 /**
- * Fetches real-time structured plant metrics logged into the SQLite tables.
- * @returns {Promise<Array>} List of detected plant objects
+ * Fetches real-time telemetry from SQLite database.
  */
 export async function fetchDetectedPlants() {
   try {
     const response = await fetch(`${BASE_URL}/api/telemetry`);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const result = await response.json();
-    return result.data || []; // Returns the clean telemetry array
+    return result.data || [];
   } catch (error) {
-    console.error("Failed to connect to FastAPI telemetry route:", error);
+    console.error("Telemetry fetch error:", error);
     return [];
   }
 }
 
 /**
- * Kicks off the asynchronous computer vision frame-parsing background pipeline.
- * @returns {Promise<boolean>} Success status
+ * Triggers video file tracking scan.
+ * @param {File} videoFile - The uploaded video file object.
  */
-export async function triggerVisionScan() {
+export async function triggerVisionScan(videoFile) {
   try {
-    const response = await fetch(`${BASE_URL}/api/scan`, { method: "POST" });
+    const formData = new FormData();
+    if (videoFile) {
+      formData.append("file", videoFile);
+    }
+
+    const response = await fetch(`${BASE_URL}/api/scan`, {
+      method: "POST",
+      body: formData,
+    });
     return response.ok;
   } catch (error) {
-    console.error("Failed to trigger backend computer vision scan:", error);
+    console.error("Vision scan trigger failed:", error);
     return false;
   }
 }
 
 /**
- * @param {string} userQuestion - The question to ask the agent
- * @returns {Promise<string>} Grounded medical text response
+ * Uploads a static image for botanical identification.
+ * @param {File} imageFile - The uploaded image file object.
+ */
+export async function uploadImage(imageFile) {
+  try {
+    const formData = new FormData();
+    formData.append("file", imageFile);
+
+    const response = await fetch(`${BASE_URL}/api/upload-image`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error("Image upload failed:", error);
+    return null;
+  }
+}
+
+/**
+ * Sends a clinical inquiry to the RAG LLM query engine.
+ * @param {string} userQuestion - The question text.
  */
 export async function askBotanicalQuestion(userQuestion) {
   try {
@@ -47,10 +78,9 @@ export async function askBotanicalQuestion(userQuestion) {
 
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const result = await response.json();
-
-    return result.response;
+    return result.response || result.answer;
   } catch (error) {
-    console.error("Chat routing query engine mapping failed:", error);
+    console.error("Query engine failed:", error);
     return "Error generating response from the RAG query server.";
   }
 }

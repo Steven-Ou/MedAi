@@ -1,12 +1,11 @@
 # herb-ai/src/rag/know_gen.py
-# cspell:disable
 import os
 import sys
 import requests
+import google.generativeai as genai
 from huggingface_hub import InferenceClient
 from dotenv import load_dotenv
 
-# Ensure project root is accessible for imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 
 load_dotenv()
@@ -27,12 +26,15 @@ class AutoKnowledgeGenerator:
     def __init__(self):
         self.kb_dir = KNOWLEDGE_BASE_DIR
         self.token = os.getenv("HF_TOKEN")
+        self.gemini_api_key = os.getenv("GEMINI_API_KEY")
 
-        # List models in order of preference (Waterfall fallback)
+        if self.gemini_api_key:
+            genai.configure(api_key=self.gemini_api_key)
+
         self.cloud_models = [
-            "meta-llama/Llama-3.2-1B-Instruct",  # Tries this first (Gated)
-            "microsoft/Phi-3-mini-4k-instruct",  # Fallback 1 (Ungated)
-            "Qwen/Qwen2.5-1.5B-Instruct",  # Fallback 2 (Ungated)
+            "meta-llama/Llama-3.2-1B-Instruct",
+            "microsoft/Phi-3-mini-4k-instruct",
+            "Qwen/Qwen2.5-1.5B-Instruct",
         ]
 
     def generate_profile_if_new(self, plant_name: str) -> bool:
@@ -42,12 +44,10 @@ class AutoKnowledgeGenerator:
         target_path = os.path.join(self.kb_dir, file_filename)
 
         if os.path.exists(target_path):
-            print(
-                f"[{plant_name}] Profile already exists at '{target_path}'. Skipping generation."
-            )
+            print(f"[{plant_name}] Profile already exists at '{target_path}'. Skipping.")
             return False
 
-        print(f"New plant discovered: '{plant_name}'! Attempting generation...")
+        print(f"New plant discovered: '{plant_name}'! Generating profile...")
 
         prompt = (
             f"Write a brief textbook clinical overview for the herb: {plant_name}.\n"
@@ -59,17 +59,33 @@ class AutoKnowledgeGenerator:
             f"Keep it concise, accurate, and professional."
         )
 
+        # 1. PRIMARY TIER: Gemini API (<1 sec)
+        if self.gemini_api_key:
+            try:
+                print("⚡ Attempting ultra-fast generation with Gemini Flash...")
+                model = genai.GenerativeModel("gemini-1.5-flash")
+                response = model.generate_content(prompt)
+                response_text = response.text.strip()
+
+                if response_text:
+                    with open(target_path, "w", encoding="utf-8") as f:
+                        f.write(response_text)
+                    print(f"✅ Successfully saved profile via Gemini: {target_path}")
+                    return True
+            except Exception as e:
+                print(f"⚠️ Gemini generation failed: {e}. Falling back to HF...")
+
+        # 2. SECOND TIER: Hugging Face Inference API
         messages = [{"role": "user", "content": prompt}]
         client = InferenceClient(token=self.token)
 
-        # Waterfall through the Hugging Face models
         for model_name in self.cloud_models:
             try:
-                print(f"☁️ Attempting remote generation with: {model_name}...")
+                print(f"☁️ Attempting HF generation with: {model_name}...")
                 completion = client.chat.completions.create(
                     model=model_name,
                     messages=messages,
-                    max_tokens=512,  # Strictly fixes the 18-token cutoff!
+                    max_tokens=512,
                 )
 
                 response_text = completion.choices[0].message.content.strip()
@@ -77,24 +93,17 @@ class AutoKnowledgeGenerator:
                 if response_text:
                     with open(target_path, "w", encoding="utf-8") as f:
                         f.write(response_text)
-                    print(
-                        f"✅ Successfully saved new knowledge base file to: {target_path}"
-                    )
+                    print(f"✅ Successfully saved profile via HF: {target_path}")
                     return True
-                else:
-                    print(
-                        f"⚠️ {model_name} returned an empty response. Trying next model..."
-                    )
 
             except Exception as e:
-                print(f"⚠️ {model_name} failed (Error: {e}). Trying next model...")
+                print(f"⚠️ {model_name} failed: {e}. Trying next...")
 
-        # If we loop through all cloud models and they ALL fail, drop to local
-        print("🚨 All cloud API models failed. Booting local Ollama instance...")
+        # 3. FALLBACK TIER: Local Ollama CPU
+        print("🚨 Remote APIs failed. Falling back to local Ollama...")
         return self.run_local_ollama_fallback(prompt, target_path)
 
     def run_local_ollama_fallback(self, prompt: str, target_path: str) -> bool:
-        """Fallback to local Llama 3.2 3B instance if remote API fails."""
         try:
             payload = {
                 "model": "llama3.2",
@@ -102,34 +111,16 @@ class AutoKnowledgeGenerator:
                 "stream": False,
                 "options": {"num_predict": 512, "temperature": 0.3},
             }
-
-            # Make request to local Ollama server
-            response = requests.post(
-                "http://localhost:11434/api/generate", json=payload
-            )
+            response = requests.post("http://localhost:11434/api/generate", json=payload)
             response.raise_for_status()
 
             response_text = response.json().get("response", "").strip()
-
             if response_text:
                 with open(target_path, "w", encoding="utf-8") as f:
                     f.write(response_text)
-                print(
-                    f"✅ Successfully saved new knowledge base file via Local Ollama to: {target_path}"
-                )
+                print(f"✅ Saved profile via local Ollama: {target_path}")
                 return True
-            else:
-                print("❌ Local Ollama returned an empty response.")
-
-        except requests.exceptions.RequestException as e:
-            print(
-                f"❌ Local generation completely failed. Is Ollama running? Error: {e}"
-            )
+        except Exception as e:
+            print(f"❌ Local generation failed: {e}")
 
         return False
-
-
-if __name__ == "__main__":
-    gen = AutoKnowledgeGenerator()
-    # Test it out
-    gen.generate_profile_if_new("Peppermint")
