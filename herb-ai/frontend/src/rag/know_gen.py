@@ -44,18 +44,18 @@ class AutoKnowledgeGenerator:
         target_path = os.path.join(self.kb_dir, file_filename)
 
         if os.path.exists(target_path):
-            print(f"[{plant_name}] Profile already exists at '{target_path}'. Skipping.")
+            print(
+                f"[{plant_name}] Profile already exists at '{target_path}'. Skipping."
+            )
             return False
 
         print(f"New plant discovered: '{plant_name}'! Generating profile...")
 
         prompt = (
-            f"Write a brief textbook clinical overview for the herb: {plant_name}.\n"
-            f"Include sections for:\n"
-            f"- Common and botanical names\n"
-            f"- Primary medicinal properties (anti-inflammatory, immunomodulator, etc.)\n"
-            f"- Active chemical compounds\n"
-            f"- Primary clinical health benefits.\n"
+            f"Write a brief textbook clinical overview for the medicinal substance: {plant_name}.\n"
+            f"CRITICAL: Treat this strictly as a botanical medicine, natural remedy, or Traditional Chinese Medicine (TCM) substance.\n"
+            f"Focus EXCLUSIVELY on its medicinal effects, active chemical compounds, and traditional biological properties across global herbalism (e.g., TCM's 'clearing heat', Western herbalism's 'anti-inflammatory', or Ayurvedic 'adaptogens').\n"
+            f"DO NOT describe it as a medical condition or disease. DO NOT list surgical treatments.\n"
             f"Keep it concise, accurate, and professional."
         )
 
@@ -111,7 +111,9 @@ class AutoKnowledgeGenerator:
                 "stream": False,
                 "options": {"num_predict": 512, "temperature": 0.3},
             }
-            response = requests.post("http://localhost:11434/api/generate", json=payload)
+            response = requests.post(
+                "http://localhost:11434/api/generate", json=payload
+            )
             response.raise_for_status()
 
             response_text = response.json().get("response", "").strip()
