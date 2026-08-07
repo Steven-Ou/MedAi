@@ -17,6 +17,7 @@ export default function HerbAiDashboard() {
   const [videoSrc, setVideoSrc] = useState(null);
   const [imageSrc, setImageSrc] = useState(null);
   const videoRef = useRef(null);
+  const [videoFile, setVideoFile] = useState(null);
 
   const fetchTelemetry = async () => {
     try {
@@ -46,6 +47,7 @@ export default function HerbAiDashboard() {
     if (file) {
       setImageSrc(null);
       setVideoSrc(URL.createObjectURL(file));
+      setVideoFile(file);
     }
   };
 
@@ -96,14 +98,23 @@ export default function HerbAiDashboard() {
   };
 
   const handleStartScan = async () => {
+    if (!videoFile) {
+      alert("Please upload a video file first.");
+      return;
+    }
+
     setIsScanning(true);
     if (videoRef.current) videoRef.current.play();
+
     try {
-      // REPLACED RAW FETCH WITH WRAPPER
-      await triggerVisionScan();
+      const success = await triggerVisionScan(videoFile);
+      if (!success) {
+        console.error("The backend rejected the scan request.");
+      }
     } catch (err) {
-      console.error("Failed reaching scan ports.");
+      console.error("Failed reaching scan ports.", err);
     }
+
     setTimeout(() => setIsScanning(false), 12000);
   };
 
