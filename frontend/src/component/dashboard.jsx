@@ -103,6 +103,14 @@ export default function HerbAiDashboard() {
       return;
     }
 
+    // Limit to 10MB to prevent the cloud proxy from stripping the payload
+    if (videoFile.size > 10 * 1024 * 1024) {
+      alert(
+        "Video file is too large. Please keep it under 10MB for the cloud pipeline.",
+      );
+      return;
+    }
+
     setIsScanning(true);
     if (videoRef.current) videoRef.current.play();
 
