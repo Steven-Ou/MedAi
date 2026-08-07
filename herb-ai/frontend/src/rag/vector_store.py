@@ -1,7 +1,7 @@
 import os
 import chromadb
-import httpx
 from typing import List
+from sentence_transformers import SentenceTransformer
 
 # Ensure project root is accessible
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -15,22 +15,20 @@ class LocalVectorStoreEngine:
         self.collection = self.chroma_client.get_or_create_collection(
             name="botanical_knowledge"
         )
+        # Standardized on all-mpnet-base-v2 (768-dim) to align with query_engine.py
+        print("⚡ [VECTOR STORE] Loading SentenceTransformer embedding model...")
+        self.embedding_model = SentenceTransformer("all-mpnet-base-v2")
 
     def _get_local_embedding(self, text: str) -> List[float]:
-        """Generates embedding using local Ollama nomic-embed-text to match ingest.py."""
-        url = "http://localhost:11434/api/embeddings"
-        payload = {"model": "nomic-embed-text", "prompt": text}
+        """Generates embedding using local SentenceTransformer directly in Python."""
         try:
-            with httpx.Client() as client:
-                response = client.post(url, json=payload, timeout=30.0)
-                if response.status_code == 200:
-                    return response.json().get("embedding", [])
+            return self.embedding_model.encode(text).tolist()
         except Exception as e:
-            print(f"Local Embedding Error: {e}")
-        return []
+            print(f"❌ Local Embedding Error: {e}")
+            return []
 
     def build_vector_store(self):
-        """Rebuilds the Chroma vector store from local knowledge files."""
+        """Rebuilds the Chroma vector store from local knowledge text files."""
         text_dir = os.path.abspath(os.path.join(project_root, "../data/knowledge_base"))
 
         if not os.path.exists(text_dir):
@@ -43,7 +41,7 @@ class LocalVectorStoreEngine:
 
         for filename in os.listdir(text_dir):
             if filename.endswith(".txt"):
-                with open(os.path.join(text_dir, filename), "r") as f:
+                with open(os.path.join(text_dir, filename), "r", encoding="utf-8") as f:
                     content = f.read()
                     documents.append(content)
                     metadatas.append({"source": filename})
@@ -63,4 +61,4 @@ class LocalVectorStoreEngine:
                 documents=[doc],
                 metadatas=[metadatas[i]],
             )
-        print("Vector store build complete.")
+        print("✅ Vector store build complete.")
