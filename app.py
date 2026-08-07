@@ -232,7 +232,7 @@ def background_video_scan(video_path: str):
 
 @app.post("/api/scan")
 async def trigger_scan(
-    background_tasks: BackgroundTasks, file: UploadFile = File(None)
+    background_tasks: BackgroundTasks, file: UploadFile = File(...)
 ):
     if not file or not file.filename:
         raise HTTPException(
