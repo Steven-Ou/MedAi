@@ -151,8 +151,8 @@ export default function HerbAiDashboard() {
       setMessages((prev) => {
         const newHistory = [...prev];
         if (newHistory[newHistory.length - 1].role === "agent") {
-          // Assuming your wrapper returns the parsed JSON object
-          newHistory[newHistory.length - 1].text = data.answer;
+          // FIX: 'data' is already the text string, no need for .answer
+          newHistory[newHistory.length - 1].text = data;
           newHistory[newHistory.length - 1].isTyping = false;
         }
         return newHistory;

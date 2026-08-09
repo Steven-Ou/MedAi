@@ -188,28 +188,27 @@ def background_video_scan(video_path: str):
             annotated_frame = r.plot()
             out.write(annotated_frame)
 
-            # 2. Read 'probs' instead of 'boxes'
             if r.probs is not None:
                 top_idx = r.probs.top1
                 conf = float(r.probs.top1conf)
                 plant_name = model.names[top_idx]
 
-                detected_plants[plant_name] = detected_plants.get(plant_name, 0) + 1
+                if conf > 0.40:
+                    detected_plants[plant_name] = detected_plants.get(plant_name, 0) + 1
 
-                cursor.execute(
-                    "INSERT OR IGNORE INTO plants (species_name) VALUES (?);",
-                    (plant_name,),
-                )
-                cursor.execute(
-                    "SELECT id FROM plants WHERE species_name = ?;", (plant_name,)
-                )
-                plant_id = cursor.fetchone()[0]
+                    cursor.execute(
+                        "INSERT OR IGNORE INTO plants (species_name) VALUES (?);",
+                        (plant_name,),
+                    )
+                    cursor.execute(
+                        "SELECT id FROM plants WHERE species_name = ?;", (plant_name,)
+                    )
+                    plant_id = cursor.fetchone()[0]
 
-                # 3. Supply dummy coordinates (0) to satisfy the strict SQL schema
-                cursor.execute(
-                    "INSERT INTO telemetry (plant_id, frame_number, xmin, ymin, xmax, ymax, confidence_score) VALUES (?, ?, 0, 0, 0, 0, ?);",
-                    (plant_id, frame_number, float(conf)),
-                )
+                    cursor.execute(
+                        "INSERT INTO telemetry (plant_id, frame_number, xmin, ymin, xmax, ymax, confidence_score) VALUES (?, ?, 0, 0, 0, 0, ?);",
+                        (plant_id, frame_number, float(conf)),
+                    )
 
         out.release()
         cap.release()
