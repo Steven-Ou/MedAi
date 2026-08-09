@@ -157,7 +157,7 @@ def background_video_scan(video_path: str):
 
     try:
         model = YOLO(model_path)
-        print(f"🎬 [VIDEO TRACKING] Initiating frame-by-frame analysis...")
+        print(f"🎬 [VIDEO SCAN] Initiating frame-by-frame analysis...")
 
         cap = cv2.VideoCapture(video_path)
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -169,7 +169,8 @@ def background_video_scan(video_path: str):
             output_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height)
         )
 
-        results = model.track(source=video_path, stream=True, persist=True, conf=0.5)
+        # 1. Use predict() instead of track() for classification models
+        results = model.predict(source=video_path, stream=True, conf=0.5)
 
         conn = sqlite3.connect(DB_PATH, timeout=15.0)
         conn.execute("PRAGMA journal_mode=WAL;")
@@ -187,26 +188,28 @@ def background_video_scan(video_path: str):
             annotated_frame = r.plot()
             out.write(annotated_frame)
 
-            if r.boxes is not None and r.boxes.id is not None:
-                for box, track_id, cls, conf in zip(
-                    r.boxes.xyxy, r.boxes.id, r.boxes.cls, r.boxes.conf
-                ):
-                    plant_name = model.names[int(cls)]
-                    detected_plants[plant_name] = detected_plants.get(plant_name, 0) + 1
+            # 2. Read 'probs' instead of 'boxes'
+            if r.probs is not None:
+                top_idx = r.probs.top1
+                conf = float(r.probs.top1conf)
+                plant_name = model.names[top_idx]
 
-                    cursor.execute(
-                        "INSERT OR IGNORE INTO plants (species_name) VALUES (?);",
-                        (plant_name,),
-                    )
-                    cursor.execute(
-                        "SELECT id FROM plants WHERE species_name = ?;", (plant_name,)
-                    )
-                    plant_id = cursor.fetchone()[0]
+                detected_plants[plant_name] = detected_plants.get(plant_name, 0) + 1
 
-                    cursor.execute(
-                        "INSERT INTO telemetry (plant_id, frame_number, confidence_score) VALUES (?, ?, ?);",
-                        (plant_id, frame_number, float(conf)),
-                    )
+                cursor.execute(
+                    "INSERT OR IGNORE INTO plants (species_name) VALUES (?);",
+                    (plant_name,),
+                )
+                cursor.execute(
+                    "SELECT id FROM plants WHERE species_name = ?;", (plant_name,)
+                )
+                plant_id = cursor.fetchone()[0]
+
+                # 3. Supply dummy coordinates (0) to satisfy the strict SQL schema
+                cursor.execute(
+                    "INSERT INTO telemetry (plant_id, frame_number, xmin, ymin, xmax, ymax, confidence_score) VALUES (?, ?, 0, 0, 0, 0, ?);",
+                    (plant_id, frame_number, float(conf)),
+                )
 
         out.release()
         cap.release()
@@ -216,25 +219,21 @@ def background_video_scan(video_path: str):
         if detected_plants:
             CURRENT_SESSION_PLANT = max(detected_plants, key=detected_plants.get)
             print(
-                f"✅ [TRACKING COMPLETE] {frame_number} frames analyzed. Context locked to: {CURRENT_SESSION_PLANT}"
+                f"✅ [SCAN COMPLETE] {frame_number} frames analyzed. Context locked to: {CURRENT_SESSION_PLANT}"
             )
         else:
-            print("⚠️ [TRACKING COMPLETE] No stable objects tracked.")
+            print("⚠️ [SCAN COMPLETE] No confident classes detected.")
 
     finally:
-        # Cleanup temp video file after processing
+        # Cleanup temp video files
         if os.path.exists(video_path):
             os.remove(video_path)
-        output_path = video_path.replace(".mp4", "_tracked.mp4")
         if os.path.exists(output_path):
             os.remove(output_path)
 
 
 @app.post("/api/scan")
-async def trigger_scan(
-    background_tasks: BackgroundTasks, 
-    file: UploadFile  
-):
+async def trigger_scan(background_tasks: BackgroundTasks, file: UploadFile):
     if not file or not file.filename:
         raise HTTPException(
             status_code=400, detail="No video file provided for scanning."
