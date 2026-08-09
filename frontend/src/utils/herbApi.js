@@ -24,6 +24,8 @@ export async function fetchDetectedPlants() {
  */
 export async function triggerVisionScan(videoFile) {
   try {
+    console.log(`📡 Preparing to send video: ${(videoFile.size / (1024 * 1024)).toFixed(2)} MB`);
+    
     const formData = new FormData();
     if (videoFile) {
       formData.append("file", videoFile);
