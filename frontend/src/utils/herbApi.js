@@ -24,8 +24,6 @@ export async function fetchDetectedPlants() {
  */
 export async function triggerVisionScan(videoFile) {
   try {
-    console.log(`📡 Preparing to send video: ${(videoFile.size / (1024 * 1024)).toFixed(2)} MB`);
-    
     const formData = new FormData();
     if (videoFile) {
       formData.append("file", videoFile);
@@ -35,13 +33,20 @@ export async function triggerVisionScan(videoFile) {
       method: "POST",
       body: formData,
     });
-    return response.ok;
+
+    // Capture the exact FastAPI 422 error reason
+    if (!response.ok) {
+      const errorDetails = await response.json();
+      console.error("🚨 FASTAPI 422 ERROR DETAILS:", JSON.stringify(errorDetails, null, 2));
+      return false;
+    }
+    
+    return true;
   } catch (error) {
     console.error("Vision scan trigger failed:", error);
     return false;
   }
 }
-
 /**
  * Uploads a static image for botanical identification.
  * @param {File} imageFile - The uploaded image file object.
