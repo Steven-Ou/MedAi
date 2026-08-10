@@ -96,8 +96,8 @@ class BotanicalDetector:
                 if not self.gemini_client:
                     raise ValueError("Gemini Client not initialized.")
 
-                prompt = "Identify this plant. Reply only with the common name. Do not include punctuation or extra text."
-
+                # FIX: Strict instruction to return "Unidentified Anomaly"
+                prompt = "Identify this plant. Reply ONLY with the common botanical name. If you cannot identify it, or if it is not a plant, reply EXACTLY with 'Unidentified Anomaly'."
                 active_gemini_models = [
                     "gemini-3.6-flash",
                     "gemini-3.5-flash",
