@@ -84,6 +84,14 @@ def get_telemetry():
 # --- INSTANT IMAGE DETECTION ---
 async def handle_image_upload(file: UploadFile):
     global CURRENT_SESSION_PLANT
+    
+    # FIX: Wipe old video telemetry so RAG doesn't get confused by past scans
+    if os.path.exists(DB_PATH):
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute("DELETE FROM telemetry;")
+        conn.commit()
+        conn.close()
+
     contents = await file.read()
     if not contents:
         raise HTTPException(status_code=400, detail="No image file provided.")
@@ -116,7 +124,14 @@ def process_query_text(text: str):
     try:
         augmented_query = text
 
-        if CURRENT_SESSION_PLANT and CURRENT_SESSION_PLANT != "Unidentified Anomaly":
+        # FIX: Explicitly handle the Unidentified Anomaly state
+        if CURRENT_SESSION_PLANT == "Unidentified Anomaly":
+            augmented_query = (
+                f"System Context: You are Herb-AI. You just analyzed an image/video but could NOT identify any plants. "
+                f"You must tell the user that the object was an 'Unidentified Anomaly' and you cannot provide clinical data for it. "
+                f"User Question: {text}"
+            )
+        elif CURRENT_SESSION_PLANT:
             augmented_query = (
                 f"System Context: You are Herb-AI, an advanced medical botanical vision agent. "
                 f"You just analyzed the user's video/image and successfully detected the plant '{CURRENT_SESSION_PLANT}'. "
