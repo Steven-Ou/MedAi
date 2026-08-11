@@ -169,8 +169,7 @@ def background_video_scan(video_path: str):
             output_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height)
         )
 
-        # 1. Use predict() instead of track() for classification models
-        results = model.predict(source=video_path, stream=True, conf=0.5)
+        results = model.predict(source=video_path, stream=True, conf=0.01)
 
         conn = sqlite3.connect(DB_PATH, timeout=15.0)
         conn.execute("PRAGMA journal_mode=WAL;")
@@ -193,7 +192,7 @@ def background_video_scan(video_path: str):
                 conf = float(r.probs.top1conf)
                 plant_name = model.names[top_idx]
 
-                if conf > 0.40:
+                if conf >= 0.01:
                     detected_plants[plant_name] = detected_plants.get(plant_name, 0) + 1
 
                     cursor.execute(
@@ -221,7 +220,7 @@ def background_video_scan(video_path: str):
                 f"✅ [SCAN COMPLETE] {frame_number} frames analyzed. Context locked to: {CURRENT_SESSION_PLANT}"
             )
         else:
-            print("⚠️ [SCAN COMPLETE] No confident classes detected.")
+            print("⚠️ [SCAN COMPLETE] No classes detected even with 1% threshold.")
 
     finally:
         # Cleanup temp video files
