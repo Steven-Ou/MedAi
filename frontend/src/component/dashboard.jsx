@@ -4,6 +4,7 @@ import {
   fetchDetectedPlants,
   triggerVisionScan,
   askBotanicalQuestion,
+  checkScanStatus
 } from "../utils/herbApi";
 
 export default function HerbAiDashboard() {
@@ -103,7 +104,6 @@ export default function HerbAiDashboard() {
       return;
     }
 
-    // Limit to 10MB to prevent the cloud proxy from stripping the payload
     if (videoFile.size > 10 * 1024 * 1024) {
       alert(
         "Video file is too large. Please keep it under 10MB for the cloud pipeline.",
@@ -118,12 +118,24 @@ export default function HerbAiDashboard() {
       const success = await triggerVisionScan(videoFile);
       if (!success) {
         console.error("The backend rejected the scan request.");
+        setIsScanning(false); // Failsafe: turn off button if upload fails
+        return; 
       }
+
+      const pollInterval = setInterval(async () => {
+        const status = await checkScanStatus();
+        
+        // If the backend says it's done, stop the animation and clear the interval
+        if (!status.is_scanning) {
+          setIsScanning(false);
+          clearInterval(pollInterval);
+        }
+      }, 3000); 
+
     } catch (err) {
       console.error("Failed reaching scan ports.", err);
+      setIsScanning(false);
     }
-
-    setTimeout(() => setIsScanning(false), 12000);
   };
 
   const handleSendMessage = async (e) => {
