@@ -207,7 +207,7 @@ def background_video_scan(video_path: str):
                 conf = float(r.probs.top1conf)
                 plant_name = model.names[top_idx]
 
-                if conf >= 0.01:
+                if conf >= 0.60:
                     detected_plants[plant_name] = detected_plants.get(plant_name, 0) + 1
 
                     cursor.execute(
@@ -223,6 +223,7 @@ def background_video_scan(video_path: str):
                         "INSERT INTO telemetry (plant_id, frame_number, xmin, ymin, xmax, ymax, confidence_score) VALUES (?, ?, 0, 0, 0, 0, ?);",
                         (plant_id, frame_number, float(conf)),
                     )
+                    conn.commit()
 
         out.release()
         cap.release()
