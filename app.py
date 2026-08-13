@@ -184,7 +184,7 @@ def background_video_scan(video_path: str):
             output_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height)
         )
 
-        results = model.predict(source=video_path, stream=True, conf=0.01)
+        results = model.predict(source=video_path, stream=True, conf=0.50)
 
         conn = sqlite3.connect(DB_PATH, timeout=15.0)
         conn.execute("PRAGMA journal_mode=WAL;")
