@@ -19,6 +19,20 @@ export async function fetchDetectedPlants() {
 }
 
 /**
+ * Checks the true execution state of the backend pipeline.
+ */
+export async function checkScanStatus() {
+  try {
+    const response = await fetch(`${BASE_URL}/api/scan-status`);
+    if (!response.ok) return { is_scanning: false };
+    return await response.json();
+  } catch (error) {
+    console.error("Failed to check scan status:", error);
+    return { is_scanning: false };
+  }
+}
+
+/**
  * Triggers video file tracking scan.
  * @param {File} videoFile - The uploaded video file object.
  */

@@ -30,6 +30,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+IS_SCANNING = False
+
 # 2. Database Schema Initialization
 init_db()
 
@@ -52,6 +54,9 @@ class QueryRequest(BaseModel):
 def read_root():
     return {"status": "Herb-AI Backend is running smoothly."}
 
+@app.get("/api/scan-status")
+def get_scan_status():
+    return {"is_scanning": IS_SCANNING}
 
 # --- TELEMETRY ENDPOINT ---
 @app.get("/api/telemetry")
@@ -167,7 +172,8 @@ def chat_alias(payload: QueryRequest):
 
 # --- INSTANT VIDEO FRAME CLASSIFICATION ---
 def background_video_scan(video_path: str):
-    global CURRENT_SESSION_PLANT
+    global CURRENT_SESSION_PLANT, IS_SCANNING
+    IS_SCANNING = True
     model_path = os.path.join(project_root, "best.pt")
 
     try:
@@ -239,6 +245,7 @@ def background_video_scan(video_path: str):
             print("⚠️ [SCAN COMPLETE] No classes detected even with 1% threshold.")
 
     finally:
+        IS_SCANNING = False
         # Cleanup temp video files
         if os.path.exists(video_path):
             os.remove(video_path)
