@@ -13,6 +13,8 @@ done
 echo "Pulling llama3.2..."
 ollama pull llama3.2
 
+echo "Pulling llava for local Edge Vision..."
+ollama pull llava
 # Start the FastAPI app
 echo "Starting FastAPI..."
 python -m uvicorn app:app --host 0.0.0.0 --port 7860
