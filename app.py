@@ -190,7 +190,7 @@ def background_video_scan(video_path: str):
             output_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height)
         )
 
-        results = model.predict(source=video_path, stream=True, conf=0.50)
+        results = model.predict(source=video_path, stream=True, conf=0.01, imgsz=640)
 
         conn = sqlite3.connect(DB_PATH, timeout=15.0)
         conn.execute("PRAGMA journal_mode=WAL;")
@@ -213,7 +213,7 @@ def background_video_scan(video_path: str):
                 conf = float(r.probs.top1conf)
                 plant_name = model.names[top_idx]
 
-                if conf >= 0.60:
+                if conf >= 0.01:
                     detected_plants[plant_name] = detected_plants.get(plant_name, 0) + 1
 
                     cursor.execute(
