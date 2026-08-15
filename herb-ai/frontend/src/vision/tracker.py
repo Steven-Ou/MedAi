@@ -43,6 +43,10 @@ class BotanicalTracker:
                 break  # Video has ended or frame drop occurred
 
             frame_number += 1
+            
+            #adding in a skip frames for every 5th frame
+            if frame_number % 5 != 0:
+                continue
 
             # Run tracking inference on the current frame
             model_any: Any = self.model

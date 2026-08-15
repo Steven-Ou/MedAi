@@ -30,8 +30,9 @@ class AutoKnowledgeGenerator:
         self.gemini_client = (
             genai.Client(api_key=self.gemini_api_key) if self.gemini_api_key else None
         )
-        if self.gemini_api_key:
-            genai.configure(api_key=self.gemini_api_key)
+        self.gemini_client = (
+            genai.Client(api_key=self.gemini_api_key) if self.gemini_api_key else None
+        )
 
         self.cloud_models = [
             "meta-llama/Llama-3.2-1B-Instruct",
