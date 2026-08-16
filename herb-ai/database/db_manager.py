@@ -32,6 +32,7 @@ def init_db() -> None:
             xmax REAL NOT NULL,
             ymax REAL NOT NULL,
             confidence_score REAL NOT NULL,
+            evidence_image TEXT,
             FOREIGN KEY (plant_id) REFERENCES plants(id)
         );
     """)

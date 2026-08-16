@@ -4,6 +4,7 @@ import shutil
 import tempfile
 import sqlite3
 import traceback
+import base64
 import cv2
 from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -54,9 +55,11 @@ class QueryRequest(BaseModel):
 def read_root():
     return {"status": "Herb-AI Backend is running smoothly."}
 
+
 @app.get("/api/scan-status")
 def get_scan_status():
     return {"is_scanning": IS_SCANNING}
+
 
 # --- TELEMETRY ENDPOINT ---
 @app.get("/api/telemetry")
@@ -66,7 +69,7 @@ def get_telemetry():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT p.species_name, COUNT(t.id), MAX(t.confidence_score)
+        SELECT p.species_name, COUNT(t.id), MAX(t.confidence_score), MAX(t.evidence_image)
         FROM plants p
         JOIN telemetry t ON p.id = t.plant_id
         GROUP BY p.species_name
@@ -80,16 +83,16 @@ def get_telemetry():
                 "species": row[0],
                 "framesTracked": row[1],
                 "maxConfidence": round(row[2], 2),
+                "evidenceImage": row[3] 
             }
             for row in rows
         ]
     }
 
-
 # --- INSTANT IMAGE DETECTION ---
 async def handle_image_upload(file: UploadFile):
     global CURRENT_SESSION_PLANT
-    
+
     # FIX: Wipe old video telemetry so RAG doesn't get confused by past scans
     if os.path.exists(DB_PATH):
         conn = sqlite3.connect(DB_PATH)
@@ -202,34 +205,46 @@ def background_video_scan(video_path: str):
 
         detected_plants = {}
         frame_number = 0
-
+        
         for r in results:
             frame_number += 1
+
             annotated_frame = r.plot()
             out.write(annotated_frame)
 
             if r.probs is not None:
-                top_idx = r.probs.top1
-                conf = float(r.probs.top1conf)
-                plant_name = model.names[top_idx]
+                top5_indices = r.probs.top5
+                top5_confs = r.probs.top5conf.tolist()
 
-                if conf >= 0.01:
-                    detected_plants[plant_name] = detected_plants.get(plant_name, 0) + 1
+                evidence_base64 = None
 
-                    cursor.execute(
-                        "INSERT OR IGNORE INTO plants (species_name) VALUES (?);",
-                        (plant_name,),
-                    )
-                    cursor.execute(
-                        "SELECT id FROM plants WHERE species_name = ?;", (plant_name,)
-                    )
-                    plant_id = cursor.fetchone()[0]
+                for idx, conf in zip(top5_indices, top5_confs):
+                    if conf >= 0.01:
+                        plant_name = model.names[idx]
 
-                    cursor.execute(
-                        "INSERT INTO telemetry (plant_id, frame_number, xmin, ymin, xmax, ymax, confidence_score) VALUES (?, ?, 0, 0, 0, 0, ?);",
-                        (plant_id, frame_number, float(conf)),
-                    )
-                    conn.commit()
+                        detected_plants[plant_name] = (
+                            detected_plants.get(plant_name, 0) + 1
+                        )
+
+                        if not evidence_base64:
+                            _, buffer = cv2.imencode(".jpg", annotated_frame)
+                            evidence_base64 = base64.b64encode(buffer).decode("utf-8")
+
+                        cursor.execute(
+                            "INSERT OR IGNORE INTO plants (species_name) VALUES (?);",
+                            (plant_name,),
+                        )
+                        cursor.execute(
+                            "SELECT id FROM plants WHERE species_name = ?;",
+                            (plant_name,),
+                        )
+                        plant_id = cursor.fetchone()[0]
+
+                        cursor.execute(
+                            "INSERT INTO telemetry (plant_id, frame_number, xmin, ymin, xmax, ymax, confidence_score, evidence_image) VALUES (?, ?, 0, 0, 0, 0, ?, ?);",
+                            (plant_id, frame_number, float(conf), evidence_base64),
+                        )
+                        conn.commit()
 
         out.release()
         cap.release()
@@ -246,7 +261,6 @@ def background_video_scan(video_path: str):
 
     finally:
         IS_SCANNING = False
-        # Cleanup temp video files
         if os.path.exists(video_path):
             os.remove(video_path)
         if os.path.exists(output_path):
