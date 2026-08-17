@@ -83,11 +83,12 @@ def get_telemetry():
                 "species": row[0],
                 "framesTracked": row[1],
                 "maxConfidence": round(row[2], 2),
-                "evidenceImage": row[3] 
+                "evidenceImage": row[3],
             }
             for row in rows
         ]
     }
+
 
 # --- INSTANT IMAGE DETECTION ---
 async def handle_image_upload(file: UploadFile):
@@ -193,7 +194,9 @@ def background_video_scan(video_path: str):
             output_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height)
         )
 
-        results = model.predict(source=video_path, stream=True, conf=0.01, imgsz=640)
+        results = model.predict(
+            source=video_path, stream=True, conf=0.01, imgsz=640, vid_stride=5
+        )
 
         conn = sqlite3.connect(DB_PATH, timeout=15.0)
         conn.execute("PRAGMA journal_mode=WAL;")
@@ -205,7 +208,7 @@ def background_video_scan(video_path: str):
 
         detected_plants = {}
         frame_number = 0
-        
+
         for r in results:
             frame_number += 1
 

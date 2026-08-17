@@ -19,8 +19,8 @@ from database.db_manager import get_cached_response, save_to_cache
 load_dotenv()
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-CHROMA_DB_DIR: str = os.path.abspath(os.path.join(CURRENT_DIR, "../../chroma_storage"))
-DB_PATH: str = os.path.abspath(os.path.join(CURRENT_DIR, "../../database/telemetry.db"))
+CHROMA_DB_DIR: str = os.path.abspath(os.path.join(CURRENT_DIR, "../../../chroma_storage"))
+DB_PATH: str = os.path.abspath(os.path.join(CURRENT_DIR, "../../../database/telemetry.db"))
 
 
 class BotanicalQueryEngine:
@@ -28,7 +28,7 @@ class BotanicalQueryEngine:
         """Initializes the GenAI Client and connects to the active Chroma vector store."""
 
         project_root = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "../../../../")
+            os.path.join(os.path.dirname(__file__), "../../../")
         )
         self.chroma_client = chromadb.PersistentClient(
             path=os.path.join(project_root, "chroma_storage")
