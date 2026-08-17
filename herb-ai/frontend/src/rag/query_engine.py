@@ -22,6 +22,7 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 CHROMA_DB_DIR: str = os.path.abspath(os.path.join(CURRENT_DIR, "../../chroma_storage"))
 DB_PATH: str = os.path.abspath(os.path.join(CURRENT_DIR, "../../database/telemetry.db"))
 
+
 class BotanicalQueryEngine:
     def __init__(self) -> None:
         """Initializes the GenAI Client and connects to the active Chroma vector store."""
@@ -96,7 +97,7 @@ class BotanicalQueryEngine:
 
         return summary
 
-    model = SentenceTransformer('all-mpnet-base-v2')
+    model = SentenceTransformer("all-mpnet-base-v2")
 
     def _get_query_embedding_with_retry(self, text: str) -> List[float]:
         """Generates a query embedding using local SentenceTransformer."""
@@ -120,7 +121,9 @@ class BotanicalQueryEngine:
                 return cached_answer
 
             # 3. IF NO CACHE: Proceed with full vector search and generation
-            print("🔄 Cache miss. Proceeding with vector search and Ollama generation...")
+            print(
+                "🔄 Cache miss. Proceeding with vector search and Ollama generation..."
+            )
             session_context = self._get_unified_session_context()
             query_vector = self._get_query_embedding_with_retry(user_query)
 
@@ -159,7 +162,7 @@ class BotanicalQueryEngine:
                 "stream": False,
                 "options": {"temperature": 0.3},
             }
-            
+
             with httpx.Client() as client:
                 response = client.post(ollama_url, json=payload, timeout=300.0)
                 if response.status_code == 200:
@@ -167,7 +170,7 @@ class BotanicalQueryEngine:
 
                     # Add AI answer to history
                     self.chat_history.append(f"Herb-AI: {answer}")
-                    
+
                     # 4. SAVE TO CACHE FOR NEXT TIME
                     save_to_cache(user_query, answer)
                     print("💾 Saved new answer to database cache.")
