@@ -94,24 +94,40 @@ def get_telemetry():
 async def handle_image_upload(file: UploadFile):
     global CURRENT_SESSION_PLANT
 
-    # FIX: Wipe old video telemetry so RAG doesn't get confused by past scans
-    if os.path.exists(DB_PATH):
-        conn = sqlite3.connect(DB_PATH)
-        conn.execute("DELETE FROM telemetry;")
-        conn.commit()
-        conn.close()
-
     contents = await file.read()
     if not contents:
         raise HTTPException(status_code=400, detail="No image file provided.")
 
-    # Re-use pre-loaded singleton instance (sub-second inference)
     result = vision_engine.analyze_image(contents)
     CURRENT_SESSION_PLANT = result.get("predicted_class")
 
+    # FIX: Clear old DB and insert the new static image telemetry
+    if os.path.exists(DB_PATH):
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM telemetry;")
+        cursor.execute("DELETE FROM plants;")
+        conn.commit()
+        
+        if CURRENT_SESSION_PLANT:
+            evidence_base64 = base64.b64encode(contents).decode("utf-8")
+            cursor.execute("INSERT OR IGNORE INTO plants (species_name) VALUES (?);", (CURRENT_SESSION_PLANT,))
+            cursor.execute("SELECT id FROM plants WHERE species_name = ?;", (CURRENT_SESSION_PLANT,))
+            plant_row = cursor.fetchone()
+            
+            if plant_row:
+                plant_id = plant_row[0]
+                conf = result.get("confidence", 0.0)
+                cursor.execute(
+                    "INSERT INTO telemetry (plant_id, frame_number, xmin, ymin, xmax, ymax, confidence_score, evidence_image) VALUES (?, 1, 0, 0, 0, 0, ?, ?);",
+                    (plant_id, float(conf), evidence_base64),
+                )
+        conn.commit()
+        conn.close()
+
     return {
         "status": "success",
-        "predicted_class": result.get("predicted_class"),
+        "predicted_class": CURRENT_SESSION_PLANT,
         "confidence": result.get("confidence"),
         "results": result,
     }
