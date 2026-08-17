@@ -7,6 +7,7 @@ import sqlite3
 from typing import List, Any
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
+from google import genai
 import httpx
 import chromadb
 
@@ -19,8 +20,12 @@ from database.db_manager import get_cached_response, save_to_cache
 load_dotenv()
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-CHROMA_DB_DIR: str = os.path.abspath(os.path.join(CURRENT_DIR, "../../../chroma_storage"))
-DB_PATH: str = os.path.abspath(os.path.join(CURRENT_DIR, "../../../database/telemetry.db"))
+CHROMA_DB_DIR: str = os.path.abspath(
+    os.path.join(CURRENT_DIR, "../../../chroma_storage")
+)
+DB_PATH: str = os.path.abspath(
+    os.path.join(CURRENT_DIR, "../../../database/telemetry.db")
+)
 
 
 class BotanicalQueryEngine:
@@ -39,6 +44,12 @@ class BotanicalQueryEngine:
 
         # A simple array to hold the conversation history
         self.chat_history = []
+
+        self.gemini_client = (
+            genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+            if os.getenv("GEMINI_API_KEY")
+            else None
+        )
 
     def _get_unified_session_context(self) -> str:
         """Queries local telemetry tables and recent upload directories to build a merged context window."""
@@ -110,20 +121,15 @@ class BotanicalQueryEngine:
     def query_botanical_knowledge(self, user_query: str, n_results: int = 6) -> str:
         """Retrieves textbook reference vectors and synthesizes an answer using local Ollama."""
         try:
-            # 1. Add user query to history
             self.chat_history.append(f"User: {user_query}")
 
-            # 2. CHECK CACHE FIRST (Speed Optimization)
             cached_answer = get_cached_response(user_query)
             if cached_answer:
                 print("⚡ Cache hit! Returning saved answer instantly.")
                 self.chat_history.append(f"Herb-AI: {cached_answer}")
                 return cached_answer
 
-            # 3. IF NO CACHE: Proceed with full vector search and generation
-            print(
-                "🔄 Cache miss. Proceeding with vector search and Ollama generation..."
-            )
+            print("🔄 Cache miss. Proceeding with vector search...")
             session_context = self._get_unified_session_context()
             query_vector = self._get_query_embedding_with_retry(user_query)
 
@@ -138,11 +144,8 @@ class BotanicalQueryEngine:
                 else "No relevant textbook data found."
             )
 
-            # Keep history manageable (last 4 turns)
             history_str = "\n".join(self.chat_history[-4:])
 
-            # Define the local Ollama prompt
-            ollama_url = "http://localhost:11434/api/generate"
             prompt = (
                 f"You are Herb-AI, an expert medical botanical agent.\n"
                 "CRITICAL RULES:\n"
@@ -156,6 +159,23 @@ class BotanicalQueryEngine:
                 f"Answer clearly and focus on clinical benefits."
             )
 
+            # NEW: Cascade to Gemini first to avoid the 5-minute HTTP timeout
+            if self.gemini_client:
+                try:
+                    response = self.gemini_client.models.generate_content(
+                        model="gemini-3.5-flash", contents=prompt
+                    )
+                    answer = response.text.strip()
+                    self.chat_history.append(f"Herb-AI: {answer}")
+                    save_to_cache(user_query, answer)
+                    return answer
+                except Exception as e:
+                    print(
+                        f"⚠️ Gemini RAG generation failed: {e}. Falling back to Ollama..."
+                    )
+
+            # FALLBACK: Existing Ollama implementation
+            ollama_url = "http://localhost:11434/api/generate"
             payload = {
                 "model": "llama3.2",
                 "prompt": prompt,
@@ -167,14 +187,8 @@ class BotanicalQueryEngine:
                 response = client.post(ollama_url, json=payload, timeout=300.0)
                 if response.status_code == 200:
                     answer = response.json().get("response", "").strip()
-
-                    # Add AI answer to history
                     self.chat_history.append(f"Herb-AI: {answer}")
-
-                    # 4. SAVE TO CACHE FOR NEXT TIME
                     save_to_cache(user_query, answer)
-                    print("💾 Saved new answer to database cache.")
-
                     return answer
                 else:
                     return f"Ollama Error: Status {response.status_code}"
