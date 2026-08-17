@@ -477,6 +477,18 @@ export default function HerbAiDashboard() {
                   <tbody>
                     {telemetry.map((item, i) => (
                       <tr key={i} style={{ backgroundColor: "#f8fafc" }}>
+                        {/* NEW: Render the evidence image thumbnail */}
+                        <td style={{ padding: "8px", width: "50px" }}>
+                          {item.evidenceImage ? (
+                            <img 
+                              src={`data:image/jpeg;base64,${item.evidenceImage}`} 
+                              alt={item.species} 
+                              style={{ width: "45px", height: "45px", borderRadius: "8px", objectFit: "cover" }} 
+                            />
+                          ) : (
+                            <div style={{ width: "45px", height: "45px", backgroundColor: "#e2e8f0", borderRadius: "8px" }} />
+                          )}
+                        </td>
                         <td
                           style={{
                             padding: "12px 10px",
