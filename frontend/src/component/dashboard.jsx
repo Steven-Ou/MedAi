@@ -125,10 +125,38 @@ export default function HerbAiDashboard() {
       const pollInterval = setInterval(async () => {
         const status = await checkScanStatus();
         
-        // If the backend says it's done, stop the animation and clear the interval
         if (!status.is_scanning) {
           setIsScanning(false);
           clearInterval(pollInterval);
+
+          // NEW LOGIC: Fetch telemetry and auto-populate the chat window
+          try {
+            const telemetryData = await fetchDetectedPlants();
+            if (telemetryData && telemetryData.length > 0) {
+              // Find the plant with the highest number of tracked frames
+              const topPlant = telemetryData.reduce((prev, current) =>
+                (prev.framesTracked > current.framesTracked) ? prev : current
+              );
+
+              setMessages((prev) => [
+                ...prev,
+                {
+                  role: "agent",
+                  text: `🎥 Video Inference Complete! I scanned the footage and predominantly identified: ${topPlant.species} (Tracked across ${topPlant.framesTracked} frames). Feel free to ask me to explain its clinical benefits below.`,
+                },
+              ]);
+            } else {
+              setMessages((prev) => [
+                ...prev,
+                {
+                  role: "agent",
+                  text: `🎥 Video Inference Complete! However, I couldn't confidently identify any specific herbs in the footage.`,
+                },
+              ]);
+            }
+          } catch (err) {
+            console.error("Failed fetching post-scan telemetry:", err);
+          }
         }
       }, 3000); 
 
