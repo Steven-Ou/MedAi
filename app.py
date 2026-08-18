@@ -286,24 +286,46 @@ def background_video_scan(video_path: str):
         IS_SCANNING = False
         if os.path.exists(video_path):
             os.remove(video_path)
-        if os.path.exists(output_path):
+        if 'output_path' in locals() and os.path.exists(output_path):
             os.remove(output_path)
 
 
 @app.post("/api/scan")
 async def trigger_scan(background_tasks: BackgroundTasks, file: UploadFile):
+    global IS_SCANNING
+    
+    # 2. Prevent concurrent heavy ML scans
+    if IS_SCANNING:
+        raise HTTPException(
+            status_code=429, 
+            detail="A video scan is already in progress. Please wait."
+        )
+
     if not file or not file.filename:
         raise HTTPException(
             status_code=400, detail="No video file provided for scanning."
         )
 
+    # Lock the scanning state immediately
+    IS_SCANNING = True 
+
     temp_video = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
-    with open(temp_video.name, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
     video_target = temp_video.name
 
+    try:
+        # 3. Unblock the event loop using async file writing
+        async with aiofiles.open(video_target, "wb") as buffer:
+            while chunk := await file.read(1024 * 1024):  # Read in 1MB chunks
+                await buffer.write(chunk)
+                
+    except Exception as e:
+        # If upload fails, unlock and clean up
+        IS_SCANNING = False
+        if os.path.exists(video_target):
+            os.remove(video_target)
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
+    # Add the background task
     background_tasks.add_task(background_video_scan, video_target)
-    return {
-        "status": "processing",
-        "message": "Video keyframe extraction initiated successfully.",
-    }
+    
+    return {"message": "Video scan started successfully."}
