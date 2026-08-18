@@ -6,6 +6,7 @@ import sqlite3
 import traceback
 import base64
 import cv2
+import aiofiles
 from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
