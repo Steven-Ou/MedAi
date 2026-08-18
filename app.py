@@ -69,7 +69,11 @@ def get_telemetry():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT p.species_name, COUNT(t.id), MAX(t.confidence_score), MAX(t.evidence_image)
+        SELECT 
+            p.species_name, 
+            COUNT(t.id), 
+            MAX(t.confidence_score), 
+            (SELECT evidence_image FROM telemetry WHERE plant_id = p.id ORDER BY confidence_score DESC LIMIT 1)
         FROM plants p
         JOIN telemetry t ON p.id = t.plant_id
         GROUP BY p.species_name
