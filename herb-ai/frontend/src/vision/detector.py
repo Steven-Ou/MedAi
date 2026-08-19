@@ -144,7 +144,7 @@ class BotanicalDetector:
                             "http://localhost:11434/api/generate",
                             json={
                                 "model": "llava",
-                                "prompt": "Identify this plant. Reply only with the common name.",
+                                "prompt": "Identify this object. Reply ONLY with the common botanical plant name. If it is not a plant, or you cannot identify it, reply EXACTLY with 'Unidentified Anomaly'. Do not write sentences.",
                                 "images": [base64_image],
                                 "stream": False,
                             },
@@ -152,7 +152,7 @@ class BotanicalDetector:
                         )
                         if resp.status_code == 200:
                             discovered_name = resp.json().get("response", "").strip()
-                            if not discovered_name or "Unidentified" in discovered_name:
+                            if not discovered_name or "Unidentified" in discovered_name or len(discovered_name.split()) > 4:
                                 predicted_class = "Unidentified Anomaly"
                                 confidence = 0.0
                             else:
