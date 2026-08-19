@@ -4,7 +4,8 @@ import {
   fetchDetectedPlants,
   triggerVisionScan,
   askBotanicalQuestion,
-  checkScanStatus
+  checkScanStatus,
+  uploadImage,
 } from "../utils/herbApi";
 
 export default function HerbAiDashboard() {
@@ -66,26 +67,19 @@ export default function HerbAiDashboard() {
         },
       ]);
       try {
-        const formData = new FormData();
-        formData.append("file", file);
+        const data = await uploadImage(file);
 
-        // NOTE: You still need to create an uploadImage wrapper in herbApi.js for this
-        const res = await fetch(
-          "https://steveo223-herb-ai-backend.hf.space/api/upload-image",
-          {
-            method: "POST",
-            body: formData,
-          },
-        );
-        const data = await res.json();
-
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "agent",
-            text: `Inference Complete! Identified object as: ${data.predicted_class} (Confidence: ${(data.confidence * 100).toFixed(0)}%). Feel free to ask me to explain its clinical benefits below.`,
-          },
-        ]);
+        if (data && data.predicted_class) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "agent",
+              text: `Inference Complete! Identified object as: ${data.predicted_class} (Confidence: ${(data.confidence * 100).toFixed(0)}%). Feel free to ask me to explain its clinical benefits below.`,
+            },
+          ]);
+        } else {
+          throw new Error("Invalid response payload");
+        }
       } catch (err) {
         setMessages((prev) => [
           ...prev,
@@ -119,12 +113,12 @@ export default function HerbAiDashboard() {
       if (!success) {
         console.error("The backend rejected the scan request.");
         setIsScanning(false); // Failsafe: turn off button if upload fails
-        return; 
+        return;
       }
 
       const pollInterval = setInterval(async () => {
         const status = await checkScanStatus();
-        
+
         if (!status.is_scanning) {
           setIsScanning(false);
           clearInterval(pollInterval);
@@ -135,7 +129,7 @@ export default function HerbAiDashboard() {
             if (telemetryData && telemetryData.length > 0) {
               // Find the plant with the highest number of tracked frames
               const topPlant = telemetryData.reduce((prev, current) =>
-                (prev.framesTracked > current.framesTracked) ? prev : current
+                prev.framesTracked > current.framesTracked ? prev : current,
               );
 
               setMessages((prev) => [
@@ -158,8 +152,7 @@ export default function HerbAiDashboard() {
             console.error("Failed fetching post-scan telemetry:", err);
           }
         }
-      }, 3000); 
-
+      }, 3000);
     } catch (err) {
       console.error("Failed reaching scan ports.", err);
       setIsScanning(false);
@@ -480,13 +473,25 @@ export default function HerbAiDashboard() {
                         {/* NEW: Render the evidence image thumbnail */}
                         <td style={{ padding: "8px", width: "50px" }}>
                           {item.evidenceImage ? (
-                            <img 
-                              src={`data:image/jpeg;base64,${item.evidenceImage}`} 
-                              alt={item.species} 
-                              style={{ width: "45px", height: "45px", borderRadius: "8px", objectFit: "cover" }} 
+                            <img
+                              src={`data:image/jpeg;base64,${item.evidenceImage}`}
+                              alt={item.species}
+                              style={{
+                                width: "45px",
+                                height: "45px",
+                                borderRadius: "8px",
+                                objectFit: "cover",
+                              }}
                             />
                           ) : (
-                            <div style={{ width: "45px", height: "45px", backgroundColor: "#e2e8f0", borderRadius: "8px" }} />
+                            <div
+                              style={{
+                                width: "45px",
+                                height: "45px",
+                                backgroundColor: "#e2e8f0",
+                                borderRadius: "8px",
+                              }}
+                            />
                           )}
                         </td>
                         <td

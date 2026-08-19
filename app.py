@@ -154,7 +154,6 @@ def process_query_text(text: str):
     try:
         augmented_query = text
 
-        # FIX: Explicitly handle the Unidentified Anomaly state
         if CURRENT_SESSION_PLANT == "Unidentified Anomaly":
             augmented_query = (
                 f"System Context: You are Herb-AI. You just analyzed an image/video but could NOT identify any plants. "
@@ -164,9 +163,9 @@ def process_query_text(text: str):
         elif CURRENT_SESSION_PLANT:
             augmented_query = (
                 f"System Context: You are Herb-AI, an advanced medical botanical vision agent. "
-                f"You just analyzed the user's video/image and successfully detected the plant '{CURRENT_SESSION_PLANT}'. "
+                f"You just analyzed the user's video/image and successfully detected the following plants: {CURRENT_SESSION_PLANT}. "
                 f"CRITICAL OVERRIDE: Do not say you cannot see the video. You ARE the vision agent. "
-                f"Use your general knowledge to accurately answer the user's question about the '{CURRENT_SESSION_PLANT}' you saw in the video. "
+                f"Use your general knowledge and the provided telemetry context to accurately answer the user's question about ALL the plants you saw. "
                 f"User Question: {text}"
             )
 
@@ -276,7 +275,7 @@ def background_video_scan(video_path: str):
         conn.close()
 
         if detected_plants:
-            CURRENT_SESSION_PLANT = max(detected_plants, key=detected_plants.get)
+            CURRENT_SESSION_PLANT = ", ".join(detected_plants.keys())
             print(
                 f"✅ [SCAN COMPLETE] {frame_number} frames analyzed. Context locked to: {CURRENT_SESSION_PLANT}"
             )

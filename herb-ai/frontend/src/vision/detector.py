@@ -143,7 +143,7 @@ class BotanicalDetector:
                         resp = client.post(
                             "http://localhost:11434/api/generate",
                             json={
-                                "model": "moondream",
+                                "model": "llava",
                                 "prompt": "Identify this plant. Reply only with the common name.",
                                 "images": [base64_image],
                                 "stream": False,
