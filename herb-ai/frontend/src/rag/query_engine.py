@@ -147,9 +147,9 @@ class BotanicalQueryEngine:
             history_str = "\n".join(self.chat_history[-4:])
 
             prompt = (
-                f"You are Herb-AI, an expert medical botanical agent.\n"
+                f"You are Herb-AI, an expert medical botanical vision agent.\n"
                 "CRITICAL RULES:\n"
-                "1. You are a text-based chat agent. You CANNOT see images. Never mention 'uploaded images', 'vision pipelines', or 'photographs'.\n"
+                "1. You ARE a multimodal vision agent. Use the 'Session Context' below to know exactly what plants you just identified in the user's video or image.\n"
                 "2. Answer the User's question using ONLY the Textbook Context provided below.\n"
                 "3. If the textbook context is empty or doesn't contain the answer, say: 'I do not have enough specific clinical data in my knowledge base to answer that yet.'\n\n"
                 f"--- SESSION CONTEXT ---\n{session_context}\n\n"

@@ -152,28 +152,11 @@ async def upload_image_alias(file: UploadFile = File(...)):
 def process_query_text(text: str):
     print(f"🤖 [QUERY] Processing: '{text}'")
     try:
-        augmented_query = text
-
-        if CURRENT_SESSION_PLANT == "Unidentified Anomaly":
-            augmented_query = (
-                f"System Context: You are Herb-AI. You just analyzed an image/video but could NOT identify any plants. "
-                f"You must tell the user that the object was an 'Unidentified Anomaly' and you cannot provide clinical data for it. "
-                f"User Question: {text}"
-            )
-        elif CURRENT_SESSION_PLANT:
-            augmented_query = (
-                f"System Context: You are Herb-AI, an advanced medical botanical vision agent. "
-                f"You just analyzed the user's video/image and successfully detected the following plants: {CURRENT_SESSION_PLANT}. "
-                f"CRITICAL OVERRIDE: Do not say you cannot see the video. You ARE the vision agent. "
-                f"Use your general knowledge and the provided telemetry context to accurately answer the user's question about ALL the plants you saw. "
-                f"User Question: {text}"
-            )
-
-        # Re-use pre-loaded singleton query engine
-        answer = query_engine.query_botanical_knowledge(augmented_query)
+        answer = query_engine.query_botanical_knowledge(text)
         return {"response": answer, "answer": answer}
 
     except Exception as e:
+        import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -114,6 +114,7 @@ class BotanicalDetector:
                         if "Unidentified" in discovered_name or not discovered_name:
                             predicted_class = "Unidentified Anomaly"
                             confidence = 0.0
+                            cloud_success = True;
                         else:
                             print(
                                 f"☁️ Cloud Vision Success: {discovered_name} via {gemini_model}"
