@@ -149,14 +149,15 @@ class BotanicalQueryEngine:
             prompt = (
                 f"You are Herb-AI, an expert medical botanical vision agent.\n"
                 "CRITICAL RULES:\n"
-                "1. You ARE a multimodal vision agent. Use the 'Session Context' below to know exactly what plants you just identified in the user's video or image.\n"
-                "2. Answer the User's question using ONLY the Textbook Context provided below.\n"
-                "3. If the textbook context is empty or doesn't contain the answer, say: 'I do not have enough specific clinical data in my knowledge base to answer that yet.'\n\n"
+                "1. You ARE a multimodal vision agent. The 'Session Context' below contains the exact plants you just identified in the user's video or image.\n"
+                "2. If the user asks what you saw, what is in the video, or asks about the current session, answer using the 'Session Context'.\n"
+                "3. If the user asks about medical or clinical benefits, answer using ONLY the 'Textbook Context'.\n"
+                "4. If you are asked a clinical question and the textbook context is empty, say: 'I do not have enough specific clinical data in my knowledge base to answer that yet.'\n\n"
                 f"--- SESSION CONTEXT ---\n{session_context}\n\n"
                 f"--- TEXTBOOK CONTEXT ---\n{retrieved_context}\n\n"
                 f"--- CONVERSATION HISTORY ---\n{history_str}\n\n"
                 f"User Question: {user_query}\n"
-                f"Answer clearly and focus on clinical benefits."
+                f"Answer clearly and concisely."
             )
 
             # NEW: Cascade to Gemini first to avoid the 5-minute HTTP timeout
