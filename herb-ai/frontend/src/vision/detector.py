@@ -96,8 +96,7 @@ class BotanicalDetector:
                 if not self.gemini_client:
                     raise ValueError("Gemini Client not initialized.")
 
-                # FIX: Strict instruction to return "Unidentified Anomaly"
-                prompt = "Identify this plant. Reply ONLY with the common botanical name. If you cannot identify it, or if it is not a plant, reply EXACTLY with 'Unidentified Anomaly'."
+                prompt = "Identify this botanical or medicinal substance. Reply ONLY with the common botanical or TCM name. If you cannot identify it, or if it is not a medicinal plant, dried herb, or TCM ingredient, reply EXACTLY with 'Unidentified Anomaly'."ss
                 active_gemini_models = [
                     "gemini-3.6-flash",
                     "gemini-3.5-flash",
@@ -114,7 +113,7 @@ class BotanicalDetector:
                         if "Unidentified" in discovered_name or not discovered_name:
                             predicted_class = "Unidentified Anomaly"
                             confidence = 0.0
-                            cloud_success = True;
+                            cloud_success = True
                         else:
                             print(
                                 f"☁️ Cloud Vision Success: {discovered_name} via {gemini_model}"
@@ -145,7 +144,7 @@ class BotanicalDetector:
                             "http://localhost:11434/api/generate",
                             json={
                                 "model": "llava",
-                                "prompt": "Identify this object. Reply ONLY with the common botanical plant name. If it is not a plant, or you cannot identify it, reply EXACTLY with 'Unidentified Anomaly'. Do not write sentences.",
+                                "prompt": "Identify this object. Reply ONLY with the common botanical or TCM name. If it is not a medicinal plant, dried herb, or TCM ingredient, or you cannot identify it, reply EXACTLY with 'Unidentified Anomaly'. Do not write sentences.",
                                 "images": [base64_image],
                                 "stream": False,
                             },
@@ -153,7 +152,11 @@ class BotanicalDetector:
                         )
                         if resp.status_code == 200:
                             discovered_name = resp.json().get("response", "").strip()
-                            if not discovered_name or "Unidentified" in discovered_name or len(discovered_name.split()) > 4:
+                            if (
+                                not discovered_name
+                                or "Unidentified" in discovered_name
+                                or len(discovered_name.split()) > 4
+                            ):
                                 predicted_class = "Unidentified Anomaly"
                                 confidence = 0.0
                             else:
