@@ -12,8 +12,10 @@ from dotenv import load_dotenv
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_dir, "../../../"))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+
+app_root = os.path.abspath(os.path.join(project_root, "../"))
+if app_root not in sys.path:
+    sys.path.insert(0, app_root)
 
 from frontend.src.rag.know_gen import AutoKnowledgeGenerator
 from frontend.src.rag.vector_store import LocalVectorStoreEngine
@@ -30,7 +32,6 @@ class BotanicalDetector:
             genai.Client(api_key=self.api_key) if self.api_key else None
         )
 
-        # Initialize OpenCLIP for zero-cost visual memory
         print("🧠 Loading OpenCLIP visual encoder...")
         self.clip_model, _, self.clip_preprocess = (
             open_clip.create_model_and_transforms(
@@ -40,7 +41,6 @@ class BotanicalDetector:
         self.clip_model.eval()
 
     def _get_image_vector(self, pil_image: Image.Image) -> list:
-        """Encodes an image into a 512-dimensional vector."""
         image_tensor = self.clip_preprocess(pil_image).unsqueeze(0)
         with torch.no_grad():
             image_features = self.clip_model.encode_image(image_tensor)
@@ -52,25 +52,22 @@ class BotanicalDetector:
         image.thumbnail((640, 640))
         engine = LocalVectorStoreEngine()
 
-        # Add a dedicated client for visual memory isolation
         import chromadb
 
+        # Connect to the exact same Chroma instance as the RAG engine
         chroma_client = chromadb.PersistentClient(
             path=os.path.join(project_root, "chroma_storage")
         )
         visual_collection = chroma_client.get_or_create_collection(name="visual_memory")
 
-        # STEP 1: CHECK CHROMADB VISUAL MEMORY (Free, 0ms API Cost)
         image_vector = self._get_image_vector(image)
         try:
-            # CHANGE: Query the visual collection, not engine.collection
             memory_query = visual_collection.query(
                 query_embeddings=[image_vector], n_results=1
             )
-            # If distance is under threshold, we already "learned" this image
             if memory_query["distances"] and memory_query["distances"][0]:
                 dist = memory_query["distances"][0][0]
-                if dist < 0.25:  # Cosine distance match
+                if dist < 0.25:
                     learned_name = memory_query["metadatas"][0][0]["plant_name"]
                     print(
                         f"⚡ Visual Memory Recall: {learned_name} (Distance: {dist:.3f})"
@@ -79,7 +76,6 @@ class BotanicalDetector:
         except Exception as mem_err:
             print(f"⚠️ Vector memory lookup bypassed: {mem_err}")
 
-        # STEP 2: LOCAL YOLO INFERENCE
         temp_target = "/tmp/temp_inference_target.jpg"
         image.save(temp_target)
 
@@ -88,7 +84,6 @@ class BotanicalDetector:
         predicted_class = results[0].names[top_idx]
         confidence = float(results[0].probs.top1conf)
 
-        # STEP 3: HYBRID LLM FALLBACK (When YOLO is uncertain)
         cloud_success = False
         if confidence < 0.70:
             print("🔍 YOLO confidence low. Attempting Cloud Vision...")
@@ -96,6 +91,7 @@ class BotanicalDetector:
                 if not self.gemini_client:
                     raise ValueError("Gemini Client not initialized.")
 
+                # FIXED: Removed the stray 'ss' syntax error at the end of this string
                 prompt = "Identify this botanical or medicinal substance. Reply ONLY with the common botanical or TCM name. If you cannot identify it, or if it is not a medicinal plant, dried herb, or TCM ingredient, reply EXACTLY with 'Unidentified Anomaly'."
                 active_gemini_models = [
                     "gemini-3.6-flash",
@@ -103,6 +99,7 @@ class BotanicalDetector:
                     "gemini-3.1-flash-lite",
                     "gemini-2.5-flash",
                 ]
+
                 for gemini_model in active_gemini_models:
                     try:
                         print(f"☁️ Attempting Cloud Vision with {gemini_model}...")
@@ -168,10 +165,8 @@ class BotanicalDetector:
                     predicted_class = "Unidentified Anomaly"
                     confidence = 0.0
 
-        # STEP 4: SAVE VISUAL EMBEDDING & KNOWLEDGE TO CHROMADB
         if confidence > 0.70 and predicted_class != "Unidentified Anomaly":
             try:
-                # CHANGE: Add to visual_collection, not engine.collection
                 visual_collection.add(
                     embeddings=[image_vector],
                     metadatas=[{"plant_name": predicted_class}],
@@ -183,7 +178,6 @@ class BotanicalDetector:
             except Exception as save_err:
                 print(f"⚠️ Failed to store vector memory: {save_err}")
 
-            # Generate RAG text profile
             knowledge_gen = AutoKnowledgeGenerator()
             if knowledge_gen.generate_profile_if_new(predicted_class):
                 print(f"📝 Syncing local vector knowledge for: {predicted_class}")

@@ -3,7 +3,6 @@ import chromadb
 from typing import List
 from sentence_transformers import SentenceTransformer
 
-# Ensure project root is accessible
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_dir, "../../../"))
 CHROMA_DB_DIR = os.path.join(project_root, "chroma_storage")
@@ -15,7 +14,6 @@ class LocalVectorStoreEngine:
         self.collection = self.chroma_client.get_or_create_collection(
             name="botanical_knowledge"
         )
-        # Standardized on all-mpnet-base-v2 (768-dim) to align with query_engine.py
         print("⚡ [VECTOR STORE] Loading SentenceTransformer embedding model...")
         self.embedding_model = SentenceTransformer("all-mpnet-base-v2")
 
@@ -29,7 +27,7 @@ class LocalVectorStoreEngine:
 
     def build_vector_store(self):
         """Rebuilds the Chroma vector store from local knowledge text files."""
-        text_dir = os.path.abspath(os.path.join(project_root, "../data/knowledge_base"))
+        text_dir = os.path.abspath(os.path.join(project_root, "data/knowledge_base"))
 
         if not os.path.exists(text_dir):
             print(f"Textbook directory not found at {text_dir}, skipping vector build.")
