@@ -5,7 +5,7 @@ import wikipedia
 
 # 1. THE PATH LINK: Perfectly matches query_engine.py
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-CHROMA_DB_DIR = os.path.abspath(os.path.join(CURRENT_DIR, "../../chroma_storage"))
+CHROMA_DB_DIR = os.path.abspath(os.path.join(CURRENT_DIR, "../../../chroma_storage"))
 
 
 def get_embedding(text: str) -> list[float]:

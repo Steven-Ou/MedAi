@@ -5,7 +5,7 @@ from sentence_transformers import SentenceTransformer
 
 # Ensure project root is accessible
 current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(current_dir, "../../"))
+project_root = os.path.abspath(os.path.join(current_dir, "../../../"))
 CHROMA_DB_DIR = os.path.join(project_root, "chroma_storage")
 
 
