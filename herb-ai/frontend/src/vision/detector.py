@@ -96,7 +96,7 @@ class BotanicalDetector:
                 if not self.gemini_client:
                     raise ValueError("Gemini Client not initialized.")
 
-                prompt = "Identify this botanical or medicinal substance. Reply ONLY with the common botanical or TCM name. If you cannot identify it, or if it is not a medicinal plant, dried herb, or TCM ingredient, reply EXACTLY with 'Unidentified Anomaly'."ss
+                prompt = "Identify this botanical or medicinal substance. Reply ONLY with the common botanical or TCM name. If you cannot identify it, or if it is not a medicinal plant, dried herb, or TCM ingredient, reply EXACTLY with 'Unidentified Anomaly'."
                 active_gemini_models = [
                     "gemini-3.6-flash",
                     "gemini-3.5-flash",
