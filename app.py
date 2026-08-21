@@ -11,18 +11,17 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from ultralytics import YOLO
-from database.db_manager import init_db, DB_PATH
-from frontend.src.rag.query_engine import BotanicalQueryEngine
-from frontend.src.vision.detector import BotanicalDetector
-from frontend.src.rag.know_gen import AutoKnowledgeGenerator
-from frontend.src.rag.vector_store import LocalVectorStoreEngine
 
-# 1. Path Setup
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.join(current_dir, "herb-ai")
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
+from database.db_manager import init_db, DB_PATH
+from frontend.src.rag.query_engine import BotanicalQueryEngine
+from frontend.src.vision.detector import BotanicalDetector
+from frontend.src.rag.know_gen import AutoKnowledgeGenerator
+from frontend.src.rag.vector_store import LocalVectorStoreEngine
 
 app = FastAPI(title="Herb-AI Medical Botanical API Hub")
 
