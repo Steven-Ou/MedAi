@@ -11,6 +11,11 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from ultralytics import YOLO
+from database.db_manager import init_db, DB_PATH
+from frontend.src.rag.query_engine import BotanicalQueryEngine
+from frontend.src.vision.detector import BotanicalDetector
+from frontend.src.rag.know_gen import AutoKnowledgeGenerator
+from frontend.src.rag.vector_store import LocalVectorStoreEngine
 
 # 1. Path Setup
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -18,9 +23,6 @@ project_root = os.path.join(current_dir, "herb-ai")
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from database.db_manager import init_db, DB_PATH
-from frontend.src.rag.query_engine import BotanicalQueryEngine
-from frontend.src.vision.detector import BotanicalDetector
 
 app = FastAPI(title="Herb-AI Medical Botanical API Hub")
 
@@ -113,13 +115,19 @@ async def handle_image_upload(file: UploadFile):
         cursor.execute("DELETE FROM telemetry;")
         cursor.execute("DELETE FROM plants;")
         conn.commit()
-        
+
         if CURRENT_SESSION_PLANT:
             evidence_base64 = base64.b64encode(contents).decode("utf-8")
-            cursor.execute("INSERT OR IGNORE INTO plants (species_name) VALUES (?);", (CURRENT_SESSION_PLANT,))
-            cursor.execute("SELECT id FROM plants WHERE species_name = ?;", (CURRENT_SESSION_PLANT,))
+            cursor.execute(
+                "INSERT OR IGNORE INTO plants (species_name) VALUES (?);",
+                (CURRENT_SESSION_PLANT,),
+            )
+            cursor.execute(
+                "SELECT id FROM plants WHERE species_name = ?;",
+                (CURRENT_SESSION_PLANT,),
+            )
             plant_row = cursor.fetchone()
-            
+
             if plant_row:
                 plant_id = plant_row[0]
                 conf = result.get("confidence", 0.0)
@@ -157,6 +165,7 @@ def process_query_text(text: str):
 
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -262,6 +271,18 @@ def background_video_scan(video_path: str):
             print(
                 f"✅ [SCAN COMPLETE] {frame_number} frames analyzed. Context locked to: {CURRENT_SESSION_PLANT}"
             )
+            knowledge_gen = AutoKnowledgeGenerator()
+            vector_engine = LocalVectorStoreEngine()
+            rebuild_needed = False
+
+            for plant_name in detected_plants.keys():
+                if knowledge_gen.generate_profile_if_new(plant_name):
+                    print(f"📝 Syncing local vector knowledge for: {plant_name}")
+                    rebuild_needed = True
+
+            if rebuild_needed:
+                print("Updating Chroma vector store with new video discoveries...")
+                vector_engine.build_vector_store()
         else:
             print("⚠️ [SCAN COMPLETE] No classes detected even with 1% threshold.")
 
@@ -269,19 +290,18 @@ def background_video_scan(video_path: str):
         IS_SCANNING = False
         if os.path.exists(video_path):
             os.remove(video_path)
-        if 'output_path' in locals() and os.path.exists(output_path):
+        if "output_path" in locals() and os.path.exists(output_path):
             os.remove(output_path)
 
 
 @app.post("/api/scan")
 async def trigger_scan(background_tasks: BackgroundTasks, file: UploadFile):
     global IS_SCANNING
-    
+
     # 2. Prevent concurrent heavy ML scans
     if IS_SCANNING:
         raise HTTPException(
-            status_code=429, 
-            detail="A video scan is already in progress. Please wait."
+            status_code=429, detail="A video scan is already in progress. Please wait."
         )
 
     if not file or not file.filename:
@@ -290,7 +310,7 @@ async def trigger_scan(background_tasks: BackgroundTasks, file: UploadFile):
         )
 
     # Lock the scanning state immediately
-    IS_SCANNING = True 
+    IS_SCANNING = True
 
     temp_video = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
     video_target = temp_video.name
@@ -300,7 +320,7 @@ async def trigger_scan(background_tasks: BackgroundTasks, file: UploadFile):
         async with aiofiles.open(video_target, "wb") as buffer:
             while chunk := await file.read(1024 * 1024):  # Read in 1MB chunks
                 await buffer.write(chunk)
-                
+
     except Exception as e:
         # If upload fails, unlock and clean up
         IS_SCANNING = False
@@ -310,5 +330,5 @@ async def trigger_scan(background_tasks: BackgroundTasks, file: UploadFile):
 
     # Add the background task
     background_tasks.add_task(background_video_scan, video_target)
-    
+
     return {"message": "Video scan started successfully."}
