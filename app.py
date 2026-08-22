@@ -217,7 +217,7 @@ def background_video_scan(video_path: str):
         )
 
         results = model.predict(
-            source=video_path, stream=True, conf=0.01, imgsz=640, vid_stride=5
+            source=video_path, stream=True, conf=0.45, imgsz=640, vid_stride=5
         )
 
         conn = sqlite3.connect(DB_PATH, timeout=15.0)

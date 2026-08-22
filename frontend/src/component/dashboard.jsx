@@ -557,7 +557,7 @@ export default function HerbAiDashboard() {
                   <div style={{ fontSize: "32px", marginBottom: "10px" }}>
                     🔬
                   </div>
-                  Ask questions about medicine or herb, or even videos!
+                  Ask questions about medicine, herb, or what is even in the video that YOUR CURIOUS about!!
                 </div>
               )}
               {messages.map((msg, i) => (
