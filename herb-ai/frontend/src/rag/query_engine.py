@@ -196,6 +196,77 @@ class BotanicalQueryEngine:
 
         except Exception as e:
             return f"Query Engine failure: {e}"
+    
+    def stream_botanical_knowledge(self, user_query: str, n_results: int = 6):
+        """Streams the response chunk-by-chunk for the frontend typing effect."""
+        self.chat_history.append(f"User: {user_query}")
+
+        session_context = self._get_unified_session_context()
+        query_vector = self._get_query_embedding_with_retry(user_query)
+
+        search_results = self.collection.query(
+            query_embeddings=[query_vector], n_results=n_results
+        )
+
+        documents = search_results.get("documents")
+        retrieved_context = (
+            "\n---\n".join([doc for doc in documents[0] if doc is not None])
+            if documents and documents[0]
+            else "No relevant textbook data found."
+        )
+
+        history_str = "\n".join(self.chat_history[-4:])
+
+        prompt = (
+            f"You are Herb-AI, an expert medical botanical vision agent.\n"
+            "CRITICAL RULES:\n"
+            "1. You ARE a multimodal vision agent. Use 'Session Context' for what you saw.\n"
+            "2. Format your response beautifully using Markdown. Use tables, bolding, and bullet points where appropriate.\n"
+            f"--- SESSION CONTEXT ---\n{session_context}\n\n"
+            f"--- TEXTBOOK CONTEXT ---\n{retrieved_context}\n\n"
+            f"--- CONVERSATION HISTORY ---\n{history_str}\n\n"
+            f"User Question: {user_query}\n"
+        )
+
+        full_answer = ""
+        
+        # 1. Gemini Streaming
+        if self.gemini_client:
+            try:
+                response = self.gemini_client.models.generate_content_stream(
+                    model="gemini-3.5-flash", contents=prompt
+                )
+                for chunk in response:
+                    if chunk.text:
+                        full_answer += chunk.text
+                        yield chunk.text
+                self.chat_history.append(f"Herb-AI: {full_answer}")
+                save_to_cache(user_query, full_answer)
+                return
+            except Exception as e:
+                print(f"⚠️ Gemini stream failed: {e}. Falling back to Ollama...")
+
+        # 2. Ollama Fallback Streaming
+        import json
+        ollama_url = "http://localhost:11434/api/generate"
+        payload = {
+            "model": "llama3.2",
+            "prompt": prompt,
+            "stream": True,
+            "options": {"temperature": 0.3},
+        }
+
+        with httpx.Client() as client:
+            with client.stream("POST", ollama_url, json=payload, timeout=300.0) as response:
+                for line in response.iter_lines():
+                    if line:
+                        data = json.loads(line)
+                        chunk_text = data.get("response", "")
+                        full_answer += chunk_text
+                        yield chunk_text
+                        
+        self.chat_history.append(f"Herb-AI: {full_answer}")
+        save_to_cache(user_query, full_answer)
 
 
 if __name__ == "__main__":

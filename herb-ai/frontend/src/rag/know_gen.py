@@ -59,11 +59,13 @@ class AutoKnowledgeGenerator:
         print(f"New plant discovered: '{plant_name}'! Generating profile...")
 
         prompt = (
-            f"Write a brief textbook clinical overview for the medicinal substance: {plant_name}.\n"
-            f"CRITICAL: Treat this strictly as a botanical medicine, natural remedy, or Traditional Chinese Medicine (TCM) substance.\n"
-            f"Focus EXCLUSIVELY on its medicinal effects, active chemical compounds, and traditional biological properties across global herbalism (e.g., TCM's 'clearing heat', Western herbalism's 'anti-inflammatory', or Ayurvedic 'adaptogens').\n"
-            f"DO NOT describe it as a medical condition or disease. DO NOT list surgical treatments.\n"
-            f"Keep it concise, accurate, and professional."
+            f"You are a master clinical botanist. Write a highly structured, accurate textbook profile for the medicinal substance: {plant_name}.\n"
+            f"CRITICAL RULES:\n"
+            f"1. Treat this STRICTLY as a botanical medicine or Traditional Chinese Medicine (TCM) substance.\n"
+            f"2. Focus EXCLUSIVELY on its medicinal effects, active chemical compounds, and traditional biological properties.\n"
+            f"3. DO NOT describe it as a medical condition. DO NOT hallucinate properties it does not have. If you do not know it, state 'Insufficient clinical data'.\n"
+            f"4. Format the output with clear, structured data points so it can be parsed into tables. Use Markdown.\n"
+            f"Keep it concise, rigorous, and professional. Avoid fluff."
         )
 
         # 1. PRIMARY TIER: Gemini API Cascade
