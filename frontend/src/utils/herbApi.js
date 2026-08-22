@@ -105,3 +105,31 @@ export async function askBotanicalQuestion(userQuestion) {
     return "Error generating response from the RAG query server.";
   }
 }
+
+export async function streamBotanicalQuestion(userQuestion, onChunk) {
+  try {
+    const response = await fetch(`${BASE_URL}/api/query/stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query_text: userQuestion }),
+    });
+
+    if (!response.ok) throw new Error("Stream connection failed");
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let done = false;
+
+    while (!done) {
+      const { value, done: readerDone } = await reader.read();
+      done = readerDone;
+      if (value) {
+        const chunk = decoder.decode(value, { stream: true });
+        onChunk(chunk); // Send the chunk to the UI immediately
+      }
+    }
+  } catch (error) {
+    console.error("Streaming error:", error);
+    onChunk("\n❌ Error streaming data from the Herb-AI model.");
+  }
+}
