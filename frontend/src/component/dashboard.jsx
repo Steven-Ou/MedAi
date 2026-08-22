@@ -557,8 +557,7 @@ export default function HerbAiDashboard() {
                   <div style={{ fontSize: "32px", marginBottom: "10px" }}>
                     🔬
                   </div>
-                  Ask questions about active compounds or medical usages of
-                  scanned species.
+                  Ask questions about medicine or herb, or even videos!
                 </div>
               )}
               {messages.map((msg, i) => (

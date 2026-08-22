@@ -184,8 +184,8 @@ def query_stream_alias(payload: QueryRequest):
         raise HTTPException(status_code=400, detail="Invalid query")
     
     return StreamingResponse(
-        query_engine.stream_botanical_knowledge(q), 
-        media_type="text/event-stream"
+        query_engine.stream_botanical_knowledge(q),
+        media_type="application/octet-stream"
     )
 
 @app.post("/api/chat")
