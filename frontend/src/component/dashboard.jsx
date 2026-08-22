@@ -1,5 +1,6 @@
 // frontend/src/component/dashboard.jsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef} from "react";
+import ReactMarkdown from 'react-markdown';
 import {
   fetchDetectedPlants,
   triggerVisionScan,
@@ -172,36 +173,34 @@ export default function HerbAiDashboard() {
       { role: "user", text: userMessageText },
       {
         role: "agent",
-        text: "🤖 Herb-AI: Starting analysis pipeline...\n📚 Retrieving botanical knowledge...\n🔄 Querying local Ollama engine...",
+        text: "",
         isTyping: true,
       },
     ]);
 
-    try {
-      // REPLACED RAW FETCH WITH WRAPPER
-      const data = await askBotanicalQuestion(userMessageText);
+    let streamedText = "";
 
+    await streamBotanicalQuestion(userMessageText, (chunk) => {
+      streamedText += chunk;
       setMessages((prev) => {
         const newHistory = [...prev];
-        if (newHistory[newHistory.length - 1].role === "agent") {
-          // FIX: 'data' is already the text string, no need for .answer
-          newHistory[newHistory.length - 1].text = data;
-          newHistory[newHistory.length - 1].isTyping = false;
+        const lastIndex = newHistory.length - 1;
+        if (newHistory[lastIndex].role === "agent") {
+          newHistory[lastIndex].text = streamedText; // Update text incrementally
         }
         return newHistory;
       });
-    } catch (err) {
-      console.error(err);
-      setMessages((prev) => {
-        const newHistory = [...prev];
-        if (newHistory[newHistory.length - 1].role === "agent") {
-          newHistory[newHistory.length - 1].text =
-            "❌ Error fetching data from the Herb-AI model.";
-          newHistory[newHistory.length - 1].isTyping = false;
-        }
-        return newHistory;
-      });
-    }
+    });
+
+    setMessages((prev) => {
+      const newHistory = [...prev];
+      const lastIndex = newHistory.length - 1;
+      
+      if (newHistory[lastIndex].role === "agent") {
+        newHistory[lastIndex].isTyping = false;
+      }
+      return newHistory;
+    });
   };
 
   const styles = {
