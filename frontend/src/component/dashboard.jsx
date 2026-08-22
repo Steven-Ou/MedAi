@@ -1,6 +1,6 @@
 // frontend/src/component/dashboard.jsx
-import React, { useState, useEffect, useRef} from "react";
-import ReactMarkdown from 'react-markdown';
+import React, { useState, useEffect, useRef } from "react";
+import ReactMarkdown from "react-markdown";
 import {
   fetchDetectedPlants,
   triggerVisionScan,
@@ -195,7 +195,7 @@ export default function HerbAiDashboard() {
     setMessages((prev) => {
       const newHistory = [...prev];
       const lastIndex = newHistory.length - 1;
-      
+
       if (newHistory[lastIndex].role === "agent") {
         newHistory[lastIndex].isTyping = false;
       }
@@ -597,7 +597,11 @@ export default function HerbAiDashboard() {
                         ? "Clinical Inquiry"
                         : "System Knowledge Matrix"}
                     </div>
-                    {msg.text}
+                    {msg.role === "user" ? (
+                      msg.text
+                    ) : (
+                      <ReactMarkdown>{msg.text}</ReactMarkdown>
+                    )}
                   </div>
                 </div>
               ))}
