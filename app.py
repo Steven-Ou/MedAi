@@ -22,6 +22,7 @@ from frontend.src.rag.query_engine import BotanicalQueryEngine
 from frontend.src.vision.detector import BotanicalDetector
 from frontend.src.rag.know_gen import AutoKnowledgeGenerator
 from frontend.src.rag.vector_store import LocalVectorStoreEngine
+from fastapi.responses import StreamingResponse
 
 app = FastAPI(title="Herb-AI Medical Botanical API Hub")
 
@@ -176,6 +177,16 @@ def query_alias(payload: QueryRequest):
         return {"response": "Please enter a specific question about the plant."}
     return process_query_text(q)
 
+@app.post("/api/query/stream")
+def query_stream_alias(payload: QueryRequest):
+    q = payload.question or payload.query_text
+    if not q or q.strip() == "string":
+        raise HTTPException(status_code=400, detail="Invalid query")
+    
+    return StreamingResponse(
+        query_engine.stream_botanical_knowledge(q), 
+        media_type="text/event-stream"
+    )
 
 @app.post("/api/chat")
 def chat_alias(payload: QueryRequest):
