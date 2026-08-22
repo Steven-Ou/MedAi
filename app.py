@@ -244,7 +244,7 @@ def background_video_scan(video_path: str):
                 evidence_base64 = None
 
                 for idx, conf in zip(top5_indices, top5_confs):
-                    if conf >= 0.01:
+                    if conf >= 0.45:
                         plant_name = model.names[idx]
 
                         detected_plants[plant_name] = (

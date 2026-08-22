@@ -109,6 +109,14 @@ export default function HerbAiDashboard() {
     setIsScanning(true);
     if (videoRef.current) videoRef.current.play();
 
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "agent",
+        text: "🎬 Initiating video stream telemetry scan... Please wait while I extract and analyze the frames.",
+      },
+    ]);
+
     try {
       const success = await triggerVisionScan(videoFile);
       if (!success) {
@@ -186,7 +194,10 @@ export default function HerbAiDashboard() {
         const newHistory = [...prev];
         const lastIndex = newHistory.length - 1;
         if (newHistory[lastIndex].role === "agent") {
-          newHistory[lastIndex].text = streamedText; // Update text incrementally
+          newHistory[lastIndex] = {
+            ...newHistory[lastIndex],
+            text: streamedText,
+          }; // Update text incrementally
         }
         return newHistory;
       });
@@ -557,7 +568,8 @@ export default function HerbAiDashboard() {
                   <div style={{ fontSize: "32px", marginBottom: "10px" }}>
                     🔬
                   </div>
-                  Ask questions about medicine, herb, or what is even in the video that YOUR CURIOUS about!!
+                  Ask questions about medicine, herb, or what is even in the
+                  video that YOUR CURIOUS about!!
                 </div>
               )}
               {messages.map((msg, i) => (
