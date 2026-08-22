@@ -4,7 +4,7 @@ import ReactMarkdown from "react-markdown";
 import {
   fetchDetectedPlants,
   triggerVisionScan,
-  askBotanicalQuestion,
+  streamBotanicalQuestion,
   checkScanStatus,
   uploadImage,
 } from "../utils/herbApi";
