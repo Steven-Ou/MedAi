@@ -217,7 +217,7 @@ def background_video_scan(video_path: str):
         )
 
         results = model.predict(
-            source=video_path, stream=True, conf=0.45, imgsz=640, vid_stride=5
+            source=video_path, stream=True, conf=0.10, imgsz=640, vid_stride=5
         )
 
         conn = sqlite3.connect(DB_PATH, timeout=15.0)
@@ -244,7 +244,7 @@ def background_video_scan(video_path: str):
                 evidence_base64 = None
 
                 for idx, conf in zip(top5_indices, top5_confs):
-                    if conf >= 0.45:
+                    if conf >= 0.10:
                         plant_name = model.names[idx]
 
                         detected_plants[plant_name] = (
