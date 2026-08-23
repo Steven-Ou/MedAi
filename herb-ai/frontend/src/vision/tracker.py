@@ -82,10 +82,6 @@ class BotanicalTracker:
                             db_plant_id: int = add_new_plant(species_name)
                             self.track_to_db_map[track_id] = db_plant_id
                             print(f"[NEW ENTITY LOGGED] Detected: {species_name} -> Saved to database.")
-                            
-                            was_generated: bool = self.knowledge_gen.generate_profile_if_new(species_name)
-                            if was_generated:
-                                rebuild_vector_store = True
                         
                         assigned_plant_id: int = self.track_to_db_map[track_id]
 

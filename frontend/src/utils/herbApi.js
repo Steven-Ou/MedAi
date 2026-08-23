@@ -1,14 +1,25 @@
 // frontend/src/utils/herbApi.js
 
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://steveo223-herb-ai-backend.hf.space";
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://steveo223-herb-ai-backend.hf.space";
 
+const getSessionId = () => {
+  let sessionId = sessionStorage.getItem("herb_session_id");
+  if (!sessionId) {
+    sessionId = crypto.randomUUID();
+    sessionStorage.setItem("herb_session_id", sessionId);
+  }
+  return sessionId;
+};
 /**
  * Fetches real-time telemetry from SQLite database.
  */
 export async function fetchDetectedPlants() {
   try {
-    const response = await fetch(`${BASE_URL}/api/telemetry`);
+    const response = await fetch(
+      `${BASE_URL}/api/telemetry?session_id=${getSessionId()}`,
+    );
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const result = await response.json();
     return result.data || [];
@@ -51,10 +62,13 @@ export async function triggerVisionScan(videoFile) {
     // Capture the exact FastAPI 422 error reason
     if (!response.ok) {
       const errorDetails = await response.json();
-      console.error("🚨 FASTAPI 422 ERROR DETAILS:", JSON.stringify(errorDetails, null, 2));
+      console.error(
+        "🚨 FASTAPI 422 ERROR DETAILS:",
+        JSON.stringify(errorDetails, null, 2),
+      );
       return false;
     }
-    
+
     return true;
   } catch (error) {
     console.error("Vision scan trigger failed:", error);

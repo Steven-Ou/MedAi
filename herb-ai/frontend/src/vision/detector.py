@@ -178,10 +178,7 @@ class BotanicalDetector:
             except Exception as save_err:
                 print(f"⚠️ Failed to store vector memory: {save_err}")
 
-            knowledge_gen = AutoKnowledgeGenerator()
-            if knowledge_gen.generate_profile_if_new(predicted_class):
-                print(f"📝 Syncing local vector knowledge for: {predicted_class}")
-                engine.build_vector_store()
+            
 
         if os.path.exists(temp_target):
             os.remove(temp_target)
