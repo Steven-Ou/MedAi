@@ -1,9 +1,9 @@
 // frontend/src/component/dashboard.jsx
 import React, { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm"; // <-- NEW: Renders Markdown Tables
-import remarkMath from "remark-math";       // <-- Fixes LaTeX 
-import rehypeKatex from "rehype-katex";     // <-- Renders Math equations beautifully
+import remarkGfm from "remark-gfm"; // Renders Markdown Tables
+import remarkMath from "remark-math"; // Fixes LaTeX
+import rehypeKatex from "rehype-katex"; // Renders Math equations beautifully
 import "katex/dist/katex.min.css"; // Required for latex styles
 import {
   fetchDetectedPlants,
@@ -182,7 +182,7 @@ export default function HerbAiDashboard() {
       {
         role: "agent",
         text: "",
-        isTyping: true, // <-- This triggers the new loading animation
+        isTyping: true,
       },
     ]);
 
@@ -214,27 +214,42 @@ export default function HerbAiDashboard() {
     });
   };
 
-  // --- NEW STYLES: Animations & Markdown Tables ---
   const globalStyles = `
-    .markdown-body table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 15px 0;
-      background-color: #ffffff;
-      border-radius: 8px;
-      overflow: hidden;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    /* Mobile Responsive Grid */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.5fr;
+      gap: 30px;
     }
-    .markdown-body th, .markdown-body td {
-      border: 1px solid #e2e8f0;
-      padding: 12px 15px;
-      text-align: left;
+    
+    /* Panel default height (moved from inline styles so media query can override) */
+    .panel-card {
+      height: 80vh;
     }
-    .markdown-body th {
-      background-color: #f8fafc;
-      font-weight: 700;
-      color: #1e3c72;
+
+    @media (max-width: 900px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr; /* Stacks on mobile */
+      }
+      .panel-card {
+        height: auto !important; 
+        min-height: 50vh;
+      }
     }
+
+    /* ChatGPT Style Markdown & Tables */
+    .markdown-body table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+    .markdown-body th, .markdown-body td { border: 1px solid #e5e5e5; padding: 10px; }
+    .markdown-body th { background-color: #f7f7f8; }
+    
+    /* Math / LaTeX overflow fix */
+    .katex-display { overflow-x: auto; overflow-y: hidden; }
+
+    /* Custom Scrollbar for Chat */
+    .chat-window::-webkit-scrollbar { width: 6px; }
+    .chat-window::-webkit-scrollbar-thumb { background-color: #ccc; border-radius: 4px; }
+
+    /* Blinking Animation for "isTyping" */
     @keyframes blink {
       0% { opacity: 0.2; transform: scale(0.8); }
       50% { opacity: 1; transform: scale(1.2); }
@@ -253,7 +268,6 @@ export default function HerbAiDashboard() {
         '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       transition: "background-color 0.4s ease",
     },
-    // CHANGED: Use vw to make it scale to wide screens
     container: { width: "95vw", maxWidth: "1800px", margin: "0 auto" },
     header: {
       background: "linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)",
@@ -266,8 +280,7 @@ export default function HerbAiDashboard() {
       alignItems: "center",
       justifyContent: "space-between",
     },
-    grid: { display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: "30px" },
-    panelCard: {
+    panelCardStyles: {
       backgroundColor: "#ffffff",
       borderRadius: "24px",
       padding: "30px",
@@ -275,7 +288,6 @@ export default function HerbAiDashboard() {
       border: "1px solid #e2e8f0",
       display: "flex",
       flexDirection: "column",
-      height: "80vh", // CHANGED: Panel scales with screen height
     },
     themeSelector: {
       display: "flex",
@@ -294,7 +306,7 @@ export default function HerbAiDashboard() {
     },
     viewport: {
       width: "100%",
-      flexGrow: 1, // Let it expand inside the card
+      flexGrow: 1,
       minHeight: "260px",
       backgroundColor: "#0f172a",
       borderRadius: "16px",
@@ -322,7 +334,6 @@ export default function HerbAiDashboard() {
       <style>{globalStyles}</style>
       <div style={styles.container}>
         <header style={styles.header}>
-          {/* ... Keep your existing header code here ... */}
           <div>
             <h1 style={{ margin: 0, fontSize: "26px", fontWeight: "700" }}>
               🌿 Herb-AI Systems Dashboard
@@ -351,7 +362,6 @@ export default function HerbAiDashboard() {
           </div>
 
           <div style={styles.themeSelector}>
-            {/* Theme buttons stay exactly the same */}
             <span
               style={{
                 fontSize: "12px",
@@ -380,8 +390,10 @@ export default function HerbAiDashboard() {
           </div>
         </header>
 
-        <div style={styles.grid}>
-          <div style={styles.panelCard}>
+        {/* CHANGED: Swapped inline style for className so mobile media queries can activate */}
+        <div className="dashboard-grid">
+          {/* CHANGED: Swapped inline height style for className so mobile media queries can activate */}
+          <div className="panel-card" style={styles.panelCardStyles}>
             <h3
               style={{
                 fontSize: "17px",
@@ -393,7 +405,6 @@ export default function HerbAiDashboard() {
               📷 Media Upload Hub
             </h3>
 
-            {/* Upload Buttons */}
             <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
               <label
                 style={{
@@ -574,7 +585,8 @@ export default function HerbAiDashboard() {
             </div>
           </div>
 
-          <div style={styles.panelCard}>
+          {/* CHANGED: Same here, swapped inline height style for className */}
+          <div className="panel-card" style={styles.panelCardStyles}>
             <h3
               style={{
                 fontSize: "17px",
@@ -585,7 +597,7 @@ export default function HerbAiDashboard() {
             >
               💬 RAG Clinical Agent Terminal
             </h3>
-            <div style={styles.chatWindow}>
+            <div className="chat-window" style={styles.chatWindow}>
               {messages.length === 0 && (
                 <div
                   style={{
@@ -639,7 +651,6 @@ export default function HerbAiDashboard() {
                         : "System Knowledge Matrix"}
                     </div>
 
-                    {/* NEW: Generating animation or Beautiful Markdown rendering */}
                     {msg.role === "user" ? (
                       msg.text
                     ) : msg.isTyping && !msg.text ? (
@@ -677,7 +688,10 @@ export default function HerbAiDashboard() {
                       </div>
                     ) : (
                       <div className="markdown-body">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm, remarkMath]}
+                          rehypePlugins={[rehypeKatex]}
+                        >
                           {msg.text}
                         </ReactMarkdown>
                       </div>
