@@ -2,6 +2,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm"; // <-- NEW: Renders Markdown Tables
+import remarkMath from "remark-math";       // <-- Fixes LaTeX 
+import rehypeKatex from "rehype-katex";     // <-- Renders Math equations beautifully
+import "katex/dist/katex.min.css"; // Required for latex styles
 import {
   fetchDetectedPlants,
   triggerVisionScan,
