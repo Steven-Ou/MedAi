@@ -1,6 +1,7 @@
 // frontend/src/component/dashboard.jsx
 import React, { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm"; // <-- NEW: Renders Markdown Tables
 import {
   fetchDetectedPlants,
   triggerVisionScan,
@@ -24,10 +25,8 @@ export default function HerbAiDashboard() {
 
   const fetchTelemetry = async () => {
     try {
-      // REPLACED RAW FETCH WITH WRAPPER
       const data = await fetchDetectedPlants();
       if (data) {
-        // Assuming your wrapper returns the JSON payload directly
         setTelemetry(data.data || data);
         setApiOnline(true);
       } else {
@@ -75,7 +74,7 @@ export default function HerbAiDashboard() {
             ...prev,
             {
               role: "agent",
-              text: `Inference Complete! Identified object as: ${data.predicted_class} (Confidence: ${(data.confidence * 100).toFixed(0)}%). Feel free to ask me to explain its clinical benefits below.`,
+              text: `Inference Complete! Identified object as: **${data.predicted_class}** (Confidence: ${(data.confidence * 100).toFixed(0)}%). Feel free to ask me to explain its clinical benefits below.`,
             },
           ]);
         } else {
@@ -121,7 +120,7 @@ export default function HerbAiDashboard() {
       const success = await triggerVisionScan(videoFile);
       if (!success) {
         console.error("The backend rejected the scan request.");
-        setIsScanning(false); // Failsafe: turn off button if upload fails
+        setIsScanning(false);
         return;
       }
 
@@ -132,11 +131,9 @@ export default function HerbAiDashboard() {
           setIsScanning(false);
           clearInterval(pollInterval);
 
-          // NEW LOGIC: Fetch telemetry and auto-populate the chat window
           try {
             const telemetryData = await fetchDetectedPlants();
             if (telemetryData && telemetryData.length > 0) {
-              // Find the plant with the highest number of tracked frames
               const topPlant = telemetryData.reduce((prev, current) =>
                 prev.framesTracked > current.framesTracked ? prev : current,
               );
@@ -145,7 +142,7 @@ export default function HerbAiDashboard() {
                 ...prev,
                 {
                   role: "agent",
-                  text: `🎥 Video Inference Complete! I scanned the footage and predominantly identified: ${topPlant.species} (Tracked across ${topPlant.framesTracked} frames). Feel free to ask me to explain its clinical benefits below.`,
+                  text: `🎥 Video Inference Complete! I scanned the footage and predominantly identified: **${topPlant.species}** (Tracked across ${topPlant.framesTracked} frames). Feel free to ask me to explain its clinical benefits below.`,
                 },
               ]);
             } else {
@@ -182,7 +179,7 @@ export default function HerbAiDashboard() {
       {
         role: "agent",
         text: "",
-        isTyping: true,
+        isTyping: true, // <-- This triggers the new loading animation
       },
     ]);
 
@@ -197,7 +194,7 @@ export default function HerbAiDashboard() {
           newHistory[lastIndex] = {
             ...newHistory[lastIndex],
             text: streamedText,
-          }; // Update text incrementally
+          };
         }
         return newHistory;
       });
@@ -214,6 +211,35 @@ export default function HerbAiDashboard() {
     });
   };
 
+  // --- NEW STYLES: Animations & Markdown Tables ---
+  const globalStyles = `
+    .markdown-body table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .markdown-body th, .markdown-body td {
+      border: 1px solid #e2e8f0;
+      padding: 12px 15px;
+      text-align: left;
+    }
+    .markdown-body th {
+      background-color: #f8fafc;
+      font-weight: 700;
+      color: #1e3c72;
+    }
+    @keyframes blink {
+      0% { opacity: 0.2; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1.2); }
+      100% { opacity: 0.2; transform: scale(0.8); }
+    }
+  `;
+
+  // --- RESPONSIVE FIXES ---
   const styles = {
     wrapper: {
       minHeight: "100vh",
@@ -224,7 +250,8 @@ export default function HerbAiDashboard() {
         '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       transition: "background-color 0.4s ease",
     },
-    container: { maxWidth: "1450px", margin: "0 auto" },
+    // CHANGED: Use vw to make it scale to wide screens
+    container: { width: "95vw", maxWidth: "1800px", margin: "0 auto" },
     header: {
       background: "linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)",
       padding: "25px 40px",
@@ -236,7 +263,7 @@ export default function HerbAiDashboard() {
       alignItems: "center",
       justifyContent: "space-between",
     },
-    grid: { display: "grid", gridTemplateColumns: "1fr 1.1fr", gap: "30px" },
+    grid: { display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: "30px" },
     panelCard: {
       backgroundColor: "#ffffff",
       borderRadius: "24px",
@@ -245,6 +272,7 @@ export default function HerbAiDashboard() {
       border: "1px solid #e2e8f0",
       display: "flex",
       flexDirection: "column",
+      height: "80vh", // CHANGED: Panel scales with screen height
     },
     themeSelector: {
       display: "flex",
@@ -263,7 +291,8 @@ export default function HerbAiDashboard() {
     },
     viewport: {
       width: "100%",
-      height: "260px",
+      flexGrow: 1, // Let it expand inside the card
+      minHeight: "260px",
       backgroundColor: "#0f172a",
       borderRadius: "16px",
       overflow: "hidden",
@@ -276,7 +305,6 @@ export default function HerbAiDashboard() {
     },
     chatWindow: {
       flexGrow: 1,
-      height: "500px",
       overflowY: "auto",
       border: "1px solid #f1f5f9",
       borderRadius: "18px",
@@ -288,8 +316,10 @@ export default function HerbAiDashboard() {
 
   return (
     <div style={styles.wrapper}>
+      <style>{globalStyles}</style>
       <div style={styles.container}>
         <header style={styles.header}>
+          {/* ... Keep your existing header code here ... */}
           <div>
             <h1 style={{ margin: 0, fontSize: "26px", fontWeight: "700" }}>
               🌿 Herb-AI Systems Dashboard
@@ -318,6 +348,7 @@ export default function HerbAiDashboard() {
           </div>
 
           <div style={styles.themeSelector}>
+            {/* Theme buttons stay exactly the same */}
             <span
               style={{
                 fontSize: "12px",
@@ -330,22 +361,18 @@ export default function HerbAiDashboard() {
             <div
               onClick={() => setBgColor("#eef4fa")}
               style={{ ...styles.themeBtn, backgroundColor: "#eef4fa" }}
-              title="Medical Blue"
             />
             <div
               onClick={() => setBgColor("#e8f5e9")}
               style={{ ...styles.themeBtn, backgroundColor: "#e8f5e9" }}
-              title="Botanical Green"
             />
             <div
               onClick={() => setBgColor("#fef9e7")}
               style={{ ...styles.themeBtn, backgroundColor: "#fef9e7" }}
-              title="Soft Warm Ochre"
             />
             <div
               onClick={() => setBgColor("#f5f5f5")}
               style={{ ...styles.themeBtn, backgroundColor: "#f5f5f5" }}
-              title="Clinical Slate"
             />
           </div>
         </header>
@@ -363,6 +390,7 @@ export default function HerbAiDashboard() {
               📷 Media Upload Hub
             </h3>
 
+            {/* Upload Buttons */}
             <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
               <label
                 style={{
@@ -480,7 +508,6 @@ export default function HerbAiDashboard() {
                   <tbody>
                     {telemetry.map((item, i) => (
                       <tr key={i} style={{ backgroundColor: "#f8fafc" }}>
-                        {/* NEW: Render the evidence image thumbnail */}
                         <td style={{ padding: "8px", width: "50px" }}>
                           {item.evidenceImage ? (
                             <img
@@ -589,7 +616,7 @@ export default function HerbAiDashboard() {
                       backgroundColor:
                         msg.role === "user" ? "#e3f2fd" : "#f1f5f9",
                       color: "#334155",
-                      maxWidth: "85%",
+                      maxWidth: "90%",
                       fontSize: "14px",
                       whiteSpace: "pre-wrap",
                     }}
@@ -600,7 +627,7 @@ export default function HerbAiDashboard() {
                         fontWeight: "700",
                         textTransform: "uppercase",
                         letterSpacing: "0.5px",
-                        marginBottom: "4px",
+                        marginBottom: "6px",
                         opacity: 0.6,
                       }}
                     >
@@ -608,10 +635,49 @@ export default function HerbAiDashboard() {
                         ? "Clinical Inquiry"
                         : "System Knowledge Matrix"}
                     </div>
+
+                    {/* NEW: Generating animation or Beautiful Markdown rendering */}
                     {msg.role === "user" ? (
                       msg.text
+                    ) : msg.isTyping && !msg.text ? (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          color: "#1e3c72",
+                          fontWeight: 600,
+                          gap: "6px",
+                        }}
+                      >
+                        <span style={{ animation: "blink 1.4s infinite both" }}>
+                          ●
+                        </span>
+                        <span
+                          style={{
+                            animation: "blink 1.4s infinite both",
+                            animationDelay: "0.2s",
+                          }}
+                        >
+                          ●
+                        </span>
+                        <span
+                          style={{
+                            animation: "blink 1.4s infinite both",
+                            animationDelay: "0.4s",
+                          }}
+                        >
+                          ●
+                        </span>
+                        <span style={{ marginLeft: "6px", fontSize: "13px" }}>
+                          Synthesizing RAG response...
+                        </span>
+                      </div>
                     ) : (
-                      <ReactMarkdown>{msg.text}</ReactMarkdown>
+                      <div className="markdown-body">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {msg.text}
+                        </ReactMarkdown>
+                      </div>
                     )}
                   </div>
                 </div>
