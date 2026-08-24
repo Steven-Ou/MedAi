@@ -1,3 +1,4 @@
+# app.py
 import os
 import sys
 import shutil
@@ -48,23 +49,18 @@ query_engine = BotanicalQueryEngine()
 
 CURRENT_SESSION_PLANT = None
 
-
 class QueryRequest(BaseModel):
     query_text: str = None
     question: str = None
-
 
 @app.get("/")
 def read_root():
     return {"status": "Herb-AI Backend is running smoothly."}
 
-
 @app.get("/api/scan-status")
 def get_scan_status():
     return {"is_scanning": IS_SCANNING}
 
-
-# --- TELEMETRY ENDPOINT ---
 @app.get("/api/telemetry")
 def get_telemetry():
     if not os.path.exists(DB_PATH):
@@ -96,8 +92,6 @@ def get_telemetry():
         ]
     }
 
-
-# --- INSTANT IMAGE DETECTION ---
 async def handle_image_upload(file: UploadFile):
     global CURRENT_SESSION_PLANT
 
@@ -108,7 +102,6 @@ async def handle_image_upload(file: UploadFile):
     result = vision_engine.analyze_image(contents)
     CURRENT_SESSION_PLANT = result.get("predicted_class")
 
-    # FIX: Clear old DB and insert the new static image telemetry
     if os.path.exists(DB_PATH):
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
@@ -145,30 +138,23 @@ async def handle_image_upload(file: UploadFile):
         "results": result,
     }
 
-
 @app.post("/api/detect")
 async def detect_alias(file: UploadFile = File(...)):
     return await handle_image_upload(file)
-
 
 @app.post("/api/upload-image")
 async def upload_image_alias(file: UploadFile = File(...)):
     return await handle_image_upload(file)
 
 
-# --- ULTRA-FAST CHAT / RAG PIPELINE ---
 def process_query_text(text: str):
     print(f"🤖 [QUERY] Processing: '{text}'")
     try:
         answer = query_engine.query_botanical_knowledge(text)
         return {"response": answer, "answer": answer}
-
     except Exception as e:
-        import traceback
-
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.post("/api/query")
 def query_alias(payload: QueryRequest):
@@ -196,7 +182,6 @@ def chat_alias(payload: QueryRequest):
     return process_query_text(q)
 
 
-# --- INSTANT VIDEO FRAME CLASSIFICATION ---
 def background_video_scan(video_path: str):
     global CURRENT_SESSION_PLANT, IS_SCANNING
     IS_SCANNING = True
@@ -207,6 +192,10 @@ def background_video_scan(video_path: str):
         print(f"🎬 [VIDEO SCAN] Initiating frame-by-frame analysis...")
 
         cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            print("❌ [ERROR] Could not open video file.")
+            return
+
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fps = int(cap.get(cv2.CAP_PROP_FPS)) or 30
@@ -233,43 +222,46 @@ def background_video_scan(video_path: str):
 
         for r in results:
             frame_number += 1
-
             annotated_frame = r.plot()
             out.write(annotated_frame)
+            
+            detected_names = []
 
+            # FIX: Properly support BOTH classification (r.probs) AND detection (r.boxes) models
             if r.probs is not None:
                 top5_indices = r.probs.top5
                 top5_confs = r.probs.top5conf.tolist()
-
-                evidence_base64 = None
-
                 for idx, conf in zip(top5_indices, top5_confs):
                     if conf >= 0.05:
-                        plant_name = model.names[idx]
+                        detected_names.append((model.names[idx], float(conf)))
+            elif r.boxes is not None:
+                for box in r.boxes:
+                    conf = float(box.conf[0])
+                    if conf >= 0.05:
+                        detected_names.append((model.names[int(box.cls[0])], conf))
 
-                        detected_plants[plant_name] = (
-                            detected_plants.get(plant_name, 0) + 1
-                        )
+            evidence_base64 = None
+            for plant_name, conf in detected_names:
+                detected_plants[plant_name] = detected_plants.get(plant_name, 0) + 1
+                if not evidence_base64:
+                    _, buffer = cv2.imencode(".jpg", annotated_frame)
+                    evidence_base64 = base64.b64encode(buffer).decode("utf-8")
 
-                        if not evidence_base64:
-                            _, buffer = cv2.imencode(".jpg", annotated_frame)
-                            evidence_base64 = base64.b64encode(buffer).decode("utf-8")
+                cursor.execute(
+                    "INSERT OR IGNORE INTO plants (species_name) VALUES (?);",
+                    (plant_name,),
+                )
+                cursor.execute(
+                    "SELECT id FROM plants WHERE species_name = ?;",
+                    (plant_name,),
+                )
+                plant_id = cursor.fetchone()[0]
 
-                        cursor.execute(
-                            "INSERT OR IGNORE INTO plants (species_name) VALUES (?);",
-                            (plant_name,),
-                        )
-                        cursor.execute(
-                            "SELECT id FROM plants WHERE species_name = ?;",
-                            (plant_name,),
-                        )
-                        plant_id = cursor.fetchone()[0]
-
-                        cursor.execute(
-                            "INSERT INTO telemetry (plant_id, frame_number, xmin, ymin, xmax, ymax, confidence_score, evidence_image) VALUES (?, ?, 0, 0, 0, 0, ?, ?);",
-                            (plant_id, frame_number, float(conf), evidence_base64),
-                        )
-                        conn.commit()
+                cursor.execute(
+                    "INSERT INTO telemetry (plant_id, frame_number, xmin, ymin, xmax, ymax, confidence_score, evidence_image) VALUES (?, ?, 0, 0, 0, 0, ?, ?);",
+                    (plant_id, frame_number, float(conf), evidence_base64),
+                )
+                conn.commit()
 
         out.release()
         cap.release()
@@ -305,10 +297,8 @@ def background_video_scan(video_path: str):
 
 
 @app.post("/api/scan")
-async def trigger_scan(background_tasks: BackgroundTasks, file: UploadFile):
+async def trigger_scan(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     global IS_SCANNING
-
-    # 2. Prevent concurrent heavy ML scans
     if IS_SCANNING:
         raise HTTPException(
             status_code=429, detail="A video scan is already in progress. Please wait."
@@ -319,26 +309,19 @@ async def trigger_scan(background_tasks: BackgroundTasks, file: UploadFile):
             status_code=400, detail="No video file provided for scanning."
         )
 
-    # Lock the scanning state immediately
     IS_SCANNING = True
-
     temp_video = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
     video_target = temp_video.name
 
     try:
-        # 3. Unblock the event loop using async file writing
-        async with aiofiles.open(video_target, "wb") as buffer:
-            while chunk := await file.read(1024 * 1024):  # Read in 1MB chunks
-                await buffer.write(chunk)
-
+        # Safer standard synchronous save to prevent missing stream data
+        with open(video_target, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
     except Exception as e:
-        # If upload fails, unlock and clean up
         IS_SCANNING = False
         if os.path.exists(video_target):
             os.remove(video_target)
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
-    # Add the background task
     background_tasks.add_task(background_video_scan, video_target)
-
     return {"message": "Video scan started successfully."}

@@ -1,10 +1,10 @@
 // frontend/src/component/dashboard.jsx
 import React, { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm"; // Renders Markdown Tables
-import remarkMath from "remark-math"; // Fixes LaTeX
-import rehypeKatex from "rehype-katex"; // Renders Math equations beautifully
-import "katex/dist/katex.min.css"; // Required for latex styles
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
 import {
   fetchDetectedPlants,
   triggerVisionScan,
@@ -20,7 +20,7 @@ export default function HerbAiDashboard() {
   const [inputQuery, setInputQuery] = useState("");
 
   const [apiOnline, setApiOnline] = useState(false);
-  const [bgColor, setBgColor] = useState("#eef4fa");
+  const [bgColor, setBgColor] = useState("#f4f7f6"); // Cleaner background color
   const [videoSrc, setVideoSrc] = useState(null);
   const [imageSrc, setImageSrc] = useState(null);
   const videoRef = useRef(null);
@@ -170,7 +170,6 @@ export default function HerbAiDashboard() {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-
     if (!inputQuery.trim()) return;
 
     const userMessageText = inputQuery;
@@ -179,11 +178,7 @@ export default function HerbAiDashboard() {
     setMessages((prev) => [
       ...prev,
       { role: "user", text: userMessageText },
-      {
-        role: "agent",
-        text: "",
-        isTyping: true,
-      },
+      { role: "agent", text: "", isTyping: true },
     ]);
 
     let streamedText = "";
@@ -206,7 +201,6 @@ export default function HerbAiDashboard() {
     setMessages((prev) => {
       const newHistory = [...prev];
       const lastIndex = newHistory.length - 1;
-
       if (newHistory[lastIndex].role === "agent") {
         newHistory[lastIndex].isTyping = false;
       }
@@ -215,41 +209,42 @@ export default function HerbAiDashboard() {
   };
 
   const globalStyles = `
-    /* Mobile Responsive Grid */
+    /* Enforced Side-by-Side Flex Layout */
     .dashboard-grid {
       display: grid;
-      grid-template-columns: 1fr 1.5fr;
-      gap: 30px;
+      grid-template-columns: minmax(400px, 1fr) 1.5fr;
+      gap: 25px;
+      align-items: stretch; /* Forces equal height matching */
     }
     
-    /* Panel default height (moved from inline styles so media query can override) */
+    /* Dedicated internal scroll for each panel */
     .panel-card {
-      height: 80vh;
+      height: calc(100vh - 150px);
+      overflow-y: auto;
     }
 
-    @media (max-width: 900px) {
+    /* Wrap to stacked layout ONLY on mobile or small tablets */
+    @media (max-width: 1024px) {
       .dashboard-grid {
-        grid-template-columns: 1fr; /* Stacks on mobile */
+        grid-template-columns: 1fr;
       }
       .panel-card {
-        height: auto !important; 
-        min-height: 50vh;
+        height: 60vh;
       }
     }
 
-    /* ChatGPT Style Markdown & Tables */
+    /* Clean Scrollbars */
+    .panel-card::-webkit-scrollbar, .chat-window::-webkit-scrollbar { width: 6px; }
+    .panel-card::-webkit-scrollbar-thumb, .chat-window::-webkit-scrollbar-thumb { 
+        background-color: #cbd5e1; 
+        border-radius: 8px; 
+    }
+
     .markdown-body table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-    .markdown-body th, .markdown-body td { border: 1px solid #e5e5e5; padding: 10px; }
-    .markdown-body th { background-color: #f7f7f8; }
-    
-    /* Math / LaTeX overflow fix */
+    .markdown-body th, .markdown-body td { border: 1px solid #e2e8f0; padding: 10px; }
+    .markdown-body th { background-color: #f8fafc; color: #334155; }
     .katex-display { overflow-x: auto; overflow-y: hidden; }
 
-    /* Custom Scrollbar for Chat */
-    .chat-window::-webkit-scrollbar { width: 6px; }
-    .chat-window::-webkit-scrollbar-thumb { background-color: #ccc; border-radius: 4px; }
-
-    /* Blinking Animation for "isTyping" */
     @keyframes blink {
       0% { opacity: 0.2; transform: scale(0.8); }
       50% { opacity: 1; transform: scale(1.2); }
@@ -257,25 +252,24 @@ export default function HerbAiDashboard() {
     }
   `;
 
-  // --- RESPONSIVE FIXES ---
   const styles = {
     wrapper: {
       minHeight: "100vh",
       backgroundColor: bgColor,
-      padding: "30px 20px",
+      padding: "25px 20px",
       boxSizing: "border-box",
       fontFamily:
         '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       transition: "background-color 0.4s ease",
     },
-    container: { width: "95vw", maxWidth: "1800px", margin: "0 auto" },
+    container: { width: "95vw", maxWidth: "1600px", margin: "0 auto" },
     header: {
-      background: "linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)",
+      background: "linear-gradient(135deg, #065f46 0%, #0f766e 100%)", // Emerald Botanical Gradient
       padding: "25px 40px",
       borderRadius: "20px",
       color: "#fff",
-      boxShadow: "0 8px 20px rgba(30, 60, 114, 0.15)",
-      marginBottom: "30px",
+      boxShadow: "0 8px 20px rgba(6, 95, 70, 0.15)",
+      marginBottom: "25px",
       display: "flex",
       alignItems: "center",
       justifyContent: "space-between",
@@ -284,7 +278,7 @@ export default function HerbAiDashboard() {
       backgroundColor: "#ffffff",
       borderRadius: "24px",
       padding: "30px",
-      boxShadow: "0 12px 30px rgba(0, 0, 0, 0.03)",
+      boxShadow: "0 10px 30px rgba(0, 0, 0, 0.04)",
       border: "1px solid #e2e8f0",
       display: "flex",
       flexDirection: "column",
@@ -306,8 +300,7 @@ export default function HerbAiDashboard() {
     },
     viewport: {
       width: "100%",
-      flexGrow: 1,
-      minHeight: "260px",
+      minHeight: "320px",
       backgroundColor: "#0f172a",
       borderRadius: "16px",
       overflow: "hidden",
@@ -325,7 +318,7 @@ export default function HerbAiDashboard() {
       borderRadius: "18px",
       padding: "20px",
       marginBottom: "20px",
-      backgroundColor: "#fdfefe",
+      backgroundColor: "#fcfcfc",
     },
   };
 
@@ -348,12 +341,11 @@ export default function HerbAiDashboard() {
           <div
             style={{
               backgroundColor: apiOnline
-                ? "rgba(46, 125, 50, 0.3)"
-                : "rgba(211, 47, 47, 0.3)",
-              border: apiOnline ? "1px solid #2e7d32" : "1px solid #d32f2f",
+                ? "rgba(255, 255, 255, 0.9)"
+                : "rgba(211, 47, 47, 0.9)",
               padding: "8px 16px",
               borderRadius: "30px",
-              color: apiOnline ? "#4caf50" : "#ef5350",
+              color: apiOnline ? "#065f46" : "#fff",
               fontSize: "13px",
               fontWeight: "700",
             }}
@@ -372,8 +364,8 @@ export default function HerbAiDashboard() {
               🎨 Theme:
             </span>
             <div
-              onClick={() => setBgColor("#eef4fa")}
-              style={{ ...styles.themeBtn, backgroundColor: "#eef4fa" }}
+              onClick={() => setBgColor("#f4f7f6")}
+              style={{ ...styles.themeBtn, backgroundColor: "#f4f7f6" }}
             />
             <div
               onClick={() => setBgColor("#e8f5e9")}
@@ -384,21 +376,19 @@ export default function HerbAiDashboard() {
               style={{ ...styles.themeBtn, backgroundColor: "#fef9e7" }}
             />
             <div
-              onClick={() => setBgColor("#f5f5f5")}
-              style={{ ...styles.themeBtn, backgroundColor: "#f5f5f5" }}
+              onClick={() => setBgColor("#1e293b")}
+              style={{ ...styles.themeBtn, backgroundColor: "#1e293b" }}
             />
           </div>
         </header>
 
-        {/* CHANGED: Swapped inline style for className so mobile media queries can activate */}
         <div className="dashboard-grid">
-          {/* CHANGED: Swapped inline height style for className so mobile media queries can activate */}
           <div className="panel-card" style={styles.panelCardStyles}>
             <h3
               style={{
                 fontSize: "17px",
                 fontWeight: "600",
-                color: "#1e3c72",
+                color: "#065f46",
                 margin: "0 0 15px 0",
               }}
             >
@@ -410,16 +400,17 @@ export default function HerbAiDashboard() {
                 style={{
                   flex: 1,
                   padding: "12px",
-                  background: "#f1f5f9",
+                  background: "#f8fafc",
                   border: "1px dashed #cbd5e1",
                   borderRadius: "10px",
                   textAlign: "center",
                   cursor: "pointer",
                   fontSize: "13.5px",
                   fontWeight: "500",
+                  color: "#334155",
                 }}
               >
-                🎥 Load Video walk
+                🎥 Load Video Walk
                 <input
                   type="file"
                   accept="video/*"
@@ -431,13 +422,14 @@ export default function HerbAiDashboard() {
                 style={{
                   flex: 1,
                   padding: "12px",
-                  background: "#f1f5f9",
+                  background: "#f8fafc",
                   border: "1px dashed #cbd5e1",
                   borderRadius: "10px",
                   textAlign: "center",
                   cursor: "pointer",
                   fontSize: "13.5px",
                   fontWeight: "500",
+                  color: "#334155",
                 }}
               >
                 📸 Upload Herb Image
@@ -454,13 +446,14 @@ export default function HerbAiDashboard() {
               onClick={handleStartScan}
               style={{
                 padding: "15px",
-                background: "linear-gradient(135deg, #00b4db 0%, #0083b0 100%)",
+                background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
                 color: "#fff",
                 border: "none",
                 borderRadius: "14px",
                 fontWeight: "600",
                 marginBottom: "20px",
                 cursor: "pointer",
+                boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
               }}
             >
               {isScanning
@@ -475,7 +468,11 @@ export default function HerbAiDashboard() {
                   src={videoSrc}
                   controls
                   muted
-                  style={{ width: "100%", height: "100%" }}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "contain",
+                  }}
                 />
               )}
               {imageSrc && (
@@ -500,13 +497,13 @@ export default function HerbAiDashboard() {
               style={{
                 fontSize: "17px",
                 fontWeight: "600",
-                color: "#1e3c72",
+                color: "#065f46",
                 margin: "15px 0 10px 0",
               }}
             >
               📊 Identification Log Stream
             </h3>
-            <div style={{ overflowY: "auto", maxHeight: "180px" }}>
+            <div style={{ overflowY: "auto", flexGrow: 1 }}>
               {telemetry.length === 0 ? (
                 <p style={{ fontSize: "13.5px", color: "#94a3b8" }}>
                   No logs committed to tracking schemas yet.
@@ -553,7 +550,7 @@ export default function HerbAiDashboard() {
                               item.species.includes("Anomaly") ||
                               item.species.includes("Unidentified")
                                 ? "#e74c3c"
-                                : "#1e3c72",
+                                : "#0f766e",
                           }}
                         >
                           {item.species}
@@ -572,7 +569,7 @@ export default function HerbAiDashboard() {
                             padding: "12px 10px",
                             textAlign: "right",
                             fontWeight: "700",
-                            color: "#2ecc71",
+                            color: "#10b981",
                           }}
                         >
                           {(item.maxConfidence * 100).toFixed(0)}%
@@ -585,13 +582,12 @@ export default function HerbAiDashboard() {
             </div>
           </div>
 
-          {/* CHANGED: Same here, swapped inline height style for className */}
           <div className="panel-card" style={styles.panelCardStyles}>
             <h3
               style={{
                 fontSize: "17px",
                 fontWeight: "600",
-                color: "#1e3c72",
+                color: "#065f46",
                 margin: "0 0 15px 0",
               }}
             >
@@ -603,15 +599,15 @@ export default function HerbAiDashboard() {
                   style={{
                     textAlign: "center",
                     color: "#94a3b8",
-                    marginTop: "160px",
+                    marginTop: "30%",
                     padding: "0 30px",
                   }}
                 >
                   <div style={{ fontSize: "32px", marginBottom: "10px" }}>
                     🔬
                   </div>
-                  Ask questions about medicine, herb, or what is even in the
-                  video that YOUR CURIOUS about!!
+                  Ask questions about medicine, herb properties, or check the
+                  results of the video scan!
                 </div>
               )}
               {messages.map((msg, i) => (
@@ -629,10 +625,14 @@ export default function HerbAiDashboard() {
                       padding: "12px 16px",
                       borderRadius: "12px",
                       backgroundColor:
-                        msg.role === "user" ? "#e3f2fd" : "#f1f5f9",
+                        msg.role === "user" ? "#ecfdf5" : "#f8fafc",
+                      border:
+                        msg.role === "user"
+                          ? "1px solid #a7f3d0"
+                          : "1px solid #e2e8f0",
                       color: "#334155",
                       maxWidth: "90%",
-                      fontSize: "14px",
+                      fontSize: "14.5px",
                       whiteSpace: "pre-wrap",
                     }}
                   >
@@ -658,7 +658,7 @@ export default function HerbAiDashboard() {
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          color: "#1e3c72",
+                          color: "#0f766e",
                           fontWeight: 600,
                           gap: "6px",
                         }}
@@ -715,18 +715,20 @@ export default function HerbAiDashboard() {
                   borderRadius: "12px",
                   border: "1px solid #cbd5e1",
                   outline: "none",
+                  fontSize: "14px",
                 }}
               />
               <button
                 type="submit"
                 style={{
-                  padding: "0 20px",
-                  backgroundColor: "#1e3c72",
+                  padding: "0 24px",
+                  backgroundColor: "#065f46",
                   color: "#fff",
                   border: "none",
                   borderRadius: "12px",
                   fontWeight: "600",
                   cursor: "pointer",
+                  transition: "0.2s ease",
                 }}
               >
                 Query
