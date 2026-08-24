@@ -49,17 +49,21 @@ query_engine = BotanicalQueryEngine()
 
 CURRENT_SESSION_PLANT = None
 
+
 class QueryRequest(BaseModel):
     query_text: str = None
     question: str = None
+
 
 @app.get("/")
 def read_root():
     return {"status": "Herb-AI Backend is running smoothly."}
 
+
 @app.get("/api/scan-status")
 def get_scan_status():
     return {"is_scanning": IS_SCANNING}
+
 
 @app.get("/api/telemetry")
 def get_telemetry():
@@ -91,6 +95,7 @@ def get_telemetry():
             for row in rows
         ]
     }
+
 
 async def handle_image_upload(file: UploadFile):
     global CURRENT_SESSION_PLANT
@@ -138,9 +143,11 @@ async def handle_image_upload(file: UploadFile):
         "results": result,
     }
 
+
 @app.post("/api/detect")
 async def detect_alias(file: UploadFile = File(...)):
     return await handle_image_upload(file)
+
 
 @app.post("/api/upload-image")
 async def upload_image_alias(file: UploadFile = File(...)):
@@ -156,6 +163,7 @@ def process_query_text(text: str):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/api/query")
 def query_alias(payload: QueryRequest):
     q = payload.question or payload.query_text
@@ -163,16 +171,18 @@ def query_alias(payload: QueryRequest):
         return {"response": "Please enter a specific question about the plant."}
     return process_query_text(q)
 
+
 @app.post("/api/query/stream")
 def query_stream_alias(payload: QueryRequest):
     q = payload.question or payload.query_text
     if not q or q.strip() == "string":
         raise HTTPException(status_code=400, detail="Invalid query")
-    
+
     return StreamingResponse(
         query_engine.stream_botanical_knowledge(q),
-        media_type="application/octet-stream"
+        media_type="application/octet-stream",
     )
+
 
 @app.post("/api/chat")
 def chat_alias(payload: QueryRequest):
@@ -224,7 +234,7 @@ def background_video_scan(video_path: str):
             frame_number += 1
             annotated_frame = r.plot()
             out.write(annotated_frame)
-            
+
             detected_names = []
 
             # FIX: Properly support BOTH classification (r.probs) AND detection (r.boxes) models
@@ -269,22 +279,20 @@ def background_video_scan(video_path: str):
         conn.close()
 
         if detected_plants:
-            CURRENT_SESSION_PLANT = ", ".join(detected_plants.keys())
+            primary_plant = max(detected_plants, key=detected_plants.get)
+            CURRENT_SESSION_PLANT = primary_plant
+
             print(
-                f"✅ [SCAN COMPLETE] {frame_number} frames analyzed. Context locked to: {CURRENT_SESSION_PLANT}"
+                f"✅ [SCAN COMPLETE] {frame_number} frames analyzed. Context locked to DOMINANT plant: {primary_plant}"
             )
             knowledge_gen = AutoKnowledgeGenerator()
             vector_engine = LocalVectorStoreEngine()
-            rebuild_needed = False
 
-            for plant_name in detected_plants.keys():
-                if knowledge_gen.generate_profile_if_new(plant_name):
-                    print(f"📝 Syncing local vector knowledge for: {plant_name}")
-                    rebuild_needed = True
-
-            if rebuild_needed:
+            if knowledge_gen.generate_profile_if_new(primary_plant):
+                print(f"📝 Syncing local vector knowledge for: {primary_plant}")
                 print("Updating Chroma vector store with new video discoveries...")
-                vector_engine.build_vector_store()
+                vector_engine.build_vector_store()  
+                
         else:
             print("⚠️ [SCAN COMPLETE] No classes detected even with 1% threshold.")
 
