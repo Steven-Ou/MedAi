@@ -495,7 +495,7 @@ export default function HerbAiDashboard() {
                         <td style={{ padding: "8px", width: "50px" }}>
                           {item.evidenceImage ? (
                             <img
-                              src={`data:image/jpeg;base64,${item.evidenceImage}`}
+                              src={item.evidenceImage}
                               alt={item.species}
                               style={{
                                 width: "45px",
