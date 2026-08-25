@@ -12,13 +12,15 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from ultralytics import YOLO
+from huggingface_hub import HfApi
+import uuid
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.join(current_dir, "herb-ai")
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from database.db_manager import init_db, DB_PATH
+from database.db_manager import init_db, add_new_plant, insert_telemetry
 from frontend.src.rag.query_engine import BotanicalQueryEngine
 from frontend.src.vision.detector import BotanicalDetector
 from frontend.src.rag.know_gen import AutoKnowledgeGenerator
@@ -97,6 +99,26 @@ def get_telemetry():
     }
 
 
+def upload_to_huggingface(image_bytes: bytes, predicted_class: str) -> str:
+    hf_token = os.getenv("HF_TOKEN")
+    repo_id = "YourUsername/herb-ai-vault"  # Replace with your HF Dataset name
+    file_name = f"{predicted_class.replace(' ', '_')}/{uuid.uuid4().hex}.jpg"
+
+    api = HfApi()
+    try:
+        api.upload_file(
+            path_or_fileobj=image_bytes,
+            path_in_repo=file_name,
+            repo_id=repo_id,
+            repo_type="dataset",
+            token=hf_token,
+        )
+        return f"https://huggingface.co/datasets/{repo_id}/resolve/main/{file_name}"
+    except Exception as e:
+        print(f"HF Upload Error: {e}")
+        return None
+
+
 async def handle_image_upload(file: UploadFile):
     global CURRENT_SESSION_PLANT
 
@@ -104,37 +126,27 @@ async def handle_image_upload(file: UploadFile):
     if not contents:
         raise HTTPException(status_code=400, detail="No image file provided.")
 
+    # 1. Run local YOLO / Vision inference
     result = vision_engine.analyze_image(contents)
     CURRENT_SESSION_PLANT = result.get("predicted_class")
 
-    if os.path.exists(DB_PATH):
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM telemetry;")
-        cursor.execute("DELETE FROM plants;")
-        conn.commit()
+    # 2. Cloud Data Flywheel (Supabase + Hugging Face)
+    if CURRENT_SESSION_PLANT:
+        print(f"☁️ Uploading {CURRENT_SESSION_PLANT} to Hugging Face Vault...")
+        # Push raw bytes to Hugging Face
+        evidence_url = upload_to_huggingface(contents, CURRENT_SESSION_PLANT)
 
-        if CURRENT_SESSION_PLANT:
-            evidence_base64 = base64.b64encode(contents).decode("utf-8")
-            cursor.execute(
-                "INSERT OR IGNORE INTO plants (species_name) VALUES (?);",
-                (CURRENT_SESSION_PLANT,),
-            )
-            cursor.execute(
-                "SELECT id FROM plants WHERE species_name = ?;",
-                (CURRENT_SESSION_PLANT,),
-            )
-            plant_row = cursor.fetchone()
+        # Log telemetry to Supabase
+        plant_id = add_new_plant(CURRENT_SESSION_PLANT)
+        conf = result.get("confidence", 0.0)
 
-            if plant_row:
-                plant_id = plant_row[0]
-                conf = result.get("confidence", 0.0)
-                cursor.execute(
-                    "INSERT INTO telemetry (plant_id, frame_number, xmin, ymin, xmax, ymax, confidence_score, evidence_image) VALUES (?, 1, 0, 0, 0, 0, ?, ?);",
-                    (plant_id, float(conf), evidence_base64),
-                )
-        conn.commit()
-        conn.close()
+        insert_telemetry(
+            plant_id=plant_id,
+            frame_number=1,
+            bbox=(0, 0, 0, 0),
+            confidence_score=float(conf),
+            evidence_url=evidence_url,
+        )
 
     return {
         "status": "success",
@@ -291,8 +303,8 @@ def background_video_scan(video_path: str):
             if knowledge_gen.generate_profile_if_new(primary_plant):
                 print(f"📝 Syncing local vector knowledge for: {primary_plant}")
                 print("Updating Chroma vector store with new video discoveries...")
-                vector_engine.build_vector_store()  
-                
+                vector_engine.build_vector_store()
+
         else:
             print("⚠️ [SCAN COMPLETE] No classes detected even with 1% threshold.")
 
