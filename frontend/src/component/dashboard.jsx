@@ -1,4 +1,3 @@
-// frontend/src/component/dashboard.jsx
 import React, { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -20,7 +19,7 @@ export default function HerbAiDashboard() {
   const [inputQuery, setInputQuery] = useState("");
 
   const [apiOnline, setApiOnline] = useState(false);
-  const [bgColor, setBgColor] = useState("#f4f7f6"); // Cleaner background color
+  const [bgColor, setBgColor] = useState("#f4f7f6");
   const [videoSrc, setVideoSrc] = useState(null);
   const [imageSrc, setImageSrc] = useState(null);
   const videoRef = useRef(null);
@@ -71,7 +70,6 @@ export default function HerbAiDashboard() {
       ]);
       try {
         const data = await uploadImage(file);
-
         if (data && data.predicted_class) {
           setMessages((prev) => [
             ...prev,
@@ -96,17 +94,9 @@ export default function HerbAiDashboard() {
   };
 
   const handleStartScan = async () => {
-    if (!videoFile) {
-      alert("Please upload a video file first.");
-      return;
-    }
-
-    if (videoFile.size > 10 * 1024 * 1024) {
-      alert(
-        "Video file is too large. Please keep it under 10MB for the cloud pipeline.",
-      );
-      return;
-    }
+    if (!videoFile) return alert("Please upload a video file first.");
+    if (videoFile.size > 10 * 1024 * 1024)
+      return alert("Video file is too large.");
 
     setIsScanning(true);
     if (videoRef.current) videoRef.current.play();
@@ -122,48 +112,36 @@ export default function HerbAiDashboard() {
     try {
       const success = await triggerVisionScan(videoFile);
       if (!success) {
-        console.error("The backend rejected the scan request.");
         setIsScanning(false);
         return;
       }
 
       const pollInterval = setInterval(async () => {
         const status = await checkScanStatus();
-
         if (!status.is_scanning) {
           setIsScanning(false);
           clearInterval(pollInterval);
-
           try {
             const telemetryData = await fetchDetectedPlants();
             if (telemetryData && telemetryData.length > 0) {
               const topPlant = telemetryData.reduce((prev, current) =>
                 prev.framesTracked > current.framesTracked ? prev : current,
               );
-
               setMessages((prev) => [
                 ...prev,
                 {
                   role: "agent",
-                  text: `🎥 Video Inference Complete! I scanned the footage and predominantly identified: **${topPlant.species}** (Tracked across ${topPlant.framesTracked} frames). Feel free to ask me to explain its clinical benefits below.`,
-                },
-              ]);
-            } else {
-              setMessages((prev) => [
-                ...prev,
-                {
-                  role: "agent",
-                  text: `🎥 Video Inference Complete! However, I couldn't confidently identify any specific herbs in the footage.`,
+                  text: `🎥 Video Inference Complete! I scanned the footage and predominantly identified: **${topPlant.species}** (Tracked across ${topPlant.framesTracked} frames).`,
                 },
               ]);
             }
           } catch (err) {
-            console.error("Failed fetching post-scan telemetry:", err);
+            console.error(err);
           }
         }
       }, 3000);
     } catch (err) {
-      console.error("Failed reaching scan ports.", err);
+      console.error(err);
       setIsScanning(false);
     }
   };
@@ -182,7 +160,6 @@ export default function HerbAiDashboard() {
     ]);
 
     let streamedText = "";
-
     await streamBotanicalQuestion(userMessageText, (chunk) => {
       streamedText += chunk;
       setMessages((prev) => {
@@ -200,67 +177,65 @@ export default function HerbAiDashboard() {
 
     setMessages((prev) => {
       const newHistory = [...prev];
-      const lastIndex = newHistory.length - 1;
-      if (newHistory[lastIndex].role === "agent") {
-        newHistory[lastIndex].isTyping = false;
+      if (newHistory[newHistory.length - 1].role === "agent") {
+        newHistory[newHistory.length - 1].isTyping = false;
       }
       return newHistory;
     });
   };
 
-  // FIX: Added body margins reset and dynamic background sync to eliminate the white border
   const globalStyles = `
     html, body {
-      margin: 0;
-      padding: 0;
+      margin: 0; padding: 0;
       background-color: ${bgColor};
-      transition: background-color 0.4s ease;
-      height: 100%;
+      transition: background-color 0.4s ease; height: 100%;
     }
-
-    /* FIX: Chat is now on the LEFT (1.5fr) and Media Hub is on the RIGHT (minmax 400px) */
     .dashboard-grid {
       display: grid;
-      grid-template-columns: 1.5fr minmax(400px, 1fr);
+      /* SWAPPED: Media Hub on Left (1fr), Chat on Right (1.5fr) */
+      grid-template-columns: minmax(350px, 1fr) minmax(450px, 1.5fr);
       gap: 25px;
       align-items: stretch; 
     }
-    
     .panel-card {
       height: calc(100vh - 150px);
+      display: flex;
+      flex-direction: column;
+    }
+    .log-stream-container {
+      flex-grow: 1;
       overflow-y: auto;
+      min-height: 150px;
+      max-height: 250px; 
+      border-radius: 8px;
     }
-
+    
+    /* MOBILE SQUEEZE FIX */
     @media (max-width: 1024px) {
-      .dashboard-grid {
-        grid-template-columns: 1fr;
+      .dashboard-grid { 
+        grid-template-columns: 1fr; 
       }
-      .panel-card {
-        height: 60vh;
+      .panel-card { 
+        height: auto; /* Allows content to push the container height naturally */
+        min-height: 60vh;
+      }
+      .log-stream-container { 
+        max-height: 300px; 
       }
     }
-
-    .panel-card::-webkit-scrollbar, .chat-window::-webkit-scrollbar { width: 6px; }
-    .panel-card::-webkit-scrollbar-thumb, .chat-window::-webkit-scrollbar-thumb { 
-        background-color: #cbd5e1; 
-        border-radius: 8px; 
+    
+    .panel-card::-webkit-scrollbar, .chat-window::-webkit-scrollbar, .log-stream-container::-webkit-scrollbar { width: 6px; }
+    .panel-card::-webkit-scrollbar-thumb, .chat-window::-webkit-scrollbar-thumb, .log-stream-container::-webkit-scrollbar-thumb { 
+        background-color: #cbd5e1; border-radius: 8px; 
     }
-
     .markdown-body table { width: 100%; border-collapse: collapse; margin: 15px 0; }
     .markdown-body th, .markdown-body td { border: 1px solid #e2e8f0; padding: 10px; }
     .markdown-body th { background-color: #f8fafc; color: #334155; }
-    .katex-display { overflow-x: auto; overflow-y: hidden; }
-
-    /* Cuter Bounce Animation */
     @keyframes bounce {
       0%, 100% { transform: translateY(0); opacity: 0.5; }
       50% { transform: translateY(-3px); opacity: 1; }
     }
-    .typing-dot {
-      display: inline-block;
-      animation: bounce 1.4s infinite ease-in-out both;
-      margin: 0 1px;
-    }
+    .typing-dot { display: inline-block; animation: bounce 1.4s infinite ease-in-out both; margin: 0 1px; }
     .typing-dot:nth-child(1) { animation-delay: -0.32s; }
     .typing-dot:nth-child(2) { animation-delay: -0.16s; }
   `;
@@ -345,7 +320,6 @@ export default function HerbAiDashboard() {
               Vision Frameworks & RAG Clinical Intelligence
             </p>
           </div>
-
           <div
             style={{
               backgroundColor: apiOnline
@@ -360,7 +334,6 @@ export default function HerbAiDashboard() {
           >
             {apiOnline ? "🟢 CORE API: ONLINE" : "🔴 BACKEND DISCONNECTED"}
           </div>
-
           <div style={styles.themeSelector}>
             <span
               style={{
@@ -392,187 +365,7 @@ export default function HerbAiDashboard() {
 
         <div className="dashboard-grid">
           {/* ========================================= */}
-          {/* TERMINAL PANEL (NOW ON LEFT / WIDER GRID) */}
-          {/* ========================================= */}
-          <div className="panel-card" style={styles.panelCardStyles}>
-            <h3
-              style={{
-                fontSize: "17px",
-                fontWeight: "600",
-                color: "#065f46",
-                margin: "0 0 15px 0",
-              }}
-            >
-              💬 RAG Clinical Agent Terminal
-            </h3>
-
-            <div className="chat-window" style={styles.chatWindow}>
-              {messages.length === 0 && (
-                <div
-                  style={{
-                    textAlign: "center",
-                    color: "#94a3b8",
-                    marginTop: "20%",
-                    padding: "0 30px",
-                  }}
-                >
-                  <div style={{ fontSize: "40px", marginBottom: "15px" }}>
-                    🌿
-                  </div>
-                  <h4 style={{ color: "#475569", margin: "0 0 10px 0" }}>
-                    Ready to assist!
-                  </h4>
-                  <p style={{ margin: 0, fontSize: "14.5px" }}>
-                    Ask questions about medicine, herb properties, or check the
-                    results of the video scan.
-                  </p>
-                </div>
-              )}
-
-              {messages.map((msg, i) => (
-                <div
-                  key={i}
-                  style={{
-                    marginBottom: "24px",
-                    display: "flex",
-                    flexDirection: msg.role === "user" ? "row-reverse" : "row",
-                    alignItems: "flex-start",
-                    gap: "12px",
-                  }}
-                >
-                  {/* CUTE AVATAR ICONS */}
-                  <div
-                    style={{
-                      width: "38px",
-                      height: "38px",
-                      borderRadius: "50%",
-                      backgroundColor:
-                        msg.role === "user" ? "#10b981" : "#f1f5f9",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "20px",
-                      boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {msg.role === "user" ? "🧑‍🔬" : "🪴"}
-                  </div>
-
-                  {/* DECORATED CHAT BUBBLES */}
-                  <div
-                    style={{
-                      padding: "16px 20px",
-                      borderRadius: "20px",
-                      borderTopRightRadius:
-                        msg.role === "user" ? "4px" : "20px",
-                      borderTopLeftRadius:
-                        msg.role === "agent" ? "4px" : "20px",
-                      backgroundColor:
-                        msg.role === "user" ? "#d1fae5" : "#ffffff",
-                      border:
-                        msg.role === "user"
-                          ? "1px solid #a7f3d0"
-                          : "1px solid #e2e8f0",
-                      color: "#334155",
-                      maxWidth: "85%",
-                      fontSize: "14.5px",
-                      boxShadow: "0 4px 15px rgba(0, 0, 0, 0.03)",
-                      whiteSpace: "pre-wrap",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: "10.5px",
-                        fontWeight: "700",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.5px",
-                        marginBottom: "8px",
-                        color: msg.role === "user" ? "#047857" : "#64748b",
-                      }}
-                    >
-                      {msg.role === "user"
-                        ? "Clinical Inquiry"
-                        : "System Knowledge Matrix"}
-                    </div>
-
-                    {msg.role === "user" ? (
-                      msg.text
-                    ) : msg.isTyping && !msg.text ? (
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          color: "#0f766e",
-                          fontWeight: 600,
-                          fontSize: "18px",
-                        }}
-                      >
-                        <span className="typing-dot">.</span>
-                        <span className="typing-dot">.</span>
-                        <span className="typing-dot">.</span>
-                      </div>
-                    ) : (
-                      <div className="markdown-body">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm, remarkMath]}
-                          rehypePlugins={[rehypeKatex]}
-                        >
-                          {msg.text}
-                        </ReactMarkdown>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <form
-              onSubmit={handleSendMessage}
-              style={{ display: "flex", gap: "10px" }}
-            >
-              <input
-                type="text"
-                value={inputQuery}
-                onChange={(e) => setInputQuery(e.target.value)}
-                placeholder="Ask the agent to explain chemical uses or benefits..."
-                style={{
-                  flexGrow: 1,
-                  padding: "16px",
-                  borderRadius: "16px",
-                  border: "1px solid #cbd5e1",
-                  backgroundColor: "#f8fafc",
-                  outline: "none",
-                  fontSize: "14.5px",
-                  transition: "border 0.2s ease",
-                }}
-                onFocus={(e) => (e.target.style.border = "1px solid #10b981")}
-                onBlur={(e) => (e.target.style.border = "1px solid #cbd5e1")}
-              />
-              <button
-                type="submit"
-                style={{
-                  padding: "0 28px",
-                  backgroundColor: "#065f46",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "16px",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  transition: "background-color 0.2s ease, transform 0.1s",
-                  boxShadow: "0 4px 10px rgba(6, 95, 70, 0.2)",
-                }}
-                onMouseDown={(e) => (e.target.style.transform = "scale(0.96)")}
-                onMouseUp={(e) => (e.target.style.transform = "scale(1)")}
-              >
-                Send
-              </button>
-            </form>
-          </div>
-          {/* ========================================= */}
-
-          {/* ========================================= */}
-          {/* MEDIA UPLOAD HUB (NOW ON RIGHT) */}
+          {/* MEDIA UPLOAD HUB (MOVED TO LEFT) */}
           {/* ========================================= */}
           <div className="panel-card" style={styles.panelCardStyles}>
             <h3
@@ -585,7 +378,6 @@ export default function HerbAiDashboard() {
             >
               📷 Media Upload Hub
             </h3>
-
             <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
               <label
                 style={{
@@ -597,12 +389,7 @@ export default function HerbAiDashboard() {
                   textAlign: "center",
                   cursor: "pointer",
                   fontSize: "13.5px",
-                  fontWeight: "500",
-                  color: "#334155",
-                  transition: "background 0.2s",
                 }}
-                onMouseOver={(e) => (e.target.style.background = "#f1f5f9")}
-                onMouseOut={(e) => (e.target.style.background = "#f8fafc")}
               >
                 🎥 Load Video Walk
                 <input
@@ -622,12 +409,7 @@ export default function HerbAiDashboard() {
                   textAlign: "center",
                   cursor: "pointer",
                   fontSize: "13.5px",
-                  fontWeight: "500",
-                  color: "#334155",
-                  transition: "background 0.2s",
                 }}
-                onMouseOver={(e) => (e.target.style.background = "#f1f5f9")}
-                onMouseOut={(e) => (e.target.style.background = "#f8fafc")}
               >
                 📸 Upload Herb Image
                 <input
@@ -638,7 +420,6 @@ export default function HerbAiDashboard() {
                 />
               </label>
             </div>
-
             <button
               onClick={handleStartScan}
               style={{
@@ -650,14 +431,12 @@ export default function HerbAiDashboard() {
                 fontWeight: "600",
                 marginBottom: "20px",
                 cursor: "pointer",
-                boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
               }}
             >
               {isScanning
                 ? "🎥 Running Live Vector File Scanning Inference..."
                 : "🚀 Execute Pipeline Stream Scan"}
             </button>
-
             <div style={styles.viewport}>
               {videoSrc && (
                 <video
@@ -683,13 +462,7 @@ export default function HerbAiDashboard() {
                   alt="Inference Target"
                 />
               )}
-              {!videoSrc && !imageSrc && (
-                <div style={{ color: "#64748b", fontSize: "13.5px" }}>
-                  Media Viewport Idle. Load an active file above.
-                </div>
-              )}
             </div>
-
             <h3
               style={{
                 fontSize: "17px",
@@ -700,7 +473,8 @@ export default function HerbAiDashboard() {
             >
               📊 Identification Log Stream
             </h3>
-            <div style={{ overflowY: "auto", flexGrow: 1 }}>
+
+            <div className="log-stream-container">
               {telemetry.length === 0 ? (
                 <p style={{ fontSize: "13.5px", color: "#94a3b8" }}>
                   No logs committed to tracking schemas yet.
@@ -743,11 +517,9 @@ export default function HerbAiDashboard() {
                           style={{
                             padding: "12px 10px",
                             fontWeight: "600",
-                            color:
-                              item.species.includes("Anomaly") ||
-                              item.species.includes("Unidentified")
-                                ? "#e74c3c"
-                                : "#0f766e",
+                            color: item.species.includes("Anomaly")
+                              ? "#e74c3c"
+                              : "#0f766e",
                           }}
                         >
                           {item.species}
@@ -777,6 +549,156 @@ export default function HerbAiDashboard() {
                 </table>
               )}
             </div>
+          </div>
+          {/* ========================================= */}
+
+          {/* ========================================= */}
+          {/* TERMINAL PANEL (MOVED TO RIGHT) */}
+          {/* ========================================= */}
+          <div className="panel-card" style={styles.panelCardStyles}>
+            <h3
+              style={{
+                fontSize: "17px",
+                fontWeight: "600",
+                color: "#065f46",
+                margin: "0 0 15px 0",
+              }}
+            >
+              💬 RAG Clinical Agent Terminal
+            </h3>
+            <div className="chat-window" style={styles.chatWindow}>
+              {messages.length === 0 && (
+                <div
+                  style={{
+                    textAlign: "center",
+                    color: "#94a3b8",
+                    marginTop: "20%",
+                    padding: "0 30px",
+                  }}
+                >
+                  <div style={{ fontSize: "40px", marginBottom: "15px" }}>
+                    🌿
+                  </div>
+                  <h4 style={{ color: "#475569", margin: "0 0 10px 0" }}>
+                    Ready to assist!
+                  </h4>
+                  <p style={{ margin: 0, fontSize: "14.5px" }}>
+                    Ask questions about medicine, herb properties, or check the
+                    results of the video scan.
+                  </p>
+                </div>
+              )}
+              {messages.map((msg, i) => (
+                <div
+                  key={i}
+                  style={{
+                    marginBottom: "24px",
+                    display: "flex",
+                    flexDirection: msg.role === "user" ? "row-reverse" : "row",
+                    alignItems: "flex-start",
+                    gap: "12px",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "38px",
+                      height: "38px",
+                      borderRadius: "50%",
+                      backgroundColor:
+                        msg.role === "user" ? "#10b981" : "#f1f5f9",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "20px",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {msg.role === "user" ? "🧑‍🔬" : "🪴"}
+                  </div>
+                  <div
+                    style={{
+                      padding: "16px 20px",
+                      borderRadius: "20px",
+                      borderTopRightRadius:
+                        msg.role === "user" ? "4px" : "20px",
+                      borderTopLeftRadius:
+                        msg.role === "agent" ? "4px" : "20px",
+                      backgroundColor:
+                        msg.role === "user" ? "#d1fae5" : "#ffffff",
+                      border:
+                        msg.role === "user"
+                          ? "1px solid #a7f3d0"
+                          : "1px solid #e2e8f0",
+                      color: "#334155",
+                      maxWidth: "85%",
+                      fontSize: "14.5px",
+                      whiteSpace: "pre-wrap",
+                    }}
+                  >
+                    {msg.role === "user" ? (
+                      msg.text
+                    ) : msg.isTyping && !msg.text ? (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          color: "#0f766e",
+                          fontWeight: 600,
+                          fontSize: "18px",
+                        }}
+                      >
+                        <span className="typing-dot">.</span>
+                        <span className="typing-dot">.</span>
+                        <span className="typing-dot">.</span>
+                      </div>
+                    ) : (
+                      <div className="markdown-body">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm, remarkMath]}
+                          rehypePlugins={[rehypeKatex]}
+                        >
+                          {msg.text}
+                        </ReactMarkdown>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <form
+              onSubmit={handleSendMessage}
+              style={{ display: "flex", gap: "10px" }}
+            >
+              <input
+                type="text"
+                value={inputQuery}
+                onChange={(e) => setInputQuery(e.target.value)}
+                placeholder="Ask the agent to explain chemical uses or benefits..."
+                style={{
+                  flexGrow: 1,
+                  padding: "16px",
+                  borderRadius: "16px",
+                  border: "1px solid #cbd5e1",
+                  backgroundColor: "#f8fafc",
+                  outline: "none",
+                  fontSize: "14.5px",
+                }}
+              />
+              <button
+                type="submit"
+                style={{
+                  padding: "0 28px",
+                  backgroundColor: "#065f46",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "16px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                }}
+              >
+                Send
+              </button>
+            </form>
           </div>
           {/* ========================================= */}
         </div>

@@ -10,6 +10,7 @@ from sentence_transformers import SentenceTransformer
 from google import genai
 import httpx
 import chromadb
+import json
 
 # Ensure project root is accessible for imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
@@ -181,11 +182,11 @@ class BotanicalQueryEngine:
                 "model": "llama3.2",
                 "prompt": prompt,
                 "stream": False,
-                "options": {"temperature": 0.3},
+                "options": {"temperature": 0.3, "num_ctx": 1024, "num_thread": 4},
             }
 
             with httpx.Client() as client:
-                response = client.post(ollama_url, json=payload, timeout=300.0)
+                response = client.post(ollama_url, json=payload, timeout=900.0)
                 if response.status_code == 200:
                     answer = response.json().get("response", "").strip()
                     self.chat_history.append(f"Herb-AI: {answer}")
@@ -196,7 +197,7 @@ class BotanicalQueryEngine:
 
         except Exception as e:
             return f"Query Engine failure: {e}"
-    
+
     def stream_botanical_knowledge(self, user_query: str, n_results: int = 6):
         """Streams the response chunk-by-chunk for the frontend typing effect."""
         self.chat_history.append(f"User: {user_query}")
@@ -229,7 +230,7 @@ class BotanicalQueryEngine:
         )
 
         full_answer = ""
-        
+
         # 1. Gemini Streaming
         if self.gemini_client:
             try:
@@ -248,6 +249,7 @@ class BotanicalQueryEngine:
 
         # 2. Ollama Fallback Streaming
         import json
+
         ollama_url = "http://localhost:11434/api/generate"
         payload = {
             "model": "llama3.2",
@@ -257,14 +259,16 @@ class BotanicalQueryEngine:
         }
 
         with httpx.Client() as client:
-            with client.stream("POST", ollama_url, json=payload, timeout=300.0) as response:
+            with client.stream(
+                "POST", ollama_url, json=payload, timeout=300.0
+            ) as response:
                 for line in response.iter_lines():
                     if line:
                         data = json.loads(line)
                         chunk_text = data.get("response", "")
                         full_answer += chunk_text
                         yield chunk_text
-                        
+
         self.chat_history.append(f"Herb-AI: {full_answer}")
         save_to_cache(user_query, full_answer)
 
