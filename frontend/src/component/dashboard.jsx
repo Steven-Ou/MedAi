@@ -251,12 +251,14 @@ export default function HerbAiDashboard() {
     container: { width: "95vw", maxWidth: "1600px", margin: "0 auto" },
     header: {
       background: "linear-gradient(135deg, #065f46 0%, #0f766e 100%)",
-      padding: "25px 40px",
+      padding: "25px 30px", // slightly reduced padding for mobile
       borderRadius: "20px",
       color: "#fff",
       boxShadow: "0 8px 20px rgba(6, 95, 70, 0.15)",
       marginBottom: "25px",
       display: "flex",
+      flexWrap: "wrap",    // FIX: Allows elements to stack on mobile
+      gap: "15px",         // FIX: Adds space between stacked elements
       alignItems: "center",
       justifyContent: "space-between",
     },
