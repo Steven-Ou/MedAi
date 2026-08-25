@@ -1,4 +1,5 @@
 import React from "react";
+import Head from "next/head";
 import HerbAiDashboard from "../component/dashboard"; // Corrected path and casing
 
 function App() {
