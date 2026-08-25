@@ -1,43 +1,45 @@
-# cspell:disable
 import os
-import sqlite3
-from typing import Tuple, Optional, Any
+import psycopg2
+from typing import Tuple, Optional
+from dotenv import load_dotenv
 
-# FIX: Force DB_PATH to resolve as an absolute path relative to this file's location
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH: str = os.path.abspath(os.path.join(CURRENT_DIR, "telemetry.db"))
+load_dotenv()
+DB_URL = os.getenv("SUPABASE_DB_URL")
+
+
+def get_conn():
+    # Connects directly to your Supabase Postgres instance
+    return psycopg2.connect(DB_URL)
 
 
 def init_db() -> None:
-    """Initializes the SQLite database and ensures the schema layout is strictly structured."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_conn()
     cursor = conn.cursor()
 
-    # Structure the target plants tracking directory index
+    # Supabase Plants Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS plants (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             species_name TEXT NOT NULL UNIQUE
         );
     """)
 
-    # Structure spatial boundary logs and confidence thresholds
+    # Supabase Telemetry Table (Notice we swap base64 for evidence_url)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS telemetry (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            plant_id INTEGER NOT NULL,
+            id SERIAL PRIMARY KEY,
+            plant_id INTEGER NOT NULL REFERENCES plants(id),
             frame_number INTEGER NOT NULL,
             xmin REAL NOT NULL,
             ymin REAL NOT NULL,
             xmax REAL NOT NULL,
             ymax REAL NOT NULL,
             confidence_score REAL NOT NULL,
-            evidence_image TEXT,
-            FOREIGN KEY (plant_id) REFERENCES plants(id)
+            evidence_image_url TEXT
         );
     """)
 
-    # NEW: Cache table to save Ollama's long response times
+    # Supabase LLM Cache Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS ai_cache (
             query_text TEXT PRIMARY KEY,
@@ -48,24 +50,34 @@ def init_db() -> None:
 
     conn.commit()
     conn.close()
-    print(f"Database successfully initialized at: {DB_PATH}")
+    print("✅ Supabase PostgreSQL successfully initialized!")
 
 
 def add_new_plant(species_name: str) -> int:
-    """Inserts a new plant species entry if it doesn't exist and returns its primary key."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_conn()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT id FROM plants WHERE species_name = ?;", (species_name,))
-    row = cursor.fetchone()
+    # Postgres uses ON CONFLICT DO NOTHING instead of INSERT OR IGNORE
+    cursor.execute(
+        """
+        INSERT INTO plants (species_name) 
+        VALUES (%s) 
+        ON CONFLICT (species_name) DO NOTHING 
+        RETURNING id;
+    """,
+        (species_name,),
+    )
 
-    if row:
-        plant_id = int(row[0])
+    result = cursor.fetchone()
+    if result:
+        plant_id = result[0]
     else:
-        cursor.execute("INSERT INTO plants (species_name) VALUES (?);", (species_name,))
-        conn.commit()
-        plant_id = int(cursor.lastrowid)
+        cursor.execute(
+            "SELECT id FROM plants WHERE species_name = %s;", (species_name,)
+        )
+        plant_id = cursor.fetchone()[0]
 
+    conn.commit()
     conn.close()
     return plant_id
 
@@ -75,45 +87,55 @@ def insert_telemetry(
     frame_number: int,
     bbox: Tuple[float, float, float, float],
     confidence_score: float,
+    evidence_url: str = None,
 ) -> None:
-    """Logs raw frame tracking metrics and spatial coordinates directly into SQLite tables."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_conn()
     cursor = conn.cursor()
-
     xmin, ymin, xmax, ymax = bbox
     cursor.execute(
         """
-        INSERT INTO telemetry (plant_id, frame_number, xmin, ymin, xmax, ymax, confidence_score)
-        VALUES (?, ?, ?, ?, ?, ?, ?);
+        INSERT INTO telemetry (plant_id, frame_number, xmin, ymin, xmax, ymax, confidence_score, evidence_image_url)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
     """,
-        (plant_id, frame_number, xmin, ymin, xmax, ymax, confidence_score),
+        (
+            plant_id,
+            frame_number,
+            xmin,
+            ymin,
+            xmax,
+            ymax,
+            confidence_score,
+            evidence_url,
+        ),
     )
-
     conn.commit()
     conn.close()
 
-# --- NEW CACHING FUNCTIONS ---
 
 def get_cached_response(query_text: str) -> Optional[str]:
-    """Checks if the exact query has been answered before."""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_conn()
         cursor = conn.cursor()
-        cursor.execute("SELECT ai_response FROM ai_cache WHERE query_text = ?;", (query_text,))
+        cursor.execute(
+            "SELECT ai_response FROM ai_cache WHERE query_text = %s;", (query_text,)
+        )
         row = cursor.fetchone()
         conn.close()
         return row[0] if row else None
-    except sqlite3.OperationalError:
-        # Failsafe if the table hasn't been created yet
+    except Exception:
         return None
 
+
 def save_to_cache(query_text: str, ai_response: str) -> None:
-    """Saves a successful Ollama response to the database."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_conn()
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT OR REPLACE INTO ai_cache (query_text, ai_response) VALUES (?, ?);",
-        (query_text, ai_response)
+        """
+        INSERT INTO ai_cache (query_text, ai_response) 
+        VALUES (%s, %s)
+        ON CONFLICT (query_text) DO UPDATE SET ai_response = EXCLUDED.ai_response;
+    """,
+        (query_text, ai_response),
     )
     conn.commit()
     conn.close()
