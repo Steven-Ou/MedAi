@@ -1,11 +1,20 @@
-import React from 'react';
-import HerbAiDashboard from '../component/dashboard'; // Corrected path and casing
+import React from "react";
+import HerbAiDashboard from "../component/dashboard"; // Corrected path and casing
 
 function App() {
   return (
-    <div className="App">
-      <HerbAiDashboard />
-    </div>
+    <>
+      <Head>
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"
+        />
+        <title>Herb-AI Dashboard</title>
+      </Head>
+      <div className="App">
+        <HerbAiDashboard />
+      </div>
+    </>
   );
 }
 
