@@ -102,7 +102,7 @@ def get_telemetry():
 
 def upload_to_huggingface(image_bytes: bytes, predicted_class: str) -> str:
     hf_token = os.getenv("HF_TOKEN")
-    repo_id = "YourUsername/herb-ai-vault"  # Replace with your HF Dataset name
+    repo_id = "steveo223/herb-ai-vault"  
     file_name = f"{predicted_class.replace(' ', '_')}/{uuid.uuid4().hex}.jpg"
 
     api = HfApi()
