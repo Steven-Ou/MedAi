@@ -31,9 +31,9 @@ def init_db() -> None:
             id SERIAL PRIMARY KEY,
             plant_id INTEGER NOT NULL REFERENCES plants(id),
             frame_number INTEGER NOT NULL,
-            xmin REAL NOT NULL,
+            bbox_xmin REAL NOT NULL,
             ymin REAL NOT NULL,
-            xmax REAL NOT NULL,
+            bbox_xmax REAL NOT NULL,
             ymax REAL NOT NULL,
             confidence_score REAL NOT NULL,
             evidence_image_url TEXT
@@ -93,9 +93,10 @@ def insert_telemetry(
     conn = get_conn()
     cursor = conn.cursor()
     xmin, ymin, xmax, ymax = bbox
+    
     cursor.execute(
         """
-        INSERT INTO telemetry (plant_id, frame_number, xmin, ymin, xmax, ymax, confidence_score, evidence_image_url)
+        INSERT INTO telemetry (plant_id, frame_number, bbox_xmin, ymin, bbox_xmax, ymax, confidence_score, evidence_image_url)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
     """,
         (
