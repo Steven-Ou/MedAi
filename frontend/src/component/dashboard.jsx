@@ -10,6 +10,7 @@ import {
   streamBotanicalQuestion,
   checkScanStatus,
   uploadImage,
+  predictPlantImage,
 } from "../utils/herbApi";
 
 export default function HerbAiDashboard() {
@@ -69,7 +70,7 @@ export default function HerbAiDashboard() {
         },
       ]);
       try {
-        const data = await uploadImage(file);
+        const data = await predictPlantImage(file);
         if (data && data.predicted_class) {
           setMessages((prev) => [
             ...prev,

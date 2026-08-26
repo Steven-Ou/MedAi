@@ -98,6 +98,31 @@ export async function uploadImage(imageFile) {
 }
 
 /**
+ * Sends a static image to the explicit predict endpoint for botanical identification.
+ * @param {File} imageFile - The uploaded image file object.
+ */
+export async function predictPlantImage(imageFile) {
+  try {
+    const formData = new FormData();
+    formData.append("file", imageFile);
+
+    const response = await fetch(`${BASE_URL}/api/predict`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Image prediction failed:", error);
+    return null;
+  }
+}
+
+/**
  * Sends a clinical inquiry to the RAG LLM query engine.
  * @param {string} userQuestion - The question text.
  */

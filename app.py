@@ -162,6 +162,9 @@ async def detect_alias(file: UploadFile = File(...)):
 async def upload_image_alias(file: UploadFile = File(...)):
     return await handle_image_upload(file)
 
+@app.post("/api/predict")
+async def predict_alias(file: UploadFile = File(...)):
+    return await handle_image_upload(file)
 
 def process_query_text(text: str):
     print(f"🤖 [QUERY] Processing: '{text}'")
