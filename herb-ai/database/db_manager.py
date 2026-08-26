@@ -8,7 +8,8 @@ DB_URL = os.getenv("SUPABASE_DB_URL")
 
 
 def get_conn():
-    # Connects directly to your Supabase Postgres instance
+    if not DB_URL:
+        raise ValueError("🚨 SUPABASE_DB_URL is missing! Check your .env file or Cloud Secrets.")
     return psycopg2.connect(DB_URL)
 
 
