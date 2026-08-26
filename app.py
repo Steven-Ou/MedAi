@@ -207,6 +207,17 @@ def background_video_scan(video_path: str):
     model_path = os.path.join(project_root, "best.pt")
 
     try:
+        conn = get_conn()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM telemetry;")
+        conn.commit()
+        conn.close()
+        print("🧹 Cleared old telemetry data for new scan.")
+    except Exception as e:
+        print(f"Failed to clear telemetry: {e}")
+        
+        
+    try:
         model = YOLO(model_path)
         print("🎬 [VIDEO SCAN] Initiating frame-by-frame analysis...")
 
