@@ -39,9 +39,7 @@ class BotanicalQueryEngine:
         self.chroma_client = chromadb.PersistentClient(
             path=os.path.join(project_root, "chroma_storage")
         )
-        self.collection = self.chroma_client.get_or_create_collection(
-            name="botanical_knowledge"
-        )
+        
 
         # A simple array to hold the conversation history
         self.chat_history = []
@@ -51,6 +49,9 @@ class BotanicalQueryEngine:
             if os.getenv("GEMINI_API_KEY")
             else None
         )
+
+    def get_collection(self):
+        return self.chroma_client.get_or_create_collection(name="botanical_knowledge")
 
     def _get_unified_session_context(self) -> str:
         """Queries local telemetry tables and recent upload directories to build a merged context window."""

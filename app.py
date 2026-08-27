@@ -251,9 +251,8 @@ def background_video_scan(video_path: str):
             source=video_path,
             stream=True,
             conf=0.05,
-            imgsz=640,
-            vid_stride=5,
-            device="mps",
+            imgsz=320,
+            vid_stride=30,
         )
 
         detected_plants = {}
