@@ -6,6 +6,7 @@ import tempfile
 import traceback
 import cv2
 import uuid
+import chromadb
 from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -102,7 +103,7 @@ def get_telemetry():
 
 def upload_to_huggingface(image_bytes: bytes, predicted_class: str) -> str:
     hf_token = os.getenv("HF_TOKEN")
-    repo_id = "steveo223/herb-ai-vault"  
+    repo_id = "steveo223/herb-ai-vault"
     file_name = f"{predicted_class.replace(' ', '_')}/{uuid.uuid4().hex}.jpg"
 
     api = HfApi()
@@ -162,9 +163,11 @@ async def detect_alias(file: UploadFile = File(...)):
 async def upload_image_alias(file: UploadFile = File(...)):
     return await handle_image_upload(file)
 
+
 @app.post("/api/predict")
 async def predict_alias(file: UploadFile = File(...)):
     return await handle_image_upload(file)
+
 
 def process_query_text(text: str):
     print(f"🤖 [QUERY] Processing: '{text}'")
@@ -216,10 +219,16 @@ def background_video_scan(video_path: str):
         conn.commit()
         conn.close()
         print("🧹 Cleared old telemetry data for new scan.")
+        chroma_client = chromadb.PersistentClient(path=os.path.join(project_root, "chroma_storage"))
+        try:
+            chroma_client.delete_collection("botanical_knowledge")
+            print("🧹 Cleared ChromaDB RAG Context.")
+        except Exception:
+            pass
+        
     except Exception as e:
         print(f"Failed to clear telemetry: {e}")
-        
-        
+
     try:
         model = YOLO(model_path)
         print("🎬 [VIDEO SCAN] Initiating frame-by-frame analysis...")
@@ -239,7 +248,12 @@ def background_video_scan(video_path: str):
         )
 
         results = model.predict(
-            source=video_path, stream=True, conf=0.05, imgsz=640, vid_stride=5
+            source=video_path,
+            stream=True,
+            conf=0.05,
+            imgsz=640,
+            vid_stride=5,
+            device="mps",
         )
 
         detected_plants = {}
