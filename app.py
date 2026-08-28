@@ -215,6 +215,7 @@ def background_video_scan(video_path: str):
     try:
         conn = get_conn()
         cursor = conn.cursor()
+        cursor.execute("DELETE FROM telemetry;")
         conn.commit()
         conn.close()
         print("🧹 Cleared old telemetry data for new scan.")

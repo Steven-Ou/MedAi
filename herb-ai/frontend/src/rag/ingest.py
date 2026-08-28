@@ -28,9 +28,21 @@ def ingest_herb(herb_name: str, search_query: str = None):
     print(f"🔍 Searching Wikipedia for: {query}...")
 
     try:
-        wiki_text = wikipedia.summary(query, sentences=10)
-        print("✅ Data found! Generating embeddings...")
+        # Fetch the full page to access both text and images
+        page = wikipedia.page(query)
+        wiki_text = page.summary
 
+        # Filter for actual photos, ignoring Wikipedia's internal SVG icons
+        image_url = ""
+        if page.images:
+            valid_images = [
+                img
+                for img in page.images
+                if img.lower().endswith((".jpg", ".jpeg", ".png"))
+            ]
+            image_url = valid_images[0] if valid_images else ""
+
+        print("✅ Data found! Generating embeddings...")
         embedding = get_embedding(wiki_text)
 
         if embedding:
@@ -45,10 +57,13 @@ def ingest_herb(herb_name: str, search_query: str = None):
             collection.add(
                 embeddings=[embedding],
                 documents=[document_text],
-                metadatas=[{"source": "wikipedia", "herb": herb_name}],
+                # Pass the extracted image_url into the metadata payload
+                metadatas=[
+                    {"source": "wikipedia", "herb": herb_name, "image_url": image_url}
+                ],
                 ids=[f"wiki_{herb_name.lower().replace(' ', '_')}"],
             )
-            print(f"💾 Successfully saved {herb_name} to Chroma database!")
+            print(f"💾 Successfully saved {herb_name} to Chroma database with image!")
         else:
             print("❌ Failed to generate embedding.")
 
