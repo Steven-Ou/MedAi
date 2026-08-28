@@ -99,6 +99,8 @@ export default function HerbAiDashboard() {
     if (videoFile.size > 10 * 1024 * 1024)
       return alert("Video file is too large.");
 
+    setTelemetry([]);
+    
     setIsScanning(true);
     if (videoRef.current) videoRef.current.play();
 

@@ -221,9 +221,10 @@ def background_video_scan(video_path: str):
         print("🧹 Cleared old telemetry data for new scan.")
         chroma_client = chromadb.PersistentClient(path=os.path.join(project_root, "chroma_storage"))
         try:
+            chroma_client.delete_collection(name="visual_memory")
             print("🧹 Cleared ChromaDB RAG Context.")
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"⚠️ Could not clear ChromaDB: {e}")
         
     except Exception as e:
         print(f"Failed to clear telemetry: {e}")
