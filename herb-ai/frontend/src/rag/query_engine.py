@@ -39,7 +39,6 @@ class BotanicalQueryEngine:
         self.chroma_client = chromadb.PersistentClient(
             path=os.path.join(project_root, "chroma_storage")
         )
-        
 
         # A simple array to hold the conversation history
         self.chat_history = []
@@ -83,10 +82,11 @@ class BotanicalQueryEngine:
             summary += f"[⚠️ RECENT SNAPSHOT IMAGE UPLOADS]: The user just uploaded static images to the workspace. Your vision pipeline analyzed them and identified them as: {', '.join(recent_uploads)}.\n"
             has_context = True
 
-        # 2. Extract companion metrics from your camera's live video tracking tables
-        if os.path.exists(DB_PATH):
+            # 2. Extract companion metrics from your camera's live video tracking tables
             try:
-                conn = sqlite3.connect(DB_PATH)
+                from database.db_manager import get_conn
+
+                conn = get_conn()
                 cursor = conn.cursor()
                 cursor.execute("""
                     SELECT p.species_name, COUNT(t.id), MAX(t.confidence_score)
@@ -124,12 +124,6 @@ class BotanicalQueryEngine:
         """Retrieves textbook reference vectors and synthesizes an answer using local Ollama."""
         try:
             self.chat_history.append(f"User: {user_query}")
-
-            cached_answer = get_cached_response(user_query)
-            if cached_answer:
-                print("⚡ Cache hit! Returning saved answer instantly.")
-                self.chat_history.append(f"Herb-AI: {cached_answer}")
-                return cached_answer
 
             print("🔄 Cache miss. Proceeding with vector search...")
             session_context = self._get_unified_session_context()

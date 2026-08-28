@@ -215,13 +215,11 @@ def background_video_scan(video_path: str):
     try:
         conn = get_conn()
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM telemetry;")
         conn.commit()
         conn.close()
         print("🧹 Cleared old telemetry data for new scan.")
         chroma_client = chromadb.PersistentClient(path=os.path.join(project_root, "chroma_storage"))
         try:
-            chroma_client.delete_collection("botanical_knowledge")
             print("🧹 Cleared ChromaDB RAG Context.")
         except Exception:
             pass
