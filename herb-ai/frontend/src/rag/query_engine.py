@@ -82,28 +82,28 @@ class BotanicalQueryEngine:
             summary += f"[⚠️ RECENT SNAPSHOT IMAGE UPLOADS]: The user just uploaded static images to the workspace. Your vision pipeline analyzed them and identified them as: {', '.join(recent_uploads)}.\n"
             has_context = True
 
-            # 2. Extract companion metrics from your camera's live video tracking tables
-            try:
-                from database.db_manager import get_conn
+        # 2. Extract companion metrics from your camera's live video tracking tables
+        try:
+            from database.db_manager import get_conn
 
-                conn = get_conn()
-                cursor = conn.cursor()
-                cursor.execute("""
+            conn = get_conn()
+            cursor = conn.cursor()
+            cursor.execute("""
                     SELECT p.species_name, COUNT(t.id), MAX(t.confidence_score)
                     FROM plants p
                     JOIN telemetry t ON p.id = t.plant_id
                     GROUP BY p.species_name
                 """)
-                rows = cursor.fetchall()
-                conn.close()
+            rows = cursor.fetchall()
+            conn.close()
 
-                if rows:
-                    summary += "🎥 [VIDEO SCAN TELEMETRY RECORDS]:\n"
-                    for row in rows:
-                        summary += f"- Logged class '{row[0]}' across {row[1]} moving video frames (Max Confidence: {row[2]:.2f}).\n"
-                    has_context = True
-            except Exception:
-                pass
+            if rows:
+                summary += "🎥 [VIDEO SCAN TELEMETRY RECORDS]:\n"
+                for row in rows:
+                    summary += f"- Logged class '{row[0]}' across {row[1]} moving video frames (Max Confidence: {row[2]:.2f}).\n"
+                has_context = True
+        except Exception:
+            pass
 
         if not has_context:
             return "No recent video telemetry scans or photograph uploads have been captured in this current interface session."
