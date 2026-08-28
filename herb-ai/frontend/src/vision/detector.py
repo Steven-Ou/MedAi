@@ -92,7 +92,13 @@ class BotanicalDetector:
                     raise ValueError("Gemini Client not initialized.")
 
                 # FIXED: Removed the stray 'ss' syntax error at the end of this string
-                prompt = "Identify this botanical or medicinal substance. Reply ONLY with the common botanical or TCM name. If you cannot identify it, or if it is not a medicinal plant, dried herb, or TCM ingredient, reply EXACTLY with 'Unidentified Anomaly'."
+                prompt = (
+                    "Identify this botanical or medicinal substance. The image may contain dried, "
+                    "processed roots, twigs, stems, or leaves rather than fresh living plants. "
+                    "Carefully consider dried TCM herbs like Xiancao (Mesona chinensis). "
+                    "Reply ONLY with the common botanical or TCM name. If you cannot identify it, "
+                    "or if it is not a medicinal plant, dried herb, or TCM ingredient, reply EXACTLY with 'Unidentified Anomaly'."
+                )
                 active_gemini_models = [
                     "gemini-3.6-flash",
                     "gemini-3.5-flash",
@@ -141,7 +147,13 @@ class BotanicalDetector:
                             "http://localhost:11434/api/generate",
                             json={
                                 "model": "llava",
-                                "prompt": "Identify this object. Reply ONLY with the common botanical or TCM name. If it is not a medicinal plant, dried herb, or TCM ingredient, or you cannot identify it, reply EXACTLY with 'Unidentified Anomaly'. Do not write sentences.",
+                                "prompt": (
+                                    "Identify this botanical object. It may be dried, processed roots, twigs, "
+                                    "stems, or leaves rather than a fresh plant (e.g., dried Xiancao). "
+                                    "Reply ONLY with the common botanical or TCM name. If it is not a medicinal plant, "
+                                    "dried herb, or TCM ingredient, or you cannot identify it, reply EXACTLY with 'Unidentified Anomaly'. "
+                                    "Do not write sentences."
+                                ),
                                 "images": [base64_image],
                                 "stream": False,
                             },
@@ -177,8 +189,6 @@ class BotanicalDetector:
                 )
             except Exception as save_err:
                 print(f"⚠️ Failed to store vector memory: {save_err}")
-
-            
 
         if os.path.exists(temp_target):
             os.remove(temp_target)
