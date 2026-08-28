@@ -135,7 +135,8 @@ class BotanicalQueryEngine:
             session_context = self._get_unified_session_context()
             query_vector = self._get_query_embedding_with_retry(user_query)
 
-            search_results = self.collection.query(
+            collection = self.get_collection()
+            search_results = collection.query(
                 query_embeddings=[query_vector], n_results=n_results
             )
 
@@ -206,7 +207,8 @@ class BotanicalQueryEngine:
         session_context = self._get_unified_session_context()
         query_vector = self._get_query_embedding_with_retry(user_query)
 
-        search_results = self.collection.query(
+        collection = self.get_collection()
+        search_results = collection.query(
             query_embeddings=[query_vector], n_results=n_results
         )
 
