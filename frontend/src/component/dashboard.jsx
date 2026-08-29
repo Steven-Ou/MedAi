@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -9,7 +9,6 @@ import {
   triggerVisionScan,
   streamBotanicalQuestion,
   checkScanStatus,
-  uploadImage,
   predictPlantImage,
 } from "../utils/herbApi";
 
@@ -19,33 +18,10 @@ export default function HerbAiDashboard() {
   const [messages, setMessages] = useState([]);
   const [inputQuery, setInputQuery] = useState("");
 
-  const [apiOnline, setApiOnline] = useState(false);
-  const [bgColor, setBgColor] = useState("#f4f7f6");
   const [videoSrc, setVideoSrc] = useState(null);
   const [imageSrc, setImageSrc] = useState(null);
   const videoRef = useRef(null);
   const [videoFile, setVideoFile] = useState(null);
-
-  const fetchTelemetry = async () => {
-    try {
-      const data = await fetchDetectedPlants();
-      if (data) {
-        setTelemetry(data.data || data);
-        setApiOnline(true);
-      } else {
-        setApiOnline(false);
-      }
-    } catch (err) {
-      console.error("Failed fetching database telemetry strings:", err);
-      setApiOnline(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchTelemetry();
-    const interval = setInterval(fetchTelemetry, 4000);
-    return () => clearInterval(interval);
-  }, []);
 
   const handleVideoUpload = (e) => {
     const file = e.target.files[0];
@@ -62,6 +38,8 @@ export default function HerbAiDashboard() {
       setVideoSrc(null);
       setImageSrc(URL.createObjectURL(file));
 
+      setTelemetry([]);
+
       setMessages((prev) => [
         ...prev,
         {
@@ -72,11 +50,20 @@ export default function HerbAiDashboard() {
       try {
         const data = await predictPlantImage(file);
         if (data && data.predicted_class) {
+          setTelemetry([
+            {
+              species: data.predicted_class,
+              framesTracked: 1,
+              maxConfidence: data.confidence,
+              evidenceImage: URL.createObjectURL(file),
+            },
+          ]);
+
           setMessages((prev) => [
             ...prev,
             {
               role: "agent",
-              text: `Inference Complete! Identified object as: **${data.predicted_class}** (Confidence: ${(data.confidence * 100).toFixed(0)}%). Feel free to ask me to explain its clinical benefits below.`,
+              text: `Inference Complete! Identified object as: **${data.predicted_class}** (Confidence: ${(data.confidence * 100).toFixed(0)}%). Click on the herb in the log stream to view its clinical profile.`,
             },
           ]);
         } else {
@@ -97,7 +84,7 @@ export default function HerbAiDashboard() {
   const handleStartScan = async () => {
     if (!videoFile) return alert("Please upload a video file first.");
 
-    // FIX: Increased from 10MB to 100MB to allow phone video uploads
+    // 100MB limit for mobile video compatibility
     if (videoFile.size > 100 * 1024 * 1024)
       return alert("Video file is too large. Please keep it under 100MB.");
 
@@ -123,20 +110,33 @@ export default function HerbAiDashboard() {
 
       const pollInterval = setInterval(async () => {
         const status = await checkScanStatus();
+
+        try {
+          const currentTelemetry = await fetchDetectedPlants();
+          if (currentTelemetry) {
+            setTelemetry(currentTelemetry.data || currentTelemetry);
+          }
+        } catch (err) {
+          console.error(err);
+        }
+
         if (!status.is_scanning) {
           setIsScanning(false);
           clearInterval(pollInterval);
           try {
-            const telemetryData = await fetchDetectedPlants();
-            if (telemetryData && telemetryData.length > 0) {
-              const topPlant = telemetryData.reduce((prev, current) =>
+            const finalTelemetry = await fetchDetectedPlants();
+            const telemetryArray = finalTelemetry.data || finalTelemetry;
+
+            if (telemetryArray && telemetryArray.length > 0) {
+              setTelemetry(telemetryArray);
+              const topPlant = telemetryArray.reduce((prev, current) =>
                 prev.framesTracked > current.framesTracked ? prev : current,
               );
               setMessages((prev) => [
                 ...prev,
                 {
                   role: "agent",
-                  text: `🎥 Video Inference Complete! I scanned the footage and predominantly identified: **${topPlant.species}** (Tracked across ${topPlant.framesTracked} frames).`,
+                  text: `🎥 Video Inference Complete! I scanned the footage and predominantly identified: **${topPlant.species}** (Tracked across ${topPlant.framesTracked} frames). Click on it in the log stream below to view its details.`,
                 },
               ]);
             }
@@ -149,6 +149,40 @@ export default function HerbAiDashboard() {
       console.error(err);
       setIsScanning(false);
     }
+  };
+
+  const handleRowClick = async (speciesName) => {
+    const autoQueryText = `Provide a structured clinical textbook profile for the medicinal substance: ${speciesName}. Include active compounds and biological properties.`;
+
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", text: `Tell me about ${speciesName}.` },
+      { role: "agent", text: "", isTyping: true },
+    ]);
+
+    let streamedText = "";
+    await streamBotanicalQuestion(autoQueryText, (chunk) => {
+      streamedText += chunk;
+      setMessages((prev) => {
+        const newHistory = [...prev];
+        const lastIndex = newHistory.length - 1;
+        if (newHistory[lastIndex].role === "agent") {
+          newHistory[lastIndex] = {
+            ...newHistory[lastIndex],
+            text: streamedText,
+          };
+        }
+        return newHistory;
+      });
+    });
+
+    setMessages((prev) => {
+      const newHistory = [...prev];
+      if (newHistory[newHistory.length - 1].role === "agent") {
+        newHistory[newHistory.length - 1].isTyping = false;
+      }
+      return newHistory;
+    });
   };
 
   const handleSendMessage = async (e) => {
@@ -192,7 +226,7 @@ export default function HerbAiDashboard() {
   const globalStyles = `
     html, body {
       margin: 0; padding: 0;
-      background-color: ${bgColor};
+      background-color: #f4f7f6;
       transition: background-color 0.4s ease; height: 100%;
     }
     
@@ -202,13 +236,13 @@ export default function HerbAiDashboard() {
       box-sizing: border-box;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
-
+    
     .dashboard-container {
       width: 100%;
       max-width: 1600px;
       margin: 0 auto;
     }
-
+    
     .dashboard-header {
       background: linear-gradient(135deg, #065f46 0%, #0f766e 100%);
       padding: 25px 30px;
@@ -229,7 +263,7 @@ export default function HerbAiDashboard() {
       gap: 25px;
       align-items: stretch; 
     }
-
+    
     .panel-card {
       background-color: #ffffff;
       border-radius: 24px;
@@ -240,7 +274,7 @@ export default function HerbAiDashboard() {
       display: flex;
       flex-direction: column;
     }
-
+    
     .log-stream-container {
       flex-grow: 1;
       overflow-y: auto;
@@ -248,12 +282,18 @@ export default function HerbAiDashboard() {
       max-height: 250px; 
       border-radius: 8px;
     }
+    .telemetry-row {
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+    .telemetry-row:hover {
+      background-color: #e2e8f0 !important;
+    }
     
     .msg-bubble {
       max-width: 85%;
     }
-
-    /* FIX: Prevents Markdown Tables from breaking mobile view width */
+    
     .markdown-body {
       overflow-wrap: break-word;
       word-break: break-word;
@@ -276,27 +316,22 @@ export default function HerbAiDashboard() {
       color: #334155; 
     }
     
-    /* MOBILE SQUEEZE FIX */
     @media (max-width: 1024px) {
-      .dashboard-wrapper {
-        padding: 15px 10px; /* Reduced outer padding for better alignment */
-      }
-      .dashboard-header {
-        padding: 20px 15px;
-      }
+      .dashboard-wrapper { padding: 15px 10px; }
+      .dashboard-header { padding: 20px 15px; }
       .dashboard-grid { 
         grid-template-columns: 1fr; 
       }
       .panel-card { 
         height: auto; 
         min-height: 60vh;
-        padding: 15px; /* Shrinks the inner gap to fix the left margin issue */
+        padding: 15px;
       }
       .log-stream-container { 
         max-height: 300px; 
       }
-      .msg-bubble {
-        max-width: 95%; /* Give text more room on small screens */
+      .msg-bubble { 
+        max-width: 95%; 
       }
     }
     
@@ -315,21 +350,6 @@ export default function HerbAiDashboard() {
   `;
 
   const styles = {
-    themeSelector: {
-      display: "flex",
-      gap: "8px",
-      alignItems: "center",
-      backgroundColor: "rgba(255,255,255,0.15)",
-      padding: "6px 12px",
-      borderRadius: "12px",
-    },
-    themeBtn: {
-      width: "20px",
-      height: "20px",
-      borderRadius: "50%",
-      border: "2px solid #fff",
-      cursor: "pointer",
-    },
     viewport: {
       width: "100%",
       minHeight: "320px",
@@ -353,7 +373,9 @@ export default function HerbAiDashboard() {
 
   return (
     <div className="dashboard-wrapper">
-      <style>{globalStyles}</style>
+      {/* FIX: Hydration error resolved using dangerouslySetInnerHTML */}
+      <style dangerouslySetInnerHTML={{ __html: globalStyles }} />
+
       <div className="dashboard-container">
         <header className="dashboard-header">
           <div>
@@ -366,53 +388,9 @@ export default function HerbAiDashboard() {
               Vision Frameworks & RAG Clinical Intelligence
             </p>
           </div>
-          <div
-            style={{
-              backgroundColor: apiOnline
-                ? "rgba(255, 255, 255, 0.9)"
-                : "rgba(211, 47, 47, 0.9)",
-              padding: "8px 16px",
-              borderRadius: "30px",
-              color: apiOnline ? "#065f46" : "#fff",
-              fontSize: "13px",
-              fontWeight: "700",
-            }}
-          >
-            {apiOnline ? "🟢 CORE API: ONLINE" : "🔴 BACKEND DISCONNECTED"}
-          </div>
-          <div style={styles.themeSelector}>
-            <span
-              style={{
-                fontSize: "12px",
-                marginRight: "4px",
-                fontWeight: "600",
-              }}
-            >
-              🎨 Theme:
-            </span>
-            <div
-              onClick={() => setBgColor("#f4f7f6")}
-              style={{ ...styles.themeBtn, backgroundColor: "#f4f7f6" }}
-            />
-            <div
-              onClick={() => setBgColor("#e8f5e9")}
-              style={{ ...styles.themeBtn, backgroundColor: "#e8f5e9" }}
-            />
-            <div
-              onClick={() => setBgColor("#fef9e7")}
-              style={{ ...styles.themeBtn, backgroundColor: "#fef9e7" }}
-            />
-            <div
-              onClick={() => setBgColor("#1e293b")}
-              style={{ ...styles.themeBtn, backgroundColor: "#1e293b" }}
-            />
-          </div>
         </header>
 
         <div className="dashboard-grid">
-          {/* ========================================= */}
-          {/* MEDIA UPLOAD HUB */}
-          {/* ========================================= */}
           <div className="panel-card">
             <h3
               style={{
@@ -437,8 +415,7 @@ export default function HerbAiDashboard() {
                   fontSize: "13.5px",
                 }}
               >
-                🎥 Load Video Walk
-                {/* FIX: Expanded accept attributes to properly trigger mobile OS video selectors */}
+                🎥 Upload Video
                 <input
                   type="file"
                   accept="video/*,video/mp4,video/quicktime"
@@ -467,6 +444,7 @@ export default function HerbAiDashboard() {
                 />
               </label>
             </div>
+
             <button
               onClick={handleStartScan}
               style={{
@@ -482,7 +460,7 @@ export default function HerbAiDashboard() {
             >
               {isScanning
                 ? "🎥 Running Live Vector File Scanning Inference..."
-                : "🚀 Execute Pipeline Stream Scan"}
+                : "🚀 Identify Footage"}
             </button>
             <div style={styles.viewport}>
               {videoSrc && (
@@ -523,9 +501,21 @@ export default function HerbAiDashboard() {
 
             <div className="log-stream-container">
               {telemetry.length === 0 ? (
-                <p style={{ fontSize: "13.5px", color: "#94a3b8" }}>
-                  No logs committed to tracking schemas yet.
-                </p>
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "20px",
+                    backgroundColor: "#f8fafc",
+                    borderRadius: "8px",
+                    border: "1px dashed #cbd5e1",
+                  }}
+                >
+                  <p style={{ fontSize: "14px", color: "#64748b", margin: 0 }}>
+                    Waiting for visual telemetry.
+                    <br />
+                    Upload media to populate logs.
+                  </p>
+                </div>
               ) : (
                 <table
                   style={{
@@ -536,7 +526,12 @@ export default function HerbAiDashboard() {
                 >
                   <tbody>
                     {telemetry.map((item, i) => (
-                      <tr key={i} style={{ backgroundColor: "#f8fafc" }}>
+                      <tr
+                        key={i}
+                        className="telemetry-row"
+                        style={{ backgroundColor: "#f8fafc" }}
+                        onClick={() => handleRowClick(item.species)}
+                      >
                         <td style={{ padding: "8px", width: "50px" }}>
                           {item.evidenceImage ? (
                             <img
@@ -597,11 +592,7 @@ export default function HerbAiDashboard() {
               )}
             </div>
           </div>
-          {/* ========================================= */}
 
-          {/* ========================================= */}
-          {/* TERMINAL PANEL */}
-          {/* ========================================= */}
           <div className="panel-card">
             <h3
               style={{
@@ -618,20 +609,32 @@ export default function HerbAiDashboard() {
                 <div
                   style={{
                     textAlign: "center",
-                    color: "#94a3b8",
-                    marginTop: "20%",
+                    color: "#64748b",
+                    marginTop: "10%",
                     padding: "0 30px",
                   }}
                 >
                   <div style={{ fontSize: "40px", marginBottom: "15px" }}>
                     🌿
                   </div>
-                  <h4 style={{ color: "#475569", margin: "0 0 10px 0" }}>
-                    Ready to assist!
-                  </h4>
-                  <p style={{ margin: 0, fontSize: "14.5px" }}>
-                    Ask questions about medicine, herb properties, or check the
-                    results of the video scan.
+                  <p
+                    style={{ margin: 0, fontSize: "14.5px", lineHeight: "1.6" }}
+                  >
+                    I am Herb-AI, your advanced, multimodal medical botanical
+                    vision agent.
+                    <br />
+                    <br />
+                    My primary architecture is designed to bridge the gap
+                    between real-time visual botanical identification and
+                    clinical pharmacognosy. I analyze live video feeds, static
+                    images, and telemetry data to instantly identify medicinal
+                    botanicals and their clinical properties.
+                    <br />
+                    <br />
+                    <strong>
+                      Upload media on the left, or click on a detected herb in
+                      the log stream to view its structured textbook profile.
+                    </strong>
                   </p>
                 </div>
               )}
@@ -747,7 +750,6 @@ export default function HerbAiDashboard() {
               </button>
             </form>
           </div>
-          {/* ========================================= */}
         </div>
       </div>
     </div>
