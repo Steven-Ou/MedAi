@@ -227,7 +227,11 @@ export default function HerbAiDashboard() {
     html, body {
       margin: 0; padding: 0;
       background-color: #f4f7f6;
-      transition: background-color 0.4s ease; height: 100%;
+      transition: background-color 0.4s ease; 
+      height: 100%;
+      /* FIX: Physically locks the screen width so mobile devices cannot zoom out */
+      width: 100vw;
+      overflow-x: hidden; 
     }
     
     .dashboard-wrapper {
@@ -292,6 +296,9 @@ export default function HerbAiDashboard() {
     
     .msg-bubble {
       max-width: 85%;
+      /* FIX: min-width: 0 forces the flex container to respect max-width even with wide tables */
+      min-width: 0; 
+      overflow-x: auto;
     }
     
     .markdown-body {
@@ -306,6 +313,8 @@ export default function HerbAiDashboard() {
       border-collapse: collapse; 
       margin: 15px 0; 
       white-space: nowrap;
+      /* FIX: Ensures super smooth scrolling behavior on iPhones */
+      -webkit-overflow-scrolling: touch;
     }
     .markdown-body th, .markdown-body td { 
       border: 1px solid #e2e8f0; 
@@ -373,7 +382,7 @@ export default function HerbAiDashboard() {
 
   return (
     <div className="dashboard-wrapper">
-      {/* FIX: Hydration error resolved using dangerouslySetInnerHTML */}
+      {/* Hydration error resolved using dangerouslySetInnerHTML */}
       <style dangerouslySetInnerHTML={{ __html: globalStyles }} />
 
       <div className="dashboard-container">
