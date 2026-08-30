@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -37,7 +37,6 @@ export default function HerbAiDashboard() {
     if (file) {
       setVideoSrc(null);
       setImageSrc(URL.createObjectURL(file));
-
       setTelemetry([]);
 
       setMessages((prev) => [
@@ -84,12 +83,10 @@ export default function HerbAiDashboard() {
   const handleStartScan = async () => {
     if (!videoFile) return alert("Please upload a video file first.");
 
-    // 100MB limit for mobile video compatibility
     if (videoFile.size > 100 * 1024 * 1024)
       return alert("Video file is too large. Please keep it under 100MB.");
 
     setTelemetry([]);
-
     setIsScanning(true);
     if (videoRef.current) videoRef.current.play();
 
@@ -161,8 +158,14 @@ export default function HerbAiDashboard() {
     ]);
 
     let streamedText = "";
-    await streamBotanicalQuestion(autoQueryText, (chunk) => {
-      streamedText += chunk;
+    // UPDATED: Now accepts an `isReplace` flag to overwrite text if we trigger the auto-resume fallback
+    await streamBotanicalQuestion(autoQueryText, (chunk, isReplace = false) => {
+      if (isReplace) {
+        streamedText = chunk;
+      } else {
+        streamedText += chunk;
+      }
+
       setMessages((prev) => {
         const newHistory = [...prev];
         const lastIndex = newHistory.length - 1;
@@ -199,20 +202,29 @@ export default function HerbAiDashboard() {
     ]);
 
     let streamedText = "";
-    await streamBotanicalQuestion(userMessageText, (chunk) => {
-      streamedText += chunk;
-      setMessages((prev) => {
-        const newHistory = [...prev];
-        const lastIndex = newHistory.length - 1;
-        if (newHistory[lastIndex].role === "agent") {
-          newHistory[lastIndex] = {
-            ...newHistory[lastIndex],
-            text: streamedText,
-          };
+    // UPDATED: Now accepts an `isReplace` flag to overwrite text if we trigger the auto-resume fallback
+    await streamBotanicalQuestion(
+      userMessageText,
+      (chunk, isReplace = false) => {
+        if (isReplace) {
+          streamedText = chunk;
+        } else {
+          streamedText += chunk;
         }
-        return newHistory;
-      });
-    });
+
+        setMessages((prev) => {
+          const newHistory = [...prev];
+          const lastIndex = newHistory.length - 1;
+          if (newHistory[lastIndex].role === "agent") {
+            newHistory[lastIndex] = {
+              ...newHistory[lastIndex],
+              text: streamedText,
+            };
+          }
+          return newHistory;
+        });
+      },
+    );
 
     setMessages((prev) => {
       const newHistory = [...prev];
@@ -229,8 +241,6 @@ export default function HerbAiDashboard() {
       background-color: #f4f7f6;
       transition: background-color 0.4s ease; 
       height: 100%;
-      /* FIX: Physically locks the screen width so mobile devices cannot zoom out */
-      width: 100vw;
       overflow-x: hidden; 
     }
     
@@ -239,6 +249,8 @@ export default function HerbAiDashboard() {
       padding: 25px 20px;
       box-sizing: border-box;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      width: 100%;
+      overflow-x: hidden;
     }
     
     .dashboard-container {
@@ -277,6 +289,8 @@ export default function HerbAiDashboard() {
       height: calc(100vh - 150px);
       display: flex;
       flex-direction: column;
+      box-sizing: border-box;
+      overflow: hidden; 
     }
     
     .log-stream-container {
@@ -286,6 +300,7 @@ export default function HerbAiDashboard() {
       max-height: 250px; 
       border-radius: 8px;
     }
+    
     .telemetry-row {
       cursor: pointer;
       transition: background-color 0.2s ease;
@@ -294,27 +309,46 @@ export default function HerbAiDashboard() {
       background-color: #e2e8f0 !important;
     }
     
+    /* NEW: flex:1 and min-width:0 strictly prevents bubbles from breaking layout bounds */
     .msg-bubble {
-      max-width: 85%;
-      /* FIX: min-width: 0 forces the flex container to respect max-width even with wide tables */
+      flex: 1; 
       min-width: 0; 
+      padding: 16px 20px;
+      border-radius: 20px;
+      font-size: 14.5px;
+      color: #334155;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
       overflow-x: auto;
+      -webkit-overflow-scrolling: touch; 
+      box-sizing: border-box;
+    }
+    .msg-bubble.user {
+      background-color: #d1fae5;
+      border: 1px solid #a7f3d0;
+      border-top-right-radius: 4px;
+    }
+    .msg-bubble.agent {
+      background-color: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-top-left-radius: 4px;
     }
     
     .markdown-body {
       overflow-wrap: break-word;
       word-break: break-word;
     }
+    
     .markdown-body table { 
       display: block; 
       width: 100%; 
       max-width: 100%;
       overflow-x: auto; 
+      -webkit-overflow-scrolling: touch;
       border-collapse: collapse; 
       margin: 15px 0; 
-      white-space: nowrap;
-      /* FIX: Ensures super smooth scrolling behavior on iPhones */
-      -webkit-overflow-scrolling: touch;
+      white-space: nowrap; 
     }
     .markdown-body th, .markdown-body td { 
       border: 1px solid #e2e8f0; 
@@ -326,26 +360,27 @@ export default function HerbAiDashboard() {
     }
     
     @media (max-width: 1024px) {
-      .dashboard-wrapper { padding: 15px 10px; }
-      .dashboard-header { padding: 20px 15px; }
+      .dashboard-wrapper { padding: 10px 5px; }
+      .dashboard-header { padding: 15px; }
       .dashboard-grid { 
         grid-template-columns: 1fr; 
+        gap: 15px;
       }
       .panel-card { 
         height: auto; 
         min-height: 60vh;
-        padding: 15px;
+        padding: 15px; 
       }
       .log-stream-container { 
         max-height: 300px; 
       }
       .msg-bubble { 
-        max-width: 95%; 
+        padding: 12px 15px;
       }
     }
     
-    .panel-card::-webkit-scrollbar, .chat-window::-webkit-scrollbar, .log-stream-container::-webkit-scrollbar { width: 6px; }
-    .panel-card::-webkit-scrollbar-thumb, .chat-window::-webkit-scrollbar-thumb, .log-stream-container::-webkit-scrollbar-thumb { 
+    .panel-card::-webkit-scrollbar, .chat-window::-webkit-scrollbar, .log-stream-container::-webkit-scrollbar, .msg-bubble::-webkit-scrollbar { width: 6px; height: 6px; }
+    .panel-card::-webkit-scrollbar-thumb, .chat-window::-webkit-scrollbar-thumb, .log-stream-container::-webkit-scrollbar-thumb, .msg-bubble::-webkit-scrollbar-thumb { 
         background-color: #cbd5e1; border-radius: 8px; 
     }
     
@@ -382,7 +417,6 @@ export default function HerbAiDashboard() {
 
   return (
     <div className="dashboard-wrapper">
-      {/* Hydration error resolved using dangerouslySetInnerHTML */}
       <style dangerouslySetInnerHTML={{ __html: globalStyles }} />
 
       <div className="dashboard-container">
@@ -620,7 +654,7 @@ export default function HerbAiDashboard() {
                     textAlign: "center",
                     color: "#64748b",
                     marginTop: "10%",
-                    padding: "0 30px",
+                    padding: "0 20px",
                   }}
                 >
                   <div style={{ fontSize: "40px", marginBottom: "15px" }}>
@@ -656,6 +690,7 @@ export default function HerbAiDashboard() {
                     flexDirection: msg.role === "user" ? "row-reverse" : "row",
                     alignItems: "flex-start",
                     gap: "12px",
+                    width: "100%",
                   }}
                 >
                   <div
@@ -674,26 +709,8 @@ export default function HerbAiDashboard() {
                   >
                     {msg.role === "user" ? "🧑‍🔬" : "🪴"}
                   </div>
-                  <div
-                    className="msg-bubble"
-                    style={{
-                      padding: "16px 20px",
-                      borderRadius: "20px",
-                      borderTopRightRadius:
-                        msg.role === "user" ? "4px" : "20px",
-                      borderTopLeftRadius:
-                        msg.role === "agent" ? "4px" : "20px",
-                      backgroundColor:
-                        msg.role === "user" ? "#d1fae5" : "#ffffff",
-                      border:
-                        msg.role === "user"
-                          ? "1px solid #a7f3d0"
-                          : "1px solid #e2e8f0",
-                      color: "#334155",
-                      fontSize: "14.5px",
-                      whiteSpace: "pre-wrap",
-                    }}
-                  >
+
+                  <div className={`msg-bubble ${msg.role}`}>
                     {msg.role === "user" ? (
                       msg.text
                     ) : msg.isTyping && !msg.text ? (
@@ -740,7 +757,7 @@ export default function HerbAiDashboard() {
                   border: "1px solid #cbd5e1",
                   backgroundColor: "#f8fafc",
                   outline: "none",
-                  fontSize: "14.5px",
+                  fontSize: "16px",
                 }}
               />
               <button

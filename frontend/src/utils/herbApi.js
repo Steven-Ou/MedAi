@@ -145,6 +145,12 @@ export async function askBotanicalQuestion(userQuestion) {
   }
 }
 
+/**
+ * Streams the RAG LLM query response. Includes auto-resume fallback logic for 
+ * when mobile browsers suspend network connections during backgrounding.
+ * @param {string} userQuestion - The question text.
+ * @param {function} onChunk - Callback function handling chunks and replacements.
+ */
 export async function streamBotanicalQuestion(userQuestion, onChunk) {
   try {
     const response = await fetch(`${BASE_URL}/api/query/stream`, {
@@ -164,11 +170,35 @@ export async function streamBotanicalQuestion(userQuestion, onChunk) {
       done = readerDone;
       if (value) {
         const chunk = decoder.decode(value, { stream: true });
-        onChunk(chunk); // Send the chunk to the UI immediately
+        // Pass false for isReplace so the dashboard appends the chunk
+        onChunk(chunk, false); 
       }
     }
   } catch (error) {
-    console.error("Streaming error:", error);
-    onChunk("\n❌ Error streaming data from the Herb-AI model.");
+    console.warn("Stream interrupted (likely backgrounded). Fetching full final answer...", error);
+    
+    try {
+      // Give the user a visual indicator that the app is fixing the connection
+      onChunk("\n\n*(Connection paused. Retrieving final analysis...)*", false);
+
+      // Trigger the standard fallback endpoint which will return the entire compiled answer
+      const fallbackResponse = await fetch(`${BASE_URL}/api/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query_text: userQuestion }),
+      });
+
+      if (!fallbackResponse.ok) throw new Error("Fallback request failed");
+
+      const finalData = await fallbackResponse.json();
+      const fullAnswer = finalData.response || finalData.answer;
+
+      // Pass true for isReplace to completely overwrite the broken text with the final response
+      onChunk(fullAnswer, true); 
+      
+    } catch (fallbackError) {
+      console.error("Streaming and fallback both failed:", fallbackError);
+      onChunk("\n\n❌ Network disconnected while you were away. Please ask again.", false);
+    }
   }
 }
