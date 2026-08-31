@@ -389,9 +389,11 @@ export default function HerbAiDashboard() {
       -webkit-overflow-scrolling: touch;
       border-collapse: collapse; 
       margin: 15px 0; 
-      white-space: nowrap; 
     }
     .markdown-body th, .markdown-body td { 
+      white-space: normal;
+      word-wrap: break-word;
+
       border: 1px solid #e2e8f0; 
       padding: 10px; 
     }
