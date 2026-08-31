@@ -7,7 +7,7 @@ import traceback
 import cv2
 import uuid
 import chromadb
-from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -21,7 +21,13 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # Ruff Rule E402 Bypass: We must manipulate sys.path before these imports
-from database.db_manager import init_db, add_new_plant, insert_telemetry, get_conn  # noqa: E402
+from database.db_manager import (
+    init_db,
+    add_new_plant,
+    insert_telemetry,
+    get_conn,
+    clear_session_telemetry,
+)  # noqa: E402
 from frontend.src.rag.query_engine import BotanicalQueryEngine  # noqa: E402
 from frontend.src.vision.detector import BotanicalDetector  # noqa: E402
 from frontend.src.rag.know_gen import AutoKnowledgeGenerator  # noqa: E402
@@ -37,7 +43,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-IS_SCANNING = False
 
 # 2. Database Schema Initialization
 init_db()
@@ -48,8 +53,6 @@ vision_engine = BotanicalDetector(model_path=os.path.join(project_root, "best.pt
 
 print("⚡ [BOOT] Pre-loading Vector RAG Engine...")
 query_engine = BotanicalQueryEngine()
-
-CURRENT_SESSION_PLANT = None
 
 
 class QueryRequest(BaseModel):
@@ -62,26 +65,32 @@ def read_root():
     return {"status": "Herb-AI Backend is running smoothly."}
 
 
+ACTIVE_SCANS = set()
+
+
 @app.get("/api/scan-status")
-def get_scan_status():
-    return {"is_scanning": IS_SCANNING}
+def get_scan_status(session_id: str = None):
+    if not session_id:
+        return {"is_scanning": False}
+    return {"is_scanning": session_id in ACTIVE_SCANS}
 
 
 @app.get("/api/telemetry")
-def get_telemetry():
+def get_telemetry(session_id: str):
     try:
         conn = get_conn()
         cursor = conn.cursor()
-        cursor.execute("""
-            SELECT 
-                p.species_name, 
-                COUNT(t.id), 
-                MAX(t.confidence_score), 
-                (SELECT evidence_image_url FROM telemetry WHERE plant_id = p.id ORDER BY confidence_score DESC LIMIT 1)
+        cursor.execute(
+            """
+            SELECT p.species_name, COUNT(t.id), MAX(t.confidence_score), 
+                   (SELECT evidence_image_url FROM telemetry WHERE plant_id = p.id AND session_id = %s ORDER BY confidence_score DESC LIMIT 1)
             FROM plants p
             JOIN telemetry t ON p.id = t.plant_id
+            WHERE t.session_id = %s
             GROUP BY p.species_name, p.id
-        """)
+        """,
+            (session_id, session_id),
+        )
         rows = cursor.fetchall()
         conn.close()
 
@@ -121,24 +130,23 @@ def upload_to_huggingface(image_bytes: bytes, predicted_class: str) -> str:
         return None
 
 
-async def handle_image_upload(file: UploadFile):
-    global CURRENT_SESSION_PLANT
-
+async def handle_image_upload(file: UploadFile, session_id: str = "default_session"):
     contents = await file.read()
     if not contents:
         raise HTTPException(status_code=400, detail="No image file provided.")
 
     result = vision_engine.analyze_image(contents)
-    CURRENT_SESSION_PLANT = result.get("predicted_class")
+    predicted_plant = result.get("predicted_class")
 
-    if CURRENT_SESSION_PLANT:
-        print(f"☁️ Uploading {CURRENT_SESSION_PLANT} to Hugging Face Vault...")
-        evidence_url = upload_to_huggingface(contents, CURRENT_SESSION_PLANT)
+    if predicted_plant:
+        print(f"☁️ Uploading {predicted_plant} to Hugging Face Vault...")
+        evidence_url = upload_to_huggingface(contents, predicted_plant)
 
-        plant_id = add_new_plant(CURRENT_SESSION_PLANT)
+        plant_id = add_new_plant(predicted_plant)
         conf = result.get("confidence", 0.0)
 
         insert_telemetry(
+            session_id=session_id,
             plant_id=plant_id,
             frame_number=1,
             bbox=(0, 0, 0, 0),
@@ -148,25 +156,31 @@ async def handle_image_upload(file: UploadFile):
 
     return {
         "status": "success",
-        "predicted_class": CURRENT_SESSION_PLANT,
+        "predicted_class": predicted_plant,
         "confidence": result.get("confidence"),
         "results": result,
     }
 
 
 @app.post("/api/detect")
-async def detect_alias(file: UploadFile = File(...)):
-    return await handle_image_upload(file)
+async def detect_alias(
+    file: UploadFile = File(...), session_id: str = Form("default_session")
+):
+    return await handle_image_upload(file, session_id)
 
 
 @app.post("/api/upload-image")
-async def upload_image_alias(file: UploadFile = File(...)):
-    return await handle_image_upload(file)
+async def upload_image_alias(
+    file: UploadFile = File(...), session_id: str = Form("default_session")
+):
+    return await handle_image_upload(file, session_id)
 
 
 @app.post("/api/predict")
-async def predict_alias(file: UploadFile = File(...)):
-    return await handle_image_upload(file)
+async def predict_alias(
+    file: UploadFile = File(...), session_id: str = Form("default_session")
+):
+    return await handle_image_upload(file, session_id)
 
 
 def process_query_text(text: str):
@@ -207,25 +221,24 @@ def chat_alias(payload: QueryRequest):
     return process_query_text(q)
 
 
-def background_video_scan(video_path: str):
-    global CURRENT_SESSION_PLANT, IS_SCANNING
-    IS_SCANNING = True
+def background_video_scan(video_path: str, session_id: str):
+    ACTIVE_SCANS.add(session_id)
     model_path = os.path.join(project_root, "best.pt")
 
     try:
-        conn = get_conn()
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM telemetry;")
-        conn.commit()
-        conn.close()
-        print("🧹 Cleared old telemetry data for new scan.")
-        chroma_client = chromadb.PersistentClient(path=os.path.join(project_root, "chroma_storage"))
+        clear_session_telemetry(session_id)
+        print(f"🧹 Cleared old telemetry data for session {session_id}.")
+
+        chroma_client = chromadb.PersistentClient(
+            path=os.path.join(project_root, "chroma_storage")
+        )
         try:
-            chroma_client.delete_collection(name="visual_memory")
-            print("🧹 Cleared ChromaDB RAG Context.")
+            visual_collection = chroma_client.get_collection(name="visual_memory")
+            visual_collection.delete(where={"session_id": session_id})
+            print(f"🧹 Cleared ChromaDB RAG Context for session {session_id}.")
         except Exception as e:
-            print(f"⚠️ Could not clear ChromaDB: {e}")
-        
+            print(f"⚠️ Could not clear ChromaDB context: {e}")
+
     except Exception as e:
         print(f"Failed to clear telemetry: {e}")
 
@@ -287,6 +300,7 @@ def background_video_scan(video_path: str):
 
                 plant_id = add_new_plant(plant_name)
                 insert_telemetry(
+                    session_id=session_id,
                     plant_id=plant_id,
                     frame_number=frame_number,
                     bbox=(0, 0, 0, 0),
@@ -299,9 +313,8 @@ def background_video_scan(video_path: str):
 
         if detected_plants:
             primary_plant = max(detected_plants, key=detected_plants.get)
-            CURRENT_SESSION_PLANT = primary_plant
             print(
-                f"✅ [SCAN COMPLETE] {frame_number} frames analyzed. Context locked to DOMINANT plant: {primary_plant}"
+                f"✅ [SCAN COMPLETE] {frame_number} frames analyzed. Context locked to DOMINANT plant: {primary_plant} for session {session_id}"
             )
 
             knowledge_gen = AutoKnowledgeGenerator()
@@ -315,7 +328,7 @@ def background_video_scan(video_path: str):
             print("⚠️ [SCAN COMPLETE] No classes detected even with 1% threshold.")
 
     finally:
-        IS_SCANNING = False
+        ACTIVE_SCANS.discard(session_id)
         if os.path.exists(video_path):
             os.remove(video_path)
         if "output_path" in locals() and os.path.exists(output_path):
@@ -323,11 +336,15 @@ def background_video_scan(video_path: str):
 
 
 @app.post("/api/scan")
-async def trigger_scan(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
-    global IS_SCANNING
-    if IS_SCANNING:
+async def trigger_scan(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    session_id: str = Form(...),
+):
+    if session_id in ACTIVE_SCANS:
         raise HTTPException(
-            status_code=429, detail="A video scan is already in progress. Please wait."
+            status_code=429,
+            detail="Your video scan is already in progress. Please wait.",
         )
 
     if not file or not file.filename:
@@ -335,7 +352,6 @@ async def trigger_scan(background_tasks: BackgroundTasks, file: UploadFile = Fil
             status_code=400, detail="No video file provided for scanning."
         )
 
-    IS_SCANNING = True
     temp_video = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
     video_target = temp_video.name
 
@@ -343,10 +359,9 @@ async def trigger_scan(background_tasks: BackgroundTasks, file: UploadFile = Fil
         with open(video_target, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
     except Exception as e:
-        IS_SCANNING = False
         if os.path.exists(video_target):
             os.remove(video_target)
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
-    background_tasks.add_task(background_video_scan, video_target)
+    background_tasks.add_task(background_video_scan, video_target, session_id)
     return {"message": "Video scan started successfully."}
