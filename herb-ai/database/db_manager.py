@@ -9,7 +9,9 @@ DB_URL = os.getenv("SUPABASE_DB_URL")
 
 def get_conn():
     if not DB_URL:
-        raise ValueError("🚨 SUPABASE_DB_URL is missing! Check your .env file or Cloud Secrets.")
+        raise ValueError(
+            "🚨 SUPABASE_DB_URL is missing! Check your .env file or Cloud Secrets."
+        )
     return psycopg2.connect(DB_URL)
 
 
@@ -49,6 +51,21 @@ def init_db() -> None:
         );
     """)
 
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS telemetry (
+            id SERIAL PRIMARY KEY,
+            session_id TEXT NOT NULL, 
+            plant_id INTEGER NOT NULL REFERENCES plants(id),
+            frame_number INTEGER NOT NULL,
+            bbox_xmin REAL NOT NULL,
+            ymin REAL NOT NULL,
+            bbox_xmax REAL NOT NULL,
+            ymax REAL NOT NULL,
+            confidence_score REAL NOT NULL,
+            evidence_image_url TEXT
+        );
+    """)
+
     conn.commit()
     conn.close()
     print("✅ Supabase PostgreSQL successfully initialized!")
@@ -83,7 +100,16 @@ def add_new_plant(species_name: str) -> int:
     return plant_id
 
 
+def clear_session_telemetry(session_id: str) -> None:
+    conn = get_conn()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM telemetry WHERE session_id = %s;", (session_id,))
+    conn.commit()
+    conn.close()
+
+
 def insert_telemetry(
+    session_id: str,
     plant_id: int,
     frame_number: int,
     bbox: Tuple[float, float, float, float],
@@ -93,13 +119,14 @@ def insert_telemetry(
     conn = get_conn()
     cursor = conn.cursor()
     xmin, ymin, xmax, ymax = bbox
-    
+
     cursor.execute(
         """
-        INSERT INTO telemetry (plant_id, frame_number, bbox_xmin, ymin, bbox_xmax, ymax, confidence_score, evidence_image_url)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+        INSERT INTO telemetry (session_id, plant_id, frame_number, bbox_xmin, ymin, bbox_xmax, ymax, confidence_score, evidence_image_url)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
     """,
         (
+            session_id,
             plant_id,
             frame_number,
             xmin,
