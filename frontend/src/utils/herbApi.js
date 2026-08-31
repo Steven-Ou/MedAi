@@ -54,6 +54,8 @@ export async function triggerVisionScan(videoFile) {
       formData.append("file", videoFile);
     }
 
+    formData.append("session_id", getSessionId());
+    
     const response = await fetch(`${BASE_URL}/api/scan`, {
       method: "POST",
       body: formData,
