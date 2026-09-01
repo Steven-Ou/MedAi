@@ -236,7 +236,16 @@ export default function HerbAiDashboard() {
   const globalStyles = `
     html, body {
       margin: 0; padding: 0;
-      background-color: #f4f7f6;
+      background-color: #eaf4eb;
+
+      background-image: 
+        radial-gradient(circle at 15% 25%, rgba(212, 240, 208, 0.7) 0%, transparent 40%),
+        radial-gradient(circle at 85% 75%, rgba(184, 226, 178, 0.6) 0%, transparent 45%),
+        url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M25 25c15-15 30-7.5 37.5 7.5s-7.5 30-22.5 30-30-7.5-22.5-22.5 7.5-30 7.5-15zm-7.5 7.5c0 7.5 7.5 15 15 15M75 75c15-15 30-7.5 37.5 7.5s-7.5 30-22.5 30-30-7.5-22.5-22.5 7.5-30 7.5-15zm-7.5 7.5c0 7.5 7.5 15 15 15' fill='%236ea769' fill-opacity='0.15' stroke='%23488243' stroke-width='2' stroke-opacity='0.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+
+      background-attachment: fixed;
+      background-size: auto, auto, 100px 100px;
+
       transition: background-color 0.4s ease; 
       height: 100%;
       overflow-x: hidden; 
