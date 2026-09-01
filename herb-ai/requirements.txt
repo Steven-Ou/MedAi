@@ -12,6 +12,7 @@ langchain
 langchain-community
 langchain-text-splitters
 langchain-google-genai
+openai
 
 # Database Utilities
 psycopg2-binary
