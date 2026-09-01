@@ -27,21 +27,6 @@ def init_db() -> None:
         );
     """)
 
-    # Supabase Telemetry Table (Notice we swap base64 for evidence_url)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS telemetry (
-            id SERIAL PRIMARY KEY,
-            plant_id INTEGER NOT NULL REFERENCES plants(id),
-            frame_number INTEGER NOT NULL,
-            bbox_xmin REAL NOT NULL,
-            ymin REAL NOT NULL,
-            bbox_xmax REAL NOT NULL,
-            ymax REAL NOT NULL,
-            confidence_score REAL NOT NULL,
-            evidence_image_url TEXT
-        );
-    """)
-
     # Supabase LLM Cache Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS ai_cache (
@@ -51,6 +36,10 @@ def init_db() -> None:
         );
     """)
 
+    # DROP the existing faulty table so it can be rebuilt with session_id
+    cursor.execute("DROP TABLE IF EXISTS telemetry;")
+
+    # Create the CORRECT Supabase Telemetry Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS telemetry (
             id SERIAL PRIMARY KEY,
