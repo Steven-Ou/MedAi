@@ -38,7 +38,7 @@ export async function fetchDetectedPlants() {
  */
 export async function checkScanStatus() {
   try {
-    const response = await fetch(`${BASE_URL}/api/scan-status`);
+    const response = await fetch(`${BASE_URL}/api/scan-status?session_id=${getSessionId()}`);
     if (!response.ok) return { is_scanning: false };
     return await response.json();
   } catch (error) {
@@ -46,7 +46,6 @@ export async function checkScanStatus() {
     return { is_scanning: false };
   }
 }
-
 /**
  * Triggers video file tracking scan.
  * @param {File} videoFile - The uploaded video file object.
