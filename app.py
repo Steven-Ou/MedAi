@@ -283,12 +283,12 @@ def background_video_scan(video_path: str, session_id: str):
                 top5_indices = r.probs.top5
                 top5_confs = r.probs.top5conf.tolist()
                 for idx, conf in zip(top5_indices, top5_confs):
-                    if conf >= 0.05:
+                    if conf >= 0.01:
                         detected_names.append((model.names[idx], float(conf)))
             elif r.boxes is not None:
                 for box in r.boxes:
                     conf = float(box.conf[0])
-                    if conf >= 0.05:
+                    if conf >= 0.01:
                         detected_names.append((model.names[int(box.cls[0])], conf))
 
             evidence_url = None
@@ -313,16 +313,20 @@ def background_video_scan(video_path: str, session_id: str):
         cap.release()
 
         if detected_plants:
-            primary_plant = max(detected_plants, key=detected_plants.get)
-            print(
-                f"✅ [SCAN COMPLETE] {frame_number} frames analyzed. Context locked to DOMINANT plant: {primary_plant} for session {session_id}"
-            )
+            print(f"✅ [SCAN COMPLETE] {frame_number} frames analyzed. Saving context for ALL detected plants for session {session_id}")
 
             knowledge_gen = AutoKnowledgeGenerator()
             vector_engine = LocalVectorStoreEngine()
 
-            if knowledge_gen.generate_profile_if_new(primary_plant):
-                print(f"📝 Syncing local vector knowledge for: {primary_plant}")
+            rebuild_needed = False
+            for plant_name in detected_plants.keys():
+                # This now loops through every single plant it spotted
+                if knowledge_gen.generate_profile_if_new(plant_name):
+                    print(f"📝 Syncing local vector knowledge for: {plant_name}")
+                    rebuild_needed = True
+            
+            # Only rebuild the vector store once after all new profiles are generated
+            if rebuild_needed:
                 vector_engine.build_vector_store()
 
         else:
