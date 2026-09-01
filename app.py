@@ -7,6 +7,7 @@ import traceback
 import cv2
 import uuid
 import chromadb
+import asyncio
 from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -135,7 +136,7 @@ async def handle_image_upload(file: UploadFile, session_id: str = "default_sessi
     if not contents:
         raise HTTPException(status_code=400, detail="No image file provided.")
 
-    result = vision_engine.analyze_image(contents)
+    result = await asyncio.to_thread(vision_engine.analyze_image, contents)
     predicted_plant = result.get("predicted_class")
 
     if predicted_plant:
