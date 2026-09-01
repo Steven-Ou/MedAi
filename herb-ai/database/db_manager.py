@@ -36,14 +36,10 @@ def init_db() -> None:
         );
     """)
 
-    # DROP the existing faulty table so it can be rebuilt with session_id
-    cursor.execute("DROP TABLE IF EXISTS telemetry;")
-
-    # Create the CORRECT Supabase Telemetry Table
+    # Create the baseline table if it is a fresh database
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS telemetry (
             id SERIAL PRIMARY KEY,
-            session_id TEXT NOT NULL, 
             plant_id INTEGER NOT NULL REFERENCES plants(id),
             frame_number INTEGER NOT NULL,
             bbox_xmin REAL NOT NULL,
@@ -53,6 +49,12 @@ def init_db() -> None:
             confidence_score REAL NOT NULL,
             evidence_image_url TEXT
         );
+    """)
+
+    # 🔥 BULLETPROOF FIX: Force Postgres to add the column to the existing table
+    cursor.execute("""
+        ALTER TABLE telemetry 
+        ADD COLUMN IF NOT EXISTS session_id TEXT DEFAULT 'default_session';
     """)
 
     conn.commit()

@@ -339,7 +339,7 @@ def background_video_scan(video_path: str, session_id: str):
 async def trigger_scan(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    session_id: str = Form(...),
+    session_id: str = Form("default_session"),
 ):
     if session_id in ACTIVE_SCANS:
         raise HTTPException(

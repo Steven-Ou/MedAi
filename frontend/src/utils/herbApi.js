@@ -7,7 +7,11 @@ const BASE_URL =
 const getSessionId = () => {
   let sessionId = sessionStorage.getItem("herb_session_id");
   if (!sessionId) {
-    sessionId = crypto.randomUUID();
+    if (window.crypto && window.crypto.randomUUID) {
+      sessionId = window.crypto.randomUUID();
+    } else {
+      sessionId = "session_" + Math.random().toString(36).substring(2, 15);
+    }
     sessionStorage.setItem("herb_session_id", sessionId);
   }
   return sessionId;
@@ -55,7 +59,7 @@ export async function triggerVisionScan(videoFile) {
     }
 
     formData.append("session_id", getSessionId());
-    
+
     const response = await fetch(`${BASE_URL}/api/scan`, {
       method: "POST",
       body: formData,
@@ -85,6 +89,7 @@ export async function uploadImage(imageFile) {
   try {
     const formData = new FormData();
     formData.append("file", imageFile);
+    formData.append("session_id", getSessionId());
 
     const response = await fetch(`${BASE_URL}/api/upload-image`, {
       method: "POST",
@@ -107,6 +112,7 @@ export async function predictPlantImage(imageFile) {
   try {
     const formData = new FormData();
     formData.append("file", imageFile);
+    formData.append("session_id", getSessionId());
 
     const response = await fetch(`${BASE_URL}/api/predict`, {
       method: "POST",
@@ -114,9 +120,9 @@ export async function predictPlantImage(imageFile) {
     });
 
     if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error("Image prediction failed:", error);
@@ -148,7 +154,7 @@ export async function askBotanicalQuestion(userQuestion) {
 }
 
 /**
- * Streams the RAG LLM query response. Includes auto-resume fallback logic for 
+ * Streams the RAG LLM query response. Includes auto-resume fallback logic for
  * when mobile browsers suspend network connections during backgrounding.
  * @param {string} userQuestion - The question text.
  * @param {function} onChunk - Callback function handling chunks and replacements.
@@ -173,12 +179,15 @@ export async function streamBotanicalQuestion(userQuestion, onChunk) {
       if (value) {
         const chunk = decoder.decode(value, { stream: true });
         // Pass false for isReplace so the dashboard appends the chunk
-        onChunk(chunk, false); 
+        onChunk(chunk, false);
       }
     }
   } catch (error) {
-    console.warn("Stream interrupted (likely backgrounded). Fetching full final answer...", error);
-    
+    console.warn(
+      "Stream interrupted (likely backgrounded). Fetching full final answer...",
+      error,
+    );
+
     try {
       // Give the user a visual indicator that the app is fixing the connection
       onChunk("\n\n*(Connection paused. Retrieving final analysis...)*", false);
@@ -196,11 +205,13 @@ export async function streamBotanicalQuestion(userQuestion, onChunk) {
       const fullAnswer = finalData.response || finalData.answer;
 
       // Pass true for isReplace to completely overwrite the broken text with the final response
-      onChunk(fullAnswer, true); 
-      
+      onChunk(fullAnswer, true);
     } catch (fallbackError) {
       console.error("Streaming and fallback both failed:", fallbackError);
-      onChunk("\n\n❌ Network disconnected while you were away. Please ask again.", false);
+      onChunk(
+        "\n\n❌ Network disconnected while you were away. Please ask again.",
+        false,
+      );
     }
   }
 }
