@@ -8,6 +8,7 @@ from typing import List, Any
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 from google import genai
+from openai import OpenAI
 import httpx
 import chromadb
 import json
@@ -46,6 +47,19 @@ class BotanicalQueryEngine:
         self.gemini_client = (
             genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
             if os.getenv("GEMINI_API_KEY")
+            else None
+        )
+        self.openai_client = (
+            OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            if os.getenv("OPENAI_API_KEY")
+            else None
+        )
+        self.groq_client = (
+            OpenAI(
+                api_key=os.getenv("GROQ_API_KEY"),
+                base_url="https://api.groq.com/openai/v1",
+            )
+            if os.getenv("GROQ_API_KEY")
             else None
         )
 
@@ -243,6 +257,29 @@ class BotanicalQueryEngine:
                 return
             except Exception as e:
                 print(f"⚠️ Gemini stream failed: {e}. Falling back to Ollama...")
+
+        if self.groq_client or self.openai_client:
+            client_to_use = self.groq_client or self.openai_client
+            model_to_use = "llama-3.2-3b-preview" if self.groq_client else "gpt-4o-mini"
+
+            try:
+                response_stream = client_to_use.chat.completions.create(
+                    model=model_to_use,
+                    messages=[{"role": "user", "content": prompt}],
+                    stream=True,
+                    temperature=0.3,
+                )
+                for chunk in response_stream:
+                    if chunk.choices[0].delta.content:
+                        text_chunk = chunk.choices[0].delta.content
+                        full_answer += text_chunk
+                        yield text_chunk
+
+                self.chat_history.append(f"Herb-AI: {full_answer}")
+                save_to_cache(user_query, full_answer)
+                return
+            except Exception as e:
+                print(f"⚠️ OpenAI/Groq stream failed: {e}. Falling back to Ollama...")
 
         # 2. Ollama Fallback Streaming
         import json

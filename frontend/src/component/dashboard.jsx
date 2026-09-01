@@ -355,20 +355,25 @@ export default function HerbAiDashboard() {
     .chat-message-row.agent .chat-avatar { background-color: #f1f5f9; }
     
     .msg-bubble {
-      flex: 1; 
-      min-width: 0; 
-      max-width: calc(100% - 50px); /* Strictly limits bubble width */
+      width: fit-content; 
+      max-width: 85%; /* Limits bubble size on large screens */
       padding: 16px 20px;
       border-radius: 20px;
       font-size: 14.5px;
       color: #334155;
-      white-space: pre-wrap;
+      
+      white-space: normal; 
       word-wrap: break-word;
       overflow-wrap: break-word;
       overflow-x: auto;
       -webkit-overflow-scrolling: touch; 
       box-sizing: border-box;
     }
+    
+    .msg-bubble > div {
+       white-space: pre-wrap; /* Target the inner text wrapper for line breaks */
+    }
+
     .msg-bubble.user {
       background-color: #d1fae5;
       border: 1px solid #a7f3d0;
@@ -380,16 +385,6 @@ export default function HerbAiDashboard() {
       border-top-left-radius: 4px;
     }
     
-    .markdown-body {
-      overflow-wrap: break-word;
-      word-break: break-word;
-      width: 100%;
-    }
-    .markdown-body img {
-      max-width: 100%;
-      height: auto;
-    }
-    
     .markdown-body table { 
       display: block; 
       width: 100%; 
@@ -398,11 +393,11 @@ export default function HerbAiDashboard() {
       -webkit-overflow-scrolling: touch;
       border-collapse: collapse; 
       margin: 15px 0; 
+      white-space: normal; /* Prevents text from being forced into single unbreakable lines */
     }
+    
     .markdown-body th, .markdown-body td { 
-      white-space: normal;
-      word-wrap: break-word;
-
+      min-width: 120px; /* Forces the table to be wide enough to trigger horizontal scrolling */
       border: 1px solid #e2e8f0; 
       padding: 10px; 
     }

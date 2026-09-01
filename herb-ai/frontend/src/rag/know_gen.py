@@ -4,6 +4,7 @@ import sys
 import requests
 from google import genai
 from huggingface_hub import InferenceClient
+from openai import OpenAI
 from dotenv import load_dotenv
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
@@ -30,8 +31,19 @@ class AutoKnowledgeGenerator:
         self.gemini_client = (
             genai.Client(api_key=self.gemini_api_key) if self.gemini_api_key else None
         )
-        self.gemini_client = (
-            genai.Client(api_key=self.gemini_api_key) if self.gemini_api_key else None
+
+        self.openai_client = (
+            OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            if os.getenv("OPENAI_API_KEY")
+            else None
+        )
+        self.groq_client = (
+            OpenAI(
+                api_key=os.getenv("GROQ_API_KEY"),
+                base_url="https://api.groq.com/openai/v1",
+            )
+            if os.getenv("GROQ_API_KEY")
+            else None
         )
 
         self.cloud_models = [
@@ -42,8 +54,7 @@ class AutoKnowledgeGenerator:
 
     def generate_profile_if_new(self, plant_name: str) -> bool:
         """Generates a text profile for discovered herbs cascading through models."""
-        
-        # FIX: Hard-block anomalies from ever hitting the LLM
+
         if "unidentified" in plant_name.lower() or "anomaly" in plant_name.lower():
             print(f"🚫 Skipping profile generation for invalid edge case: {plant_name}")
             return False
@@ -53,7 +64,9 @@ class AutoKnowledgeGenerator:
         target_path = os.path.join(self.kb_dir, file_filename)
 
         if os.path.exists(target_path):
-            print(f"[{plant_name}] Profile already exists at '{target_path}'. Skipping.")
+            print(
+                f"[{plant_name}] Profile already exists at '{target_path}'. Skipping."
+            )
             return False
 
         print(f"New plant discovered: '{plant_name}'! Generating profile...")
@@ -76,23 +89,48 @@ class AutoKnowledgeGenerator:
                 "gemini-3.1-flash-lite",
                 "gemini-2.5-flash",
             ]
-            
+
             for gemini_model in active_gemini_models:
                 try:
                     print(f"⚡ Attempting generation with {gemini_model}...")
                     response = self.gemini_client.models.generate_content(
-                        model=gemini_model, 
-                        contents=prompt
+                        model=gemini_model, contents=prompt
                     )
                     response_text = response.text.strip()
 
                     if response_text:
                         with open(target_path, "w", encoding="utf-8") as f:
                             f.write(response_text)
-                        print(f"✅ Successfully saved profile via Gemini: {target_path}")
+                        print(
+                            f"✅ Successfully saved profile via Gemini: {target_path}"
+                        )
                         return True
                 except Exception as e:
                     print(f"⚠️ {gemini_model} failed: {e}. Trying next...")
+
+        if self.groq_client or self.openai_client:
+            client_to_use = self.groq_client or self.openai_client
+            model_to_use = "llama-3.2-3b-preview" if self.groq_client else "gpt-4o-mini"
+
+            try:
+                print(f"☁️ Attempting generation with {model_to_use}...")
+                response = client_to_use.chat.completions.create(
+                    model=model_to_use,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=1024,
+                    temperature=0.3,
+                )
+                response_text = response.choices[0].message.content.strip()
+
+                if response_text:
+                    with open(target_path, "w", encoding="utf-8") as f:
+                        f.write(response_text)
+                    print(
+                        f"✅ Successfully saved profile via OpenAI/Groq: {target_path}"
+                    )
+                    return True
+            except Exception as e:
+                print(f"⚠️ OpenAI/Groq failed: {e}. Trying HF next...")
 
         # 2. SECOND TIER: Hugging Face Inference API
         messages = [{"role": "user", "content": prompt}]
