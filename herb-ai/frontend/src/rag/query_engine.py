@@ -185,7 +185,27 @@ class BotanicalQueryEngine:
                     print(
                         f"⚠️ Gemini RAG generation failed: {e}. Falling back to Ollama..."
                     )
-
+                    
+            if self.groq_client or self.openai_client:
+                client_to_use = self.groq_client or self.openai_client
+                model_to_use = (
+                    "llama-3.2-3b-preview" if self.groq_client else "gpt-4o-mini"
+                )
+                try:
+                    response = client_to_use.chat.completions.create(
+                        model=model_to_use,
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=0.3,
+                    )
+                    answer = response.choices[0].message.content.strip()
+                    self.chat_history.append(f"Herb-AI: {answer}")
+                    save_to_cache(user_query, answer)
+                    return answer
+                except Exception as e:
+                    print(
+                        f"⚠️ OpenAI/Groq generation failed: {e}. Falling back to Ollama..."
+                    )
+                    
             # FALLBACK: Existing Ollama implementation
             ollama_url = "http://localhost:11434/api/generate"
             payload = {
