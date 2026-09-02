@@ -39,11 +39,11 @@ export async function fetchDetectedPlants() {
 export async function checkScanStatus() {
   try {
     const response = await fetch(`${BASE_URL}/api/scan-status?session_id=${getSessionId()}`);
-    if (!response.ok) return { is_scanning: false };
+    if (!response.ok) return { is_scanning: true };
     return await response.json();
   } catch (error) {
-    console.error("Failed to check scan status:", error);
-    return { is_scanning: false };
+    console.error("Failed to check scan status (Network blip):", error);
+    return { is_scanning: true };
   }
 }
 /**

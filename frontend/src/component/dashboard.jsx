@@ -293,11 +293,12 @@ export default function HerbAiDashboard() {
       padding: 30px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
       border: 1px solid #e2e8f0;
-      height: calc(100vh - 150px);
+      min-height: calc(100vh - 150px);
+      height: auto;
       display: flex;
       flex-direction: column;
       box-sizing: border-box;
-      overflow: hidden; 
+      overflow-y: auto;
     }
     
     .log-stream-container {
