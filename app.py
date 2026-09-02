@@ -59,6 +59,7 @@ query_engine = BotanicalQueryEngine()
 class QueryRequest(BaseModel):
     query_text: str = None
     question: str = None
+    session_id: str = "default_session"
 
 
 @app.get("/")
@@ -199,7 +200,8 @@ def query_alias(payload: QueryRequest):
     q = payload.question or payload.query_text
     if not q or q.strip() == "string":
         return {"response": "Please enter a specific question about the plant."}
-    return process_query_text(q)
+    answer = query_engine.query_botanical_knowledge(q, session_id=payload.session_id)
+    return {"response": answer, "answer": answer}
 
 
 @app.post("/api/query/stream")
@@ -209,7 +211,7 @@ def query_stream_alias(payload: QueryRequest):
         raise HTTPException(status_code=400, detail="Invalid query")
 
     return StreamingResponse(
-        query_engine.stream_botanical_knowledge(q),
+        query_engine.stream_botanical_knowledge(q, session_id=payload.session_id),
         media_type="application/octet-stream",
     )
 
@@ -313,7 +315,9 @@ def background_video_scan(video_path: str, session_id: str):
         cap.release()
 
         if detected_plants:
-            print(f"✅ [SCAN COMPLETE] {frame_number} frames analyzed. Saving context for ALL detected plants for session {session_id}")
+            print(
+                f"✅ [SCAN COMPLETE] {frame_number} frames analyzed. Saving context for ALL detected plants for session {session_id}"
+            )
 
             knowledge_gen = AutoKnowledgeGenerator()
             vector_engine = LocalVectorStoreEngine()
@@ -324,7 +328,7 @@ def background_video_scan(video_path: str, session_id: str):
                 if knowledge_gen.generate_profile_if_new(plant_name):
                     print(f"📝 Syncing local vector knowledge for: {plant_name}")
                     rebuild_needed = True
-            
+
             # Only rebuild the vector store once after all new profiles are generated
             if rebuild_needed:
                 vector_engine.build_vector_store()
