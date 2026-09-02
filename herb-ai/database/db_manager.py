@@ -36,7 +36,7 @@ def init_db() -> None:
         );
     """)
 
-    # Create the baseline table if it is a fresh database
+    # Telemetry Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS telemetry (
             id SERIAL PRIMARY KEY,
@@ -51,15 +51,32 @@ def init_db() -> None:
         );
     """)
 
-    # 🔥 BULLETPROOF FIX: Force Postgres to add the column to the existing table
     cursor.execute("""
         ALTER TABLE telemetry 
         ADD COLUMN IF NOT EXISTS session_id TEXT DEFAULT 'default_session';
     """)
 
+    # --- SECURITY PATCH ---
+    # Enable RLS to prevent public access and secure the session_id column
+    cursor.execute("""
+        ALTER TABLE plants ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE ai_cache ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE telemetry ENABLE ROW LEVEL SECURITY;
+        
+        -- Drop existing policies if they exist to prevent conflicts during re-initialization
+        DROP POLICY IF EXISTS "Block anonymous access" ON plants;
+        DROP POLICY IF EXISTS "Block anonymous access" ON ai_cache;
+        DROP POLICY IF EXISTS "Block anonymous access" ON telemetry;
+
+        -- Create restrictive policies for public API access
+        CREATE POLICY "Block anonymous access" ON plants FOR ALL USING (false);
+        CREATE POLICY "Block anonymous access" ON ai_cache FOR ALL USING (false);
+        CREATE POLICY "Block anonymous access" ON telemetry FOR ALL USING (false);
+    """)
+
     conn.commit()
     conn.close()
-    print("✅ Supabase PostgreSQL successfully initialized!")
+    print("✅ Supabase PostgreSQL successfully initialized and secured!")
 
 
 def add_new_plant(species_name: str) -> int:
