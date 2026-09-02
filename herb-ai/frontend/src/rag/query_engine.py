@@ -66,7 +66,7 @@ class BotanicalQueryEngine:
     def get_collection(self):
         return self.chroma_client.get_or_create_collection(name="botanical_knowledge")
 
-    def _get_unified_session_context(self) -> str:
+    def _get_unified_session_context(self, session_id: str = "default_session") -> str:
         """Queries local telemetry tables and recent upload directories to build a merged context window."""
         summary = "ACTIVE SESSION TELEMETRY & MULTIMODAL SNAPSHOT SUMMARY:\n"
         has_context = False
@@ -106,8 +106,9 @@ class BotanicalQueryEngine:
                     SELECT p.species_name, COUNT(t.id), MAX(t.confidence_score)
                     FROM plants p
                     JOIN telemetry t ON p.id = t.plant_id
+                    WHERE t.session_id = %s
                     GROUP BY p.species_name
-                """)
+                """, (session_id,))
             rows = cursor.fetchall()
             conn.close()
 
