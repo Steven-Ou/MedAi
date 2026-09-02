@@ -38,7 +38,9 @@ export async function fetchDetectedPlants() {
  */
 export async function checkScanStatus() {
   try {
-    const response = await fetch(`${BASE_URL}/api/scan-status?session_id=${getSessionId()}`);
+    const response = await fetch(
+      `${BASE_URL}/api/scan-status?session_id=${getSessionId()}`,
+    );
     if (!response.ok) return { is_scanning: true };
     return await response.json();
   } catch (error) {
@@ -140,7 +142,10 @@ export async function askBotanicalQuestion(userQuestion) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ query_text: userQuestion }),
+      body: JSON.stringify({
+        query_text: userQuestion,
+        session_id: getSessionId(),
+      }),
     });
 
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -163,7 +168,10 @@ export async function streamBotanicalQuestion(userQuestion, onChunk) {
     const response = await fetch(`${BASE_URL}/api/query/stream`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query_text: userQuestion }),
+      body: JSON.stringify({
+        query_text: userQuestion,
+        session_id: getSessionId(),
+      }),
     });
 
     if (!response.ok) throw new Error("Stream connection failed");
