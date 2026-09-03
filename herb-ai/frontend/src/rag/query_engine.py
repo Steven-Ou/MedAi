@@ -102,13 +102,16 @@ class BotanicalQueryEngine:
 
             conn = get_conn()
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                     SELECT p.species_name, COUNT(t.id), MAX(t.confidence_score)
                     FROM plants p
                     JOIN telemetry t ON p.id = t.plant_id
                     WHERE t.session_id = %s
                     GROUP BY p.species_name
-                """, (session_id,))
+                """,
+                (session_id,),
+            )
             rows = cursor.fetchall()
             conn.close()
 
@@ -135,13 +138,15 @@ class BotanicalQueryEngine:
             print(f"Embedding error: {e}")
             return []
 
-    def query_botanical_knowledge(self, user_query: str, n_results: int = 6) -> str:
+    def query_botanical_knowledge(
+        self, user_query: str, session_id: str = "default_session", n_results: int = 6
+    ) -> str:
         """Retrieves textbook reference vectors and synthesizes an answer using local Ollama."""
         try:
             self.chat_history.append(f"User: {user_query}")
 
             print("🔄 Cache miss. Proceeding with vector search...")
-            session_context = self._get_unified_session_context()
+            session_context = self._get_unified_session_context(session_id=session_id)
             query_vector = self._get_query_embedding_with_retry(user_query)
 
             collection = self.get_collection()
@@ -186,7 +191,7 @@ class BotanicalQueryEngine:
                     print(
                         f"⚠️ Gemini RAG generation failed: {e}. Falling back to Ollama..."
                     )
-                    
+
             if self.groq_client or self.openai_client:
                 client_to_use = self.groq_client or self.openai_client
                 model_to_use = (
@@ -206,7 +211,7 @@ class BotanicalQueryEngine:
                     print(
                         f"⚠️ OpenAI/Groq generation failed: {e}. Falling back to Ollama..."
                     )
-                    
+
             # FALLBACK: Existing Ollama implementation
             ollama_url = "http://localhost:11434/api/generate"
             payload = {
@@ -229,11 +234,13 @@ class BotanicalQueryEngine:
         except Exception as e:
             return f"Query Engine failure: {e}"
 
-    def stream_botanical_knowledge(self, user_query: str, n_results: int = 6):
+    def stream_botanical_knowledge(
+        self, user_query: str, session_id: str = "default_session", n_results: int = 6
+    ):
         """Streams the response chunk-by-chunk for the frontend typing effect."""
         self.chat_history.append(f"User: {user_query}")
 
-        session_context = self._get_unified_session_context()
+        session_context = self._get_unified_session_context(session_id=session_id)
         query_vector = self._get_query_embedding_with_retry(user_query)
 
         collection = self.get_collection()
