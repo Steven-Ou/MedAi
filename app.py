@@ -318,20 +318,20 @@ def background_video_scan(video_path: str, session_id: str):
             print(
                 f"✅ [SCAN COMPLETE] {frame_number} frames analyzed. Saving context for ALL detected plants for session {session_id}"
             )
+            #loop that would generate every single thing it sees
+            # knowledge_gen = AutoKnowledgeGenerator()
+            # vector_engine = LocalVectorStoreEngine()
 
-            knowledge_gen = AutoKnowledgeGenerator()
-            vector_engine = LocalVectorStoreEngine()
+            # rebuild_needed = False
+            # for plant_name in detected_plants.keys():
+            #     # This now loops through every single plant it spotted
+            #     if knowledge_gen.generate_profile_if_new(plant_name):
+            #         print(f"📝 Syncing local vector knowledge for: {plant_name}")
+            #         rebuild_needed = True
 
-            rebuild_needed = False
-            for plant_name in detected_plants.keys():
-                # This now loops through every single plant it spotted
-                if knowledge_gen.generate_profile_if_new(plant_name):
-                    print(f"📝 Syncing local vector knowledge for: {plant_name}")
-                    rebuild_needed = True
-
-            # Only rebuild the vector store once after all new profiles are generated
-            if rebuild_needed:
-                vector_engine.build_vector_store()
+            # # Only rebuild the vector store once after all new profiles are generated
+            # if rebuild_needed:
+            #     vector_engine.build_vector_store()
 
         else:
             print("⚠️ [SCAN COMPLETE] No classes detected even with 1% threshold.")

@@ -18,6 +18,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"
 
 # Import the new cache functions from your db_manager
 from database.db_manager import get_cached_response, save_to_cache
+from frontend.src.rag.know_gen import AutoKnowledgeGenerator
+from frontend.src.rag.vector_store import LocalVectorStoreEngine
 
 load_dotenv()
 
@@ -130,6 +132,38 @@ class BotanicalQueryEngine:
 
     model = SentenceTransformer("all-mpnet-base-v2")
 
+    def _ensure_knowledge_exists(self, user_query: str, session_id: str):
+        """Checks if the user is asking about a detected plant and generates its profile JIT."""
+        try:
+            from database.db_manager import get_conn
+
+            conn = get_conn()
+            cursor = conn.cursor()
+            # Grab all plants seen in this session
+            cursor.execute(
+                "SELECT DISTINCT p.species_name FROM plants p JOIN telemetry t ON p.id = t.plant_id WHERE t.session_id = %s",
+                (session_id,),
+            )
+            rows = cursor.fetchall()
+            conn.close()
+
+            rebuild_needed = False
+            kg = AutoKnowledgeGenerator()
+
+            # If the user's question mentions a plant we saw, generate its profile
+            for row in rows:
+                plant_name = row[0]
+                if plant_name.lower() in user_query.lower():
+                    if kg.generate_profile_if_new(plant_name):
+                        print(f"📝 Just-In-Time knowledge synced for: {plant_name}")
+                        rebuild_needed = True
+
+            if rebuild_needed:
+                LocalVectorStoreEngine().build_vector_store()
+
+        except Exception as e:
+            print(f"⚠️ JIT Generation failed: {e}")
+
     def _get_query_embedding_with_retry(self, text: str) -> List[float]:
         """Generates a query embedding using local SentenceTransformer."""
         try:
@@ -143,6 +177,8 @@ class BotanicalQueryEngine:
     ) -> str:
         """Retrieves textbook reference vectors and synthesizes an answer using local Ollama."""
         try:
+            self._ensure_knowledge_exists(user_query, session_id)
+
             self.chat_history.append(f"User: {user_query}")
 
             print("🔄 Cache miss. Proceeding with vector search...")
@@ -238,6 +274,9 @@ class BotanicalQueryEngine:
         self, user_query: str, session_id: str = "default_session", n_results: int = 6
     ):
         """Streams the response chunk-by-chunk for the frontend typing effect."""
+
+        self._ensure_knowledge_exists(user_query, session_id)
+
         self.chat_history.append(f"User: {user_query}")
 
         session_context = self._get_unified_session_context(session_id=session_id)
