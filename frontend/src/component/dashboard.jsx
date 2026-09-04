@@ -94,7 +94,7 @@ export default function HerbAiDashboard() {
       ...prev,
       {
         role: "agent",
-        text: "🎬 Initiating video stream telemetry scan... Please wait while I extract and analyze the frames.",
+        text: "🎬 **Step 1: Video Analysis Initiated.**\n\nI am currently analyzing your video frame-by-frame. This is a heavy multimodal process, so **please be patient—you can leave this window open and grab a coffee**, I'll keep working in the background!\n\nOnce finished, the **Identification Log Stream** below will populate with every plant I detect. From there, you can click on any plant to trigger **Step 2**, where my Clinical RAG Agent will fetch detailed medicinal properties and you can ask follow-up questions.",
       },
     ]);
 
@@ -708,21 +708,16 @@ export default function HerbAiDashboard() {
                   <p
                     style={{ margin: 0, fontSize: "14.5px", lineHeight: "1.6" }}
                   >
-                    I am Herb-AI, your advanced, multimodal medical botanical
-                    vision agent.
+                    I am Herb-AI, your advanced, multimodal medical botanical vision agent.
                     <br />
                     <br />
-                    My primary architecture is designed to bridge the gap
-                    between real-time visual botanical identification and
-                    clinical pharmacognosy. I analyze live video feeds, static
-                    images, and telemetry data to instantly identify medicinal
-                    botanicals and their clinical properties.
+                    **Step 1:** Upload a video or image on the left, then click "Identify Footage".
                     <br />
                     <br />
-                    <strong>
-                      Upload media on the left, or click on a detected herb in
-                      the log stream to view its structured textbook profile.
-                    </strong>
+                    **Step 2:** Wait for the analysis to complete. The log stream will populate with all detected plant life.
+                    <br />
+                    <br />
+                    **Step 3:** Click on any detected herb in the log stream below to instantly generate its structured clinical profile and ask me specific follow-up questions!
                   </p>
                 </div>
               )}
