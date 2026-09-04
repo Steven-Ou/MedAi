@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import ReactJoyride from "react-joyride";
 import "katex/dist/katex.min.css";
 import {
   fetchDetectedPlants,
@@ -17,11 +18,29 @@ export default function HerbAiDashboard() {
   const [isScanning, setIsScanning] = useState(false);
   const [messages, setMessages] = useState([]);
   const [inputQuery, setInputQuery] = useState("");
-
+  const [runTour, setRunTour] = useState(true);
   const [videoSrc, setVideoSrc] = useState(null);
   const [imageSrc, setImageSrc] = useState(null);
   const videoRef = useRef(null);
   const [videoFile, setVideoFile] = useState(null);
+
+  const tourSteps = [
+    {
+      target: ".media-upload-section", // You will need to add this className to your upload buttons div
+      content:
+        "Start here! Upload a video or image of a plant you want to identify.",
+      placement: "bottom",
+    },
+    {
+      target: ".identify-btn", // Add this className to your "Identify Footage" button
+      content: "Click here to send your media to the YOLO vision model.",
+    },
+    {
+      target: ".log-stream-container",
+      content:
+        "Once analyzed, all detected plants will appear here. Click on any row to load its clinical data!",
+    },
+  ];
 
   const handleVideoUpload = (e) => {
     const file = e.target.files[0];
@@ -462,6 +481,15 @@ export default function HerbAiDashboard() {
 
   return (
     <div className="dashboard-wrapper">
+      <ReactJoyride
+        steps={tourSteps}
+        run={runTour}
+        continuous={true}
+        showSkipButton={true}
+        styles={{
+          options: { primaryColor: "#10b981" },
+        }}
+      />
       <style dangerouslySetInnerHTML={{ __html: globalStyles }} />
 
       <div className="dashboard-container">
@@ -708,16 +736,21 @@ export default function HerbAiDashboard() {
                   <p
                     style={{ margin: 0, fontSize: "14.5px", lineHeight: "1.6" }}
                   >
-                    I am Herb-AI, your advanced, multimodal medical botanical vision agent.
+                    I am Herb-AI, your advanced, multimodal medical botanical
+                    vision agent.
                     <br />
                     <br />
-                    **Step 1:** Upload a video or image on the left, then click "Identify Footage".
+                    **Step 1:** Upload a video or image on the left, then click
+                    "Identify Footage".
                     <br />
                     <br />
-                    **Step 2:** Wait for the analysis to complete. The log stream will populate with all detected plant life.
+                    **Step 2:** Wait for the analysis to complete. The log
+                    stream will populate with all detected plant life.
                     <br />
                     <br />
-                    **Step 3:** Click on any detected herb in the log stream below to instantly generate its structured clinical profile and ask me specific follow-up questions!
+                    **Step 3:** Click on any detected herb in the log stream
+                    below to instantly generate its structured clinical profile
+                    and ask me specific follow-up questions!
                   </p>
                 </div>
               )}

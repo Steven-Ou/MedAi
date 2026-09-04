@@ -110,7 +110,7 @@ class AutoKnowledgeGenerator:
 
         if self.groq_client or self.openai_client:
             client_to_use = self.groq_client or self.openai_client
-            model_to_use = "llama-3.2-3b-preview" if self.groq_client else "gpt-4o-mini"
+            model_to_use = "llama-3.3-70b-versatile" if self.groq_client else "gpt-4o-mini"
 
             try:
                 print(f"☁️ Attempting generation with {model_to_use}...")
