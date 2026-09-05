@@ -1,5 +1,6 @@
 import React from "react";
 import Head from "next/head";
+import { Analytics } from '@vercel/analytics/react';
 import HerbAiDashboard from "../component/dashboard"; // Corrected path and casing
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
       </Head>
       <div className="App">
         <HerbAiDashboard />
+        <Analytics />
       </div>
     </>
   );
