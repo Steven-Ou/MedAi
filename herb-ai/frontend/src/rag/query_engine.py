@@ -139,9 +139,9 @@ class BotanicalQueryEngine:
 
             conn = get_conn()
             cursor = conn.cursor()
-            # Grab all plants seen in this session
+            # Grab all plants seen in this session, ordered by highest confidence
             cursor.execute(
-                "SELECT DISTINCT p.species_name FROM plants p JOIN telemetry t ON p.id = t.plant_id WHERE t.session_id = %s",
+                "SELECT p.species_name FROM plants p JOIN telemetry t ON p.id = t.plant_id WHERE t.session_id = %s GROUP BY p.species_name ORDER BY MAX(t.confidence_score) DESC",
                 (session_id,),
             )
             rows = cursor.fetchall()
@@ -150,13 +150,21 @@ class BotanicalQueryEngine:
             rebuild_needed = False
             kg = AutoKnowledgeGenerator()
 
-            # If the user's question mentions a plant we saw, generate its profile
+            plants_to_generate = []
+
+            # 1. Check if specific plants were explicitly asked about
             for row in rows:
-                plant_name = row[0]
-                if plant_name.lower() in user_query.lower():
-                    if kg.generate_profile_if_new(plant_name):
-                        print(f"📝 Just-In-Time knowledge synced for: {plant_name}")
-                        rebuild_needed = True
+                if row[0].lower() in user_query.lower():
+                    plants_to_generate.append(row[0])
+
+            # 2. Fallback: If no specific plant is mentioned, generate the top 2 most confident plants
+            if not plants_to_generate and rows:
+                plants_to_generate = [row[0] for row in rows[:2]]
+
+            for plant_name in plants_to_generate:
+                if kg.generate_profile_if_new(plant_name):
+                    print(f"📝 Just-In-Time knowledge synced for: {plant_name}")
+                    rebuild_needed = True
 
             if rebuild_needed:
                 LocalVectorStoreEngine().build_vector_store()
@@ -327,7 +335,9 @@ class BotanicalQueryEngine:
 
         if self.groq_client or self.openai_client:
             client_to_use = self.groq_client or self.openai_client
-            model_to_use = "llama-3.3-70b-versatile" if self.groq_client else "gpt-4o-mini"
+            model_to_use = (
+                "llama-3.3-70b-versatile" if self.groq_client else "gpt-4o-mini"
+            )
 
             try:
                 response_stream = client_to_use.chat.completions.create(
