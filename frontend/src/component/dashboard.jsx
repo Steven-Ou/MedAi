@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
-import ReactJoyride from "react-joyride";
+import dynamic from "next/dynamic";
 import "katex/dist/katex.min.css";
 import {
   fetchDetectedPlants,
@@ -12,6 +12,14 @@ import {
   checkScanStatus,
   predictPlantImage,
 } from "../utils/herbApi";
+
+const ReactJoyride = dynamic(
+  () => import("react-joyride").then((mod) => mod.default),
+  { 
+    ssr: false,
+    loading: () => null 
+  }
+);
 
 export default function HerbAiDashboard() {
   const [telemetry, setTelemetry] = useState([]);
