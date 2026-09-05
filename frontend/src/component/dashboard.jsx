@@ -26,11 +26,15 @@ export default function HerbAiDashboard() {
   const [isScanning, setIsScanning] = useState(false);
   const [messages, setMessages] = useState([]);
   const [inputQuery, setInputQuery] = useState("");
-  const [runTour, setRunTour] = useState(true);
+  const [runTour, setRunTour] = useState(false);
   const [videoSrc, setVideoSrc] = useState(null);
   const [imageSrc, setImageSrc] = useState(null);
   const videoRef = useRef(null);
   const [videoFile, setVideoFile] = useState(null);
+
+  useEffect(() => {
+    setRunTour(true);
+  }, []);
 
   const tourSteps = [
     {
