@@ -14,11 +14,8 @@ import {
 } from "../utils/herbApi";
 
 const ReactJoyride = dynamic(
-  () => import("react-joyride").then((mod) => mod.default),
-  {
-    ssr: false,
-    loading: () => null,
-  },
+  () => import("react-joyride").then((mod) => mod.Joyride),
+  { ssr: false }
 );
 
 export default function HerbAiDashboard() {
@@ -32,9 +29,6 @@ export default function HerbAiDashboard() {
   const videoRef = useRef(null);
   const [videoFile, setVideoFile] = useState(null);
 
-  useEffect(() => {
-    setRunTour(true);
-  }, []);
 
   const tourSteps = [
     {
@@ -53,6 +47,14 @@ export default function HerbAiDashboard() {
         "Once analyzed, all detected plants will appear here. Click on any row to load its clinical data!",
     },
   ];
+
+  const handleJoyrideCallback = (data) => {
+    const { status } = data;
+    // Reset the tour state when the user finishes or closes it
+    if (["finished", "skipped"].includes(status)) {
+      setRunTour(false);
+    }
+  };
 
   const handleVideoUpload = (e) => {
     const file = e.target.files[0];
@@ -498,8 +500,12 @@ export default function HerbAiDashboard() {
         run={runTour}
         continuous={true}
         showSkipButton={true}
+        callback={handleJoyrideCallback}
         styles={{
-          options: { primaryColor: "#10b981" },
+          options: { 
+            primaryColor: "#10b981",
+            zIndex: 10000 // Guarantee it sits on top of all other panels
+          },
         }}
       />
       <style dangerouslySetInnerHTML={{ __html: globalStyles }} />
