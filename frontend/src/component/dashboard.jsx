@@ -516,6 +516,21 @@ export default function HerbAiDashboard() {
               Vision Frameworks & RAG Clinical Intelligence
             </p>
           </div>
+          <button
+            onClick={() => setRunTour(true)}
+            style={{
+              backgroundColor: "#10b981",
+              color: "white",
+              padding: "10px 20px",
+              borderRadius: "12px",
+              border: "none",
+              cursor: "pointer",
+              fontWeight: "600",
+              boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+            }}
+          >
+            🗺️ Take a Tour
+          </button>
         </header>
 
         <div className="dashboard-grid">
