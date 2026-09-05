@@ -15,10 +15,10 @@ import {
 
 const ReactJoyride = dynamic(
   () => import("react-joyride").then((mod) => mod.default),
-  { 
+  {
     ssr: false,
-    loading: () => null 
-  }
+    loading: () => null,
+  },
 );
 
 export default function HerbAiDashboard() {
@@ -526,7 +526,11 @@ export default function HerbAiDashboard() {
             >
               📷 Media Upload Hub
             </h3>
-            <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+            <div
+              className="media-upload-section"
+              style={{ display: "flex", gap: "10px", marginBottom: "20px" }}
+            >
+              {" "}
               <label
                 style={{
                   flex: 1,
@@ -570,6 +574,7 @@ export default function HerbAiDashboard() {
             </div>
 
             <button
+              className="identify-btn"
               onClick={handleStartScan}
               style={{
                 padding: "15px",
