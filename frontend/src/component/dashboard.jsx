@@ -15,7 +15,7 @@ import {
 
 const ReactJoyride = dynamic(
   () => import("react-joyride").then((mod) => mod.Joyride),
-  { ssr: false }
+  { ssr: false },
 );
 
 export default function HerbAiDashboard() {
@@ -24,27 +24,30 @@ export default function HerbAiDashboard() {
   const [messages, setMessages] = useState([]);
   const [inputQuery, setInputQuery] = useState("");
   const [runTour, setRunTour] = useState(false);
+  const [stepIndex, setStepIndex] = useState(0);
   const [videoSrc, setVideoSrc] = useState(null);
   const [imageSrc, setImageSrc] = useState(null);
   const videoRef = useRef(null);
   const [videoFile, setVideoFile] = useState(null);
 
-
   const tourSteps = [
     {
-      target: ".media-upload-section", // You will need to add this className to your upload buttons div
+      target: ".media-upload-section",
       content:
         "Start here! Upload a video or image of a plant you want to identify.",
       placement: "bottom",
+      disableBeacon: true, // This skips the black dot!
     },
     {
-      target: ".identify-btn", // Add this className to your "Identify Footage" button
+      target: ".identify-btn",
       content: "Click here to send your media to the YOLO vision model.",
+      disableBeacon: true,
     },
     {
       target: ".log-stream-container",
       content:
         "Once analyzed, all detected plants will appear here. Click on any row to load its clinical data!",
+      disableBeacon: true,
     },
   ];
 
@@ -502,9 +505,9 @@ export default function HerbAiDashboard() {
         showSkipButton={true}
         callback={handleJoyrideCallback}
         styles={{
-          options: { 
+          options: {
             primaryColor: "#10b981",
-            zIndex: 10000 // Guarantee it sits on top of all other panels
+            zIndex: 10000, // Guarantee it sits on top of all other panels
           },
         }}
       />
