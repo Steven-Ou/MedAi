@@ -496,42 +496,97 @@ export default function HerbAiDashboard() {
     },
   };
 
-  const MascotTooltip = ({ index, step, backProps, primaryProps, tooltipProps, isLastStep }) => (
-  <div {...tooltipProps} style={{ display: 'flex', alignItems: 'center', backgroundColor: '#1e293b', padding: '20px', borderRadius: '16px', color: '#f8fafc', maxWidth: '450px', gap: '15px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
-    <div style={{ flexShrink: 0 }}>
-      {/* You can replace this URL with your actual local fox mascot image path later */}
-      <img src="https://cdn-icons-png.flaticon.com/512/3069/3069172.png" alt="Agent Mascot" style={{ width: '80px', height: '80px' }} />
-    </div>
-    <div style={{ flexGrow: 1 }}>
-      <div style={{ fontSize: '15px', marginBottom: '15px', lineHeight: '1.5' }}>
-        {step.content}
+  const MascotTooltip = ({
+    index,
+    step,
+    backProps,
+    primaryProps,
+    tooltipProps,
+    isLastStep,
+  }) => (
+    <div
+      {...tooltipProps}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        backgroundColor: "#1e293b",
+        padding: "20px",
+        borderRadius: "16px",
+        color: "#f8fafc",
+        maxWidth: "450px",
+        gap: "15px",
+        boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+      }}
+    >
+      <div style={{ flexShrink: 0 }}>
+        {/* You can replace this URL with your actual local fox mascot image path later */}
+        <img
+          src="https://cdn-icons-png.flaticon.com/512/3069/3069172.png"
+          alt="Agent Mascot"
+          style={{ width: "80px", height: "80px" }}
+        />
       </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-        {index > 0 && (
-          <button {...backProps} style={{ backgroundColor: 'transparent', color: '#cbd5e1', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Back</button>
-        )}
-        <button {...primaryProps} style={{ backgroundColor: '#10b981', color: 'white', padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
-          {isLastStep ? 'Got it!' : 'Next'}
-        </button>
+      <div style={{ flexGrow: 1 }}>
+        <div
+          style={{ fontSize: "15px", marginBottom: "15px", lineHeight: "1.5" }}
+        >
+          {step.content}
+        </div>
+        <div
+          style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}
+        >
+          {index > 0 && (
+            <button
+              {...backProps}
+              style={{
+                backgroundColor: "transparent",
+                color: "#cbd5e1",
+                border: "none",
+                cursor: "pointer",
+                fontWeight: "bold",
+              }}
+            >
+              Back
+            </button>
+          )}
+          <button
+            {...primaryProps}
+            style={{
+              backgroundColor: "#10b981",
+              color: "white",
+              padding: "8px 16px",
+              borderRadius: "8px",
+              border: "none",
+              cursor: "pointer",
+              fontWeight: "bold",
+            }}
+          >
+            {isLastStep ? "Got it!" : "Next"}
+          </button>
+        </div>
       </div>
     </div>
-  </div>
   );
-  
+
   return (
     <div className="dashboard-wrapper">
       <ReactJoyride
         steps={tourSteps}
         run={runTour}
+        stepIndex={stepIndex}
         continuous={true}
-        showSkipButton={true}
-        callback={handleJoyrideCallback}
-        styles={{
-          options: {
-            primaryColor: "#10b981",
-            zIndex: 10000, // Guarantee it sits on top of all other panels
-          },
+        showSkipButton={false}
+        tooltipComponent={MascotTooltip} // Injects the mascot!
+        callback={(data) => {
+          const { action, index, status, type } = data;
+          if (["finished", "skipped"].includes(status)) {
+            setRunTour(false);
+            setStepIndex(0); // Resets the tour so the button works again
+          } else if (["step:after", "target:notFound"].includes(type)) {
+            setStepIndex(index + (action === "prev" ? -1 : 1));
+          }
         }}
+        styles={{ options: { zIndex: 10000 } }}
       />
       <style dangerouslySetInnerHTML={{ __html: globalStyles }} />
 
