@@ -14,8 +14,11 @@ import {
 } from "../utils/herbApi";
 
 const ReactJoyride = dynamic(
-  () => import("react-joyride").then((mod) => mod.Joyride),
-  { ssr: false },
+  async () => {
+    const mod = await import("react-joyride");
+    return mod.default || mod;
+  },
+  { ssr: false }
 );
 
 export default function HerbAiDashboard() {
