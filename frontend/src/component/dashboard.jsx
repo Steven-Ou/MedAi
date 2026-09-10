@@ -22,7 +22,6 @@ const ReactJoyride = dynamic(
   { ssr: false },
 );
 
-
 const MascotTooltip = ({
   index,
   step,
@@ -606,7 +605,10 @@ export default function HerbAiDashboard() {
             </p>
           </div>
           <button
-            onClick={() => setRunTour(true)}
+            onClick={() => {
+              setRunTour(true);
+              setStepIndex(0);
+            }}
             style={{
               backgroundColor: "#10b981",
               color: "white",
