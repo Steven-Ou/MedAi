@@ -13,7 +13,7 @@ import {
   predictPlantImage,
 } from "../utils/herbApi";
 
-const ReactJoyride = dynamic(() => import("react-joyride"), { ssr: false });
+import ReactJoyride, { STATUS } from "react-joyride";
 
 const MascotTooltip = ({
   index,
@@ -86,6 +86,11 @@ const MascotTooltip = ({
 );
 
 export default function HerbAiDashboard() {
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const [telemetry, setTelemetry] = useState([]);
   const [isScanning, setIsScanning] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -120,8 +125,12 @@ export default function HerbAiDashboard() {
 
   const handleJoyrideCallback = (data) => {
     const { status } = data;
-    // Reset the tour state when the user finishes or closes it
-    if (["finished", "skipped"].includes(status)) {
+    // Turn the tour off when skipped or finished
+    if (
+      [STATUS.FINISHED, STATUS.SKIPPED].includes(status) ||
+      status === "finished" ||
+      status === "skipped"
+    ) {
       setRunTour(false);
     }
   };
@@ -565,10 +574,10 @@ export default function HerbAiDashboard() {
 
   return (
     <div className="dashboard-wrapper">
-      {runTour && (
+      {isMounted && (
         <ReactJoyride
           steps={tourSteps}
-          run={true}
+          run={runTour}
           continuous={true}
           showSkipButton={false}
           tooltipComponent={MascotTooltip}
