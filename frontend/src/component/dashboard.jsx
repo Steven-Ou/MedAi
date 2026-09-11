@@ -13,7 +13,7 @@ import {
   predictPlantImage,
 } from "../utils/herbApi";
 
-import ReactJoyride, { STATUS } from "react-joyride";
+const ReactJoyride = dynamic(() => import("react-joyride"), { ssr: false });
 
 const MascotTooltip = ({
   index,
@@ -96,6 +96,7 @@ export default function HerbAiDashboard() {
   const [messages, setMessages] = useState([]);
   const [inputQuery, setInputQuery] = useState("");
   const [runTour, setRunTour] = useState(false);
+  const [tourKey, setTourKey] = useState(0);
 
   const [videoSrc, setVideoSrc] = useState(null);
   const [imageSrc, setImageSrc] = useState(null);
@@ -576,6 +577,7 @@ export default function HerbAiDashboard() {
     <div className="dashboard-wrapper">
       {isMounted && (
         <ReactJoyride
+          key={tourKey}
           steps={tourSteps}
           run={runTour}
           continuous={true}
@@ -600,7 +602,10 @@ export default function HerbAiDashboard() {
             </p>
           </div>
           <button
-            onClick={() => setRunTour(true)}
+            onClick={() => {
+              setTourKey((prev) => prev + 1);
+              setRunTour(true);
+            }}
             style={{
               backgroundColor: "#10b981",
               color: "white",
