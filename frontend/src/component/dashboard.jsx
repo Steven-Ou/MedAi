@@ -127,11 +127,7 @@ export default function HerbAiDashboard() {
   const handleJoyrideCallback = (data) => {
     const { status } = data;
     // Turn the tour off when skipped or finished
-    if (
-      [STATUS.FINISHED, STATUS.SKIPPED].includes(status) ||
-      status === "finished" ||
-      status === "skipped"
-    ) {
+    if (["finished", "skipped"].includes(status)) {
       setRunTour(false);
     }
   };
@@ -575,11 +571,11 @@ export default function HerbAiDashboard() {
 
   return (
     <div className="dashboard-wrapper">
-      {isMounted && (
+      {runTour && (
         <ReactJoyride
           key={tourKey}
           steps={tourSteps}
-          run={runTour}
+          run={true}
           continuous={true}
           showSkipButton={false}
           tooltipComponent={MascotTooltip}
