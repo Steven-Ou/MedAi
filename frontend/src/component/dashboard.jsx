@@ -13,8 +13,13 @@ import {
   predictPlantImage,
 } from "../utils/herbApi";
 
-const ReactJoyride = dynamic(() => import("react-joyride"), { ssr: false });
+// 1. THE CORRECT NAMED EXPORT
+const ReactJoyride = dynamic(
+  () => import("react-joyride").then((mod) => mod.Joyride),
+  { ssr: false },
+);
 
+// 2. THE MASCOT TOOLTIP (Safely outside the main function)
 const MascotTooltip = ({
   index,
   step,
@@ -38,7 +43,6 @@ const MascotTooltip = ({
     }}
   >
     <div style={{ flexShrink: 0 }}>
-      {/* You can replace this URL with your actual local fox mascot image path later */}
       <img
         src="https://cdn-icons-png.flaticon.com/512/3069/3069172.png"
         alt="Agent Mascot"
@@ -86,15 +90,12 @@ const MascotTooltip = ({
 );
 
 export default function HerbAiDashboard() {
-  const [isMounted, setIsMounted] = useState(false);
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
   const [telemetry, setTelemetry] = useState([]);
   const [isScanning, setIsScanning] = useState(false);
   const [messages, setMessages] = useState([]);
   const [inputQuery, setInputQuery] = useState("");
+
+  // 3. TOUR STATES
   const [runTour, setRunTour] = useState(false);
   const [tourKey, setTourKey] = useState(0);
 
@@ -103,13 +104,14 @@ export default function HerbAiDashboard() {
   const videoRef = useRef(null);
   const [videoFile, setVideoFile] = useState(null);
 
+  // 4. TOUR STEPS WITH BEACONS DISABLED
   const tourSteps = [
     {
       target: ".media-upload-section",
       content:
         "Start here! Upload a video or image of a plant you want to identify.",
       placement: "bottom",
-      disableBeacon: true, // This skips the black dot!
+      disableBeacon: true,
     },
     {
       target: ".identify-btn",
@@ -124,9 +126,9 @@ export default function HerbAiDashboard() {
     },
   ];
 
+  // 5. UNCONTROLLED CALLBACK
   const handleJoyrideCallback = (data) => {
     const { status } = data;
-    // Turn the tour off when skipped or finished
     if (["finished", "skipped"].includes(status)) {
       setRunTour(false);
     }
