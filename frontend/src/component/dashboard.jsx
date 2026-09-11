@@ -13,14 +13,7 @@ import {
   predictPlantImage,
 } from "../utils/herbApi";
 
-const ReactJoyride = dynamic(
-  async () => {
-    const mod = await import("react-joyride");
-    const Component = mod.default;
-    return typeof Component === "object" ? Component.default : Component;
-  },
-  { ssr: false },
-);
+const ReactJoyride = dynamic(() => import("react-joyride"), { ssr: false });
 
 const MascotTooltip = ({
   index,
@@ -98,7 +91,7 @@ export default function HerbAiDashboard() {
   const [messages, setMessages] = useState([]);
   const [inputQuery, setInputQuery] = useState("");
   const [runTour, setRunTour] = useState(false);
-  const [stepIndex, setStepIndex] = useState(0);
+
   const [videoSrc, setVideoSrc] = useState(null);
   const [imageSrc, setImageSrc] = useState(null);
   const videoRef = useRef(null);
@@ -572,24 +565,17 @@ export default function HerbAiDashboard() {
 
   return (
     <div className="dashboard-wrapper">
-      <ReactJoyride
-        steps={tourSteps}
-        run={runTour}
-        stepIndex={stepIndex}
-        continuous={true}
-        showSkipButton={false}
-        tooltipComponent={MascotTooltip} // Injects the mascot!
-        callback={(data) => {
-          const { action, index, status, type } = data;
-          if (["finished", "skipped"].includes(status)) {
-            setRunTour(false);
-            setStepIndex(0); // Resets the tour so the button works again
-          } else if (["step:after", "target:notFound"].includes(type)) {
-            setStepIndex(index + (action === "prev" ? -1 : 1));
-          }
-        }}
-        styles={{ options: { zIndex: 10000 } }}
-      />
+      {runTour && (
+        <ReactJoyride
+          steps={tourSteps}
+          run={true}
+          continuous={true}
+          showSkipButton={false}
+          tooltipComponent={MascotTooltip}
+          callback={handleJoyrideCallback}
+          styles={{ options: { zIndex: 10000 } }}
+        />
+      )}
       <style dangerouslySetInnerHTML={{ __html: globalStyles }} />
 
       <div className="dashboard-container">
@@ -605,10 +591,7 @@ export default function HerbAiDashboard() {
             </p>
           </div>
           <button
-            onClick={() => {
-              setRunTour(true);
-              setStepIndex(0);
-            }}
+            onClick={() => setRunTour(true)}
             style={{
               backgroundColor: "#10b981",
               color: "white",
