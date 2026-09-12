@@ -19,6 +19,52 @@ const ReactJoyride = dynamic(
   { ssr: false },
 );
 
+const CustomBeacon = React.forwardRef((props, ref) => {
+  return (
+    <div
+      ref={ref}
+      {...props}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        cursor: "pointer",
+        transform: "translateY(-15px)", // Lifts it up slightly so it points perfectly
+        zIndex: 10000,
+      }}
+    >
+      {/* The "Click Me" Label */}
+      <div
+        style={{
+          backgroundColor: "#065f46",
+          color: "#ffffff",
+          padding: "8px 16px",
+          borderRadius: "20px",
+          fontWeight: "bold",
+          fontSize: "14px",
+          marginBottom: "8px",
+          boxShadow: "0 4px 10px rgba(0,0,0,0.2)",
+          whiteSpace: "nowrap",
+          border: "2px solid #34d399",
+        }}
+      >
+        👇 Click Here to Start Tour!
+      </div>
+      {/* The Huge Custom Dot */}
+      <div
+        style={{
+          width: "35px",
+          height: "35px",
+          backgroundColor: "#10b981",
+          borderRadius: "50%",
+          border: "4px solid #ffffff",
+          boxShadow: "0 0 15px rgba(16, 185, 129, 0.8)",
+        }}
+      />
+    </div>
+  );
+});
+
 // 2. THE MASCOT TOOLTIP (Safely outside the main function)
 const MascotTooltip = ({
   index,
