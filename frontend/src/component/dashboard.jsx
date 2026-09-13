@@ -90,7 +90,7 @@ const MascotTooltip = ({
   >
     <div style={{ flexShrink: 0 }}>
       <img
-        src="https://cdn-icons-png.flaticon.com/512/3069/3069172.png"
+        src="/mascot.png"
         alt="Agent Mascot"
         style={{ width: "80px", height: "80px" }}
       />
@@ -157,18 +157,18 @@ export default function HerbAiDashboard() {
       content:
         "Start here! Upload a video or image of a plant you want to identify.",
       placement: "bottom",
-      disableBeacon: true,
+      disableBeacon: false,
     },
     {
       target: ".identify-btn",
       content: "Click here to send your media to the YOLO vision model.",
-      disableBeacon: true,
+      disableBeacon: false,
     },
     {
       target: ".log-stream-container",
       content:
         "Once analyzed, all detected plants will appear here. Click on any row to load its clinical data!",
-      disableBeacon: true,
+      disableBeacon: false,
     },
   ];
 
@@ -627,6 +627,7 @@ export default function HerbAiDashboard() {
           continuous={true}
           showSkipButton={false}
           tooltipComponent={MascotTooltip}
+          beaconComponent={CustomBeacon}
           callback={handleJoyrideCallback}
           styles={{ options: { zIndex: 10000 } }}
         />
