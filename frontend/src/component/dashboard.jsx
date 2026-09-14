@@ -15,8 +15,15 @@ import {
 
 // 1. THE CORRECT NAMED EXPORT
 const ReactJoyride = dynamic(
-  () => import("react-joyride").then((mod) => mod.Joyride),
-  { ssr: false },
+  () =>
+    import("react-joyride").then((mod) => {
+      const JoyrideComponent = mod.default?.default || mod.default || mod.Joyride || mod;
+      
+      return function JoyrideSafeWrapper(props) {
+        return <JoyrideComponent {...props} />;
+      };
+    }),
+  { ssr: false }
 );
 
 const CustomBeacon = React.forwardRef((props, ref) => {
@@ -136,6 +143,7 @@ const MascotTooltip = ({
 );
 
 export default function HerbAiDashboard() {
+  const [isMounted, setIsMounted] = useState(false);
   const [telemetry, setTelemetry] = useState([]);
   const [isScanning, setIsScanning] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -150,6 +158,11 @@ export default function HerbAiDashboard() {
   const videoRef = useRef(null);
   const [videoFile, setVideoFile] = useState(null);
 
+  useEffect(() => {
+    setIsMounted(true);
+    setRunTour(true); // Greets the visitor immediately!
+  }, []);
+
   // 4. TOUR STEPS WITH BEACONS DISABLED
   const tourSteps = [
     {
@@ -157,18 +170,18 @@ export default function HerbAiDashboard() {
       content:
         "Start here! Upload a video or image of a plant you want to identify.",
       placement: "bottom",
-      disableBeacon: false,
+      disableBeacon: true,
     },
     {
       target: ".identify-btn",
       content: "Click here to send your media to the YOLO vision model.",
-      disableBeacon: false,
+      disableBeacon: true,
     },
     {
       target: ".log-stream-container",
       content:
         "Once analyzed, all detected plants will appear here. Click on any row to load its clinical data!",
-      disableBeacon: false,
+      disableBeacon: true,
     },
   ];
 
@@ -619,15 +632,14 @@ export default function HerbAiDashboard() {
 
   return (
     <div className="dashboard-wrapper">
-      {runTour && (
+      {isMounted && (
         <ReactJoyride
           key={tourKey}
           steps={tourSteps}
-          run={true}
+          run={runTour}
           continuous={true}
           showSkipButton={false}
           tooltipComponent={MascotTooltip}
-          beaconComponent={CustomBeacon}
           callback={handleJoyrideCallback}
           styles={{ options: { zIndex: 10000 } }}
         />
