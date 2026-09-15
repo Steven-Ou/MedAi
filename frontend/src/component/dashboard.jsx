@@ -17,16 +17,17 @@ import {
 const ReactJoyride = dynamic(
   () =>
     import("react-joyride").then((mod) => {
-      const JoyrideComponent = mod.default?.default || mod.default || mod.Joyride || mod;
-      
+      const JoyrideComponent =
+        mod.default?.default || mod.default || mod.Joyride || mod;
+
       return function JoyrideSafeWrapper(props) {
         return <JoyrideComponent {...props} />;
       };
     }),
-  { ssr: false }
+  { ssr: false },
 );
 
-const CustomBeacon = React.forwardRef((props, ref) => {
+const MascotBeacon = React.forwardRef((props, ref) => {
   return (
     <div
       ref={ref}
@@ -36,36 +37,39 @@ const CustomBeacon = React.forwardRef((props, ref) => {
         flexDirection: "column",
         alignItems: "center",
         cursor: "pointer",
-        transform: "translateY(-15px)", // Lifts it up slightly so it points perfectly
         zIndex: 10000,
+        position: "relative",
       }}
     >
-      {/* The "Click Me" Label */}
+      {/* Speech bubble pointer */}
       <div
         style={{
           backgroundColor: "#065f46",
           color: "#ffffff",
-          padding: "8px 16px",
-          borderRadius: "20px",
-          fontWeight: "bold",
-          fontSize: "14px",
-          marginBottom: "8px",
-          boxShadow: "0 4px 10px rgba(0,0,0,0.2)",
+          padding: "6px 14px",
+          borderRadius: "16px",
+          fontWeight: "700",
+          fontSize: "12px",
+          marginBottom: "6px",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
           whiteSpace: "nowrap",
           border: "2px solid #34d399",
+          animation: "mascotFloat 2s ease-in-out infinite",
         }}
       >
-        👇 Click Here to Start Tour!
+        👇 Click here to take or retake the tour!
       </div>
-      {/* The Huge Custom Dot */}
-      <div
+
+      {/* Mascot Image acting as Beacon */}
+      <img
+        src="/mascot.png"
+        alt="Herb-AI Mascot"
         style={{
-          width: "35px",
-          height: "35px",
-          backgroundColor: "#10b981",
-          borderRadius: "50%",
-          border: "4px solid #ffffff",
-          boxShadow: "0 0 15px rgba(16, 185, 129, 0.8)",
+          width: "52px",
+          height: "52px",
+          objectFit: "contain",
+          filter: "drop-shadow(0 0 10px rgba(16, 185, 129, 0.9))",
+          animation: "mascotBounce 1.5s infinite alternate ease-in-out",
         }}
       />
     </div>
@@ -612,6 +616,16 @@ export default function HerbAiDashboard() {
     .typing-dot { display: inline-block; animation: bounce 1.4s infinite ease-in-out both; margin: 0 1px; }
     .typing-dot:nth-child(1) { animation-delay: -0.32s; }
     .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+    @keyframes mascotBounce {
+      0% { transform: translateY(0) scale(1); }
+      100% { transform: translateY(-8px) scale(1.05); }
+    }
+
+    @keyframes mascotFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+}
   `;
 
   const styles = {
@@ -659,6 +673,7 @@ export default function HerbAiDashboard() {
             </p>
           </div>
           <button
+            className="tour-trigger-btn"
             onClick={() => {
               setTourKey((prev) => prev + 1);
               setRunTour(true);
