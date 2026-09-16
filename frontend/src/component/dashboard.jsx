@@ -170,6 +170,13 @@ export default function HerbAiDashboard() {
   // 4. TOUR STEPS WITH BEACONS DISABLED
   const tourSteps = [
     {
+      target: ".tour-trigger-btn",
+      content:
+        "Welcome to Herb-AI! You can click here anytime to start or retake this tour.",
+      placement: "bottom",
+      disableBeacon: false, 
+    },
+    {
       target: ".media-upload-section",
       content:
         "Start here! Upload a video or image of a plant you want to identify.",
