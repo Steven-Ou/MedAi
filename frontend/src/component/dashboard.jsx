@@ -174,7 +174,7 @@ export default function HerbAiDashboard() {
       content:
         "Welcome to Herb-AI! You can click here anytime to start or retake this tour.",
       placement: "bottom",
-      disableBeacon: false, 
+      disableBeacon: false,
     },
     {
       target: ".media-upload-section",
@@ -660,9 +660,15 @@ export default function HerbAiDashboard() {
           run={runTour}
           continuous={true}
           showSkipButton={false}
+          beaconComponent={MascotBeacon}
           tooltipComponent={MascotTooltip}
           callback={handleJoyrideCallback}
-          styles={{ options: { zIndex: 10000 } }}
+          styles={{
+            options: {
+              zIndex: 10000,
+              primaryColor: "#10b981",
+            },
+          }}
         />
       )}
       <style dangerouslySetInnerHTML={{ __html: globalStyles }} />
