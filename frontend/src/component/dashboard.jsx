@@ -39,6 +39,7 @@ const MascotBeacon = React.forwardRef((props, ref) => {
         cursor: "pointer",
         zIndex: 10000,
         position: "relative",
+        transform: "translateX(-50%)", 
       }}
     >
       {/* Speech bubble pointer */}
@@ -156,6 +157,7 @@ export default function HerbAiDashboard() {
   // 3. TOUR STATES
   const [runTour, setRunTour] = useState(false);
   const [tourKey, setTourKey] = useState(0);
+  const [isInitialTour, setIsInitialTour] = useState(true);
 
   const [videoSrc, setVideoSrc] = useState(null);
   const [imageSrc, setImageSrc] = useState(null);
@@ -169,6 +171,13 @@ export default function HerbAiDashboard() {
 
   // 4. TOUR STEPS WITH BEACONS DISABLED
   const tourSteps = [
+    {
+      target: ".tour-trigger-btn",
+      content:
+        "Welcome to Herb-AI! You can click here anytime to start or retake this tour.",
+      placement: "bottom",
+      disableBeacon: !isInitialTour, // Now it turns off after the first run!
+    },
     {
       target: ".tour-trigger-btn",
       content:
@@ -201,6 +210,7 @@ export default function HerbAiDashboard() {
     const { status } = data;
     if (["finished", "skipped"].includes(status)) {
       setRunTour(false);
+      setIsInitialTour(false);
     }
   };
 
@@ -688,6 +698,7 @@ export default function HerbAiDashboard() {
           <button
             className="tour-trigger-btn"
             onClick={() => {
+              setIsInitialTour(false);
               setTourKey((prev) => prev + 1);
               setRunTour(true);
             }}
