@@ -13,6 +13,8 @@ import {
   predictPlantImage,
 } from "../utils/herbApi";
 
+const SHOW_SYSTEM_NOTICE = true;
+
 // 1. THE CORRECT NAMED EXPORT
 const ReactJoyride = dynamic(
   () =>
@@ -39,7 +41,7 @@ const MascotBeacon = React.forwardRef((props, ref) => {
         cursor: "pointer",
         zIndex: 10000,
         position: "relative",
-        transform: "translateX(-50%)", 
+        transform: "translate(-50%, 8px)", // Pushes it down slightly so the arrow aligns nicely
       }}
     >
       {/* Speech bubble pointer */}
@@ -47,7 +49,7 @@ const MascotBeacon = React.forwardRef((props, ref) => {
         style={{
           backgroundColor: "#065f46",
           color: "#ffffff",
-          padding: "6px 14px",
+          padding: "8px 14px",
           borderRadius: "16px",
           fontWeight: "700",
           fontSize: "12px",
@@ -56,9 +58,24 @@ const MascotBeacon = React.forwardRef((props, ref) => {
           whiteSpace: "nowrap",
           border: "2px solid #34d399",
           animation: "mascotFloat 2s ease-in-out infinite",
+          position: "relative", // Required for the absolute arrow below
         }}
       >
-        👇 Click here to take or retake the tour!
+        {/* CSS Triangle (The Arrow) pointing UP at the button */}
+        <div 
+          style={{
+            position: "absolute",
+            top: "-10px", // Pulls it outside the top of the bubble
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: "0",
+            height: "0",
+            borderLeft: "8px solid transparent",
+            borderRight: "8px solid transparent",
+            borderBottom: "8px solid #34d399" // Creates the upward pointing arrow
+          }} 
+        />
+        Click here to start the tour!
       </div>
 
       {/* Mascot Image acting as Beacon */}
@@ -172,20 +189,6 @@ export default function HerbAiDashboard() {
   // 4. TOUR STEPS WITH BEACONS DISABLED
   const tourSteps = [
     {
-      target: ".tour-trigger-btn",
-      content:
-        "Welcome to Herb-AI! You can click here anytime to start or retake this tour.",
-      placement: "bottom",
-      disableBeacon: !isInitialTour, // Now it turns off after the first run!
-    },
-    {
-      target: ".tour-trigger-btn",
-      content:
-        "Welcome to Herb-AI! You can click here anytime to start or retake this tour.",
-      placement: "bottom",
-      disableBeacon: false,
-    },
-    {
       target: ".media-upload-section",
       content:
         "Start here! Upload a video or image of a plant you want to identify.",
@@ -204,6 +207,18 @@ export default function HerbAiDashboard() {
       disableBeacon: true,
     },
   ];
+  const tourSteps = isInitialTour
+    ? [
+        {
+          target: ".tour-trigger-btn",
+          content:
+            "Welcome to Herb-AI! You can click here anytime to start or retake this tour.",
+          placement: "bottom",
+          disableBeacon: false,
+        },
+        ...baseSteps,
+      ]
+    : baseSteps;
 
   // 5. UNCONTROLLED CALLBACK
   const handleJoyrideCallback = (data) => {
@@ -684,6 +699,32 @@ export default function HerbAiDashboard() {
       <style dangerouslySetInnerHTML={{ __html: globalStyles }} />
 
       <div className="dashboard-container">
+        {SHOW_SYSTEM_NOTICE && (
+          <div
+            style={{
+              backgroundColor: "#fef3c7",
+              border: "1px solid #f59e0b",
+              color: "#92400e",
+              padding: "12px 20px",
+              borderRadius: "12px",
+              marginBottom: "20px",
+              fontSize: "14px",
+              fontWeight: "500",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              boxShadow: "0 4px 6px rgba(245, 158, 11, 0.1)",
+            }}
+          >
+            <span style={{ fontSize: "18px" }}>⚠️</span>
+            <div>
+              <strong>Development Notice:</strong> This project is currently
+              undergoing live updates. If you encounter an error or models fail
+              to respond, please contact my email or check back later!
+            </div>
+          </div>
+        )}
+
         <header className="dashboard-header">
           <div>
             <h1 style={{ margin: 0, fontSize: "26px", fontWeight: "700" }}>
