@@ -187,7 +187,7 @@ export default function HerbAiDashboard() {
   }, []);
 
   // 4. TOUR STEPS WITH BEACONS DISABLED
-  const tourSteps = [
+  const baseSteps = [
     {
       target: ".media-upload-section",
       content:
@@ -207,6 +207,9 @@ export default function HerbAiDashboard() {
       disableBeacon: true,
     },
   ];
+
+  // If it's the very first load, prepend the mascot beacon step.
+  // If they click the button manually later, this array skips straight to the media hub!
   const tourSteps = isInitialTour
     ? [
         {
