@@ -201,7 +201,7 @@ export default function HerbAiDashboard() {
       disableBeacon: true,
     },
     {
-      target: ".log-section", 
+      target: ".log-section",
       content:
         "Once analyzed, all detected plants will appear here. Click on any row to load its clinical data!",
       disableBeacon: true,
@@ -911,108 +911,115 @@ export default function HerbAiDashboard() {
                 />
               )}
             </div>
-            <h3
-              style={{
-                fontSize: "17px",
-                fontWeight: "600",
-                color: "#065f46",
-                margin: "15px 0 10px 0",
-              }}
+            <div
+              className="log-section"
+              style={{ position: "relative", zIndex: 1, padding: "10px 0" }}
             >
-              📊 Identification Log Stream
-            </h3>
+              <h3
+                style={{
+                  fontSize: "17px",
+                  fontWeight: "600",
+                  color: "#065f46",
+                  margin: "15px 0 10px 0",
+                }}
+              >
+                📊 Identification Log Stream
+              </h3>
 
-            <div className="log-stream-container">
-              {telemetry.length === 0 ? (
-                <div
-                  style={{
-                    textAlign: "center",
-                    padding: "20px",
-                    backgroundColor: "#f8fafc",
-                    borderRadius: "8px",
-                    border: "1px dashed #cbd5e1",
-                  }}
-                >
-                  <p style={{ fontSize: "14px", color: "#64748b", margin: 0 }}>
-                    Waiting for visual telemetry.
-                    <br />
-                    Upload media to populate logs.
-                  </p>
-                </div>
-              ) : (
-                <table
-                  style={{
-                    width: "100%",
-                    borderCollapse: "separate",
-                    borderSpacing: "0 4px",
-                  }}
-                >
-                  <tbody>
-                    {telemetry.map((item, i) => (
-                      <tr
-                        key={i}
-                        className="telemetry-row"
-                        style={{ backgroundColor: "#f8fafc" }}
-                        onClick={() => handleRowClick(item.species)}
-                      >
-                        <td style={{ padding: "8px", width: "50px" }}>
-                          {item.evidenceImage ? (
-                            <img
-                              src={item.evidenceImage}
-                              alt={item.species}
-                              style={{
-                                width: "45px",
-                                height: "45px",
-                                borderRadius: "8px",
-                                objectFit: "cover",
-                              }}
-                            />
-                          ) : (
-                            <div
-                              style={{
-                                width: "45px",
-                                height: "45px",
-                                backgroundColor: "#e2e8f0",
-                                borderRadius: "8px",
-                              }}
-                            />
-                          )}
-                        </td>
-                        <td
-                          style={{
-                            padding: "12px 10px",
-                            fontWeight: "600",
-                            color: item.species.includes("Anomaly")
-                              ? "#e74c3c"
-                              : "#0f766e",
-                          }}
+              <div className="log-stream-container">
+                {telemetry.length === 0 ? (
+                  <div
+                    style={{
+                      textAlign: "center",
+                      padding: "20px",
+                      backgroundColor: "#f8fafc",
+                      borderRadius: "8px",
+                      border: "1px dashed #cbd5e1",
+                    }}
+                  >
+                    <p
+                      style={{ fontSize: "14px", color: "#64748b", margin: 0 }}
+                    >
+                      Waiting for visual telemetry.
+                      <br />
+                      Upload media to populate logs.
+                    </p>
+                  </div>
+                ) : (
+                  <table
+                    style={{
+                      width: "100%",
+                      borderCollapse: "separate",
+                      borderSpacing: "0 4px",
+                    }}
+                  >
+                    <tbody>
+                      {telemetry.map((item, i) => (
+                        <tr
+                          key={i}
+                          className="telemetry-row"
+                          style={{ backgroundColor: "#f8fafc" }}
+                          onClick={() => handleRowClick(item.species)}
                         >
-                          {item.species}
-                        </td>
-                        <td
-                          style={{
-                            padding: "12px 10px",
-                            color: "#64748b",
-                            fontSize: "13.5px",
-                          }}
-                        >
-                          {item.framesTracked} frames tracked
-                        </td>
-                        <td
-                          style={{
-                            padding: "12px 10px",
-                            textAlign: "right",
-                            fontWeight: "700",
-                            color: "#10b981",
-                          }}
-                        >
-                          {(item.maxConfidence * 100).toFixed(0)}%
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+                          <td style={{ padding: "8px", width: "50px" }}>
+                            {item.evidenceImage ? (
+                              <img
+                                src={item.evidenceImage}
+                                alt={item.species}
+                                style={{
+                                  width: "45px",
+                                  height: "45px",
+                                  borderRadius: "8px",
+                                  objectFit: "cover",
+                                }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  width: "45px",
+                                  height: "45px",
+                                  backgroundColor: "#e2e8f0",
+                                  borderRadius: "8px",
+                                }}
+                              />
+                            )}
+                          </td>
+                          <td
+                            style={{
+                              padding: "12px 10px",
+                              fontWeight: "600",
+                              color: item.species.includes("Anomaly")
+                                ? "#e74c3c"
+                                : "#0f766e",
+                            }}
+                          >
+                            {item.species}
+                          </td>
+                          <td
+                            style={{
+                              padding: "12px 10px",
+                              color: "#64748b",
+                              fontSize: "13.5px",
+                            }}
+                          >
+                            {item.framesTracked} frames tracked
+                          </td>
+                          <td
+                            style={{
+                              padding: "12px 10px",
+                              textAlign: "right",
+                              fontWeight: "700",
+                              color: "#10b981",
+                            }}
+                          >
+                            {(item.maxConfidence * 100).toFixed(0)}%
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
           </div>
 
