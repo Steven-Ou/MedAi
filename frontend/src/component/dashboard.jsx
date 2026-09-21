@@ -40,8 +40,8 @@ const MascotBeacon = React.forwardRef((props, ref) => {
         alignItems: "center",
         cursor: "pointer",
         zIndex: 10000,
-        position: "relative",
-        transform: "translateY(8px)",
+        position: "relative", 
+        transform: "translateY(15px)", 
       }}
     >
       {/* Speech bubble pointer */}
@@ -49,42 +49,40 @@ const MascotBeacon = React.forwardRef((props, ref) => {
         style={{
           backgroundColor: "#065f46",
           color: "#ffffff",
-          padding: "8px 14px",
-          borderRadius: "16px",
-          fontWeight: "700",
-          fontSize: "12px",
-          marginBottom: "6px",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
-          whiteSpace: "nowrap",
-          border: "2px solid #34d399",
+          padding: "8px 16px",
+          borderRadius: "20px",
+          fontWeight: "bold",
+          fontSize: "13px",
+          marginBottom: "8px",
+          boxShadow: "0 6px 16px rgba(0,0,0,0.3)",
+          position: "relative",
           animation: "mascotFloat 2s ease-in-out infinite",
-          position: "relative", // Required for the absolute arrow below
+          whiteSpace: "nowrap",
         }}
       >
         {/* CSS Triangle (The Arrow) pointing UP at the button */}
         <div
           style={{
             position: "absolute",
-            top: "-10px", // Pulls it outside the top of the bubble
+            top: "-8px",
             left: "50%",
             transform: "translateX(-50%)",
             width: "0",
             height: "0",
             borderLeft: "8px solid transparent",
             borderRight: "8px solid transparent",
-            borderBottom: "8px solid #34d399", // Creates the upward pointing arrow
+            borderBottom: "8px solid #065f46",
           }}
         />
         Click here to start the tour!
       </div>
 
-      {/* Mascot Image acting as Beacon */}
       <img
         src="/mascot.png"
         alt="Herb-AI Mascot"
         style={{
-          width: "52px",
-          height: "52px",
+          width: "60px",
+          height: "60px",
           objectFit: "contain",
           filter: "drop-shadow(0 0 10px rgba(16, 185, 129, 0.9))",
           animation: "mascotBounce 1.5s infinite alternate ease-in-out",
@@ -692,6 +690,7 @@ export default function HerbAiDashboard() {
           beaconComponent={MascotBeacon}
           tooltipComponent={MascotTooltip}
           callback={handleJoyrideCallback}
+          disableScrollParentFix={true} 
           styles={{
             options: {
               zIndex: 10000,
