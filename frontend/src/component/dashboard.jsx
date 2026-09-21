@@ -41,7 +41,7 @@ const MascotBeacon = React.forwardRef((props, ref) => {
         cursor: "pointer",
         zIndex: 10000,
         position: "relative",
-        transform: "translateY(8px)", 
+        transform: "translateY(8px)",
       }}
     >
       {/* Speech bubble pointer */}
@@ -62,7 +62,7 @@ const MascotBeacon = React.forwardRef((props, ref) => {
         }}
       >
         {/* CSS Triangle (The Arrow) pointing UP at the button */}
-        <div 
+        <div
           style={{
             position: "absolute",
             top: "-10px", // Pulls it outside the top of the bubble
@@ -72,8 +72,8 @@ const MascotBeacon = React.forwardRef((props, ref) => {
             height: "0",
             borderLeft: "8px solid transparent",
             borderRight: "8px solid transparent",
-            borderBottom: "8px solid #34d399" // Creates the upward pointing arrow
-          }} 
+            borderBottom: "8px solid #34d399", // Creates the upward pointing arrow
+          }}
         />
         Click here to start the tour!
       </div>
@@ -702,28 +702,76 @@ export default function HerbAiDashboard() {
       <style dangerouslySetInnerHTML={{ __html: globalStyles }} />
 
       <div className="dashboard-container">
-        {SHOW_SYSTEM_NOTICE && (
+        {SHOW_SYSTEM_NOTICE && showNotice && (
           <div
             style={{
-              backgroundColor: "#fef3c7",
-              border: "1px solid #f59e0b",
-              color: "#92400e",
-              padding: "12px 20px",
-              borderRadius: "12px",
-              marginBottom: "20px",
-              fontSize: "14px",
-              fontWeight: "500",
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "100vw",
+              height: "100vh",
+              backgroundColor: "rgba(15, 23, 42, 0.85)",
+              zIndex: 999999,
               display: "flex",
+              justifyContent: "center",
               alignItems: "center",
-              gap: "10px",
-              boxShadow: "0 4px 6px rgba(245, 158, 11, 0.1)",
+              backdropFilter: "blur(8px)",
             }}
           >
-            <span style={{ fontSize: "18px" }}>⚠️</span>
-            <div>
-              <strong>Development Notice:</strong> This project is currently
-              undergoing live updates. If you encounter an error or models fail
-              to respond, please contact my email or check back later!
+            <div
+              style={{
+                backgroundColor: "#ffffff",
+                borderRadius: "24px",
+                padding: "40px",
+                maxWidth: "600px",
+                width: "90%",
+                textAlign: "center",
+                boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+                border: "4px solid #f59e0b",
+              }}
+            >
+              <div style={{ fontSize: "60px", marginBottom: "20px" }}>🚧</div>
+              <h2
+                style={{
+                  color: "#92400e",
+                  fontSize: "28px",
+                  margin: "0 0 15px 0",
+                }}
+              >
+                Development Warning
+              </h2>
+              <p
+                style={{
+                  color: "#475569",
+                  fontSize: "16px",
+                  lineHeight: "1.6",
+                  marginBottom: "30px",
+                }}
+              >
+                This project is currently undergoing live updates. You may
+                encounter temporary errors or models failing to respond while
+                architecture changes are pushed.
+                <br />
+                <br />
+                If you encounter any issues, please reach out via my contact
+                email in the footer.
+              </p>
+              <button
+                onClick={() => setShowNotice(false)}
+                style={{
+                  backgroundColor: "#f59e0b",
+                  color: "#fff",
+                  padding: "14px 32px",
+                  borderRadius: "12px",
+                  border: "none",
+                  fontSize: "16px",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                  boxShadow: "0 4px 10px rgba(245, 158, 11, 0.3)",
+                }}
+              >
+                I Understand, Continue
+              </button>
             </div>
           </div>
         )}
