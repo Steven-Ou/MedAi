@@ -41,7 +41,7 @@ const MascotBeacon = React.forwardRef((props, ref) => {
         cursor: "pointer",
         zIndex: 10000,
         position: "relative",
-        transform: "translate(-50%, 8px)", // Pushes it down slightly so the arrow aligns nicely
+        transform: "translateY(8px)", 
       }}
     >
       {/* Speech bubble pointer */}
