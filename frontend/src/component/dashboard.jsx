@@ -201,15 +201,14 @@ export default function HerbAiDashboard() {
       disableBeacon: true,
     },
     {
-      target: ".log-stream-container",
+      target: ".log-section", 
       content:
         "Once analyzed, all detected plants will appear here. Click on any row to load its clinical data!",
       disableBeacon: true,
     },
   ];
 
-  // If it's the very first load, prepend the mascot beacon step.
-  // If they click the button manually later, this array skips straight to the media hub!
+  // Clean logic: conditionally add the beacon step ONLY on first load
   const tourSteps = isInitialTour
     ? [
         {
