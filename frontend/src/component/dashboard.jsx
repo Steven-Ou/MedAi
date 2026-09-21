@@ -172,6 +172,8 @@ export default function HerbAiDashboard() {
   const [inputQuery, setInputQuery] = useState("");
 
   // 3. TOUR STATES
+  const [showNotice, setShowNotice] = useState(SHOW_SYSTEM_NOTICE);
+
   const [runTour, setRunTour] = useState(false);
   const [tourKey, setTourKey] = useState(0);
   const [isInitialTour, setIsInitialTour] = useState(true);
