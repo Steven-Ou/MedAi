@@ -40,8 +40,8 @@ const MascotBeacon = React.forwardRef((props, ref) => {
         alignItems: "center",
         cursor: "pointer",
         zIndex: 10000,
-        position: "relative", 
-        transform: "translateY(15px)", 
+        position: "relative",
+        transform: "translateY(15px)",
       }}
     >
       {/* Speech bubble pointer */}
@@ -206,17 +206,25 @@ export default function HerbAiDashboard() {
         "Once analyzed, all detected plants will appear here. Click on any row to load its clinical data!",
       disableBeacon: true,
     },
+    {
+      target: ".chat-terminal-section", // Adds the chat terminal to the tour
+      content:
+        "This is the RAG Clinical Agent Terminal! Ask me follow-up questions here.",
+      placement: "left",
+      disableBeacon: true,
+    },
   ];
 
   // Clean logic: conditionally add the beacon step ONLY on first load
   const tourSteps = isInitialTour
     ? [
         {
-          target: ".tour-trigger-btn",
+          target: "body",
+          placement: "center",
           content:
             "Welcome to Herb-AI! You can click here anytime to start or retake this tour.",
           placement: "bottom",
-          disableBeacon: false,
+          disableBeacon: true,
         },
         ...baseSteps,
       ]
@@ -690,7 +698,7 @@ export default function HerbAiDashboard() {
           beaconComponent={MascotBeacon}
           tooltipComponent={MascotTooltip}
           callback={handleJoyrideCallback}
-          disableScrollParentFix={true} 
+          disableScrollParentFix={true}
           styles={{
             options: {
               zIndex: 10000,
@@ -710,7 +718,7 @@ export default function HerbAiDashboard() {
               left: 0,
               width: "100vw",
               height: "100vh",
-              backgroundColor: "rgba(15, 23, 42, 0.85)",
+              backgroundColor: "rgba(6, 95, 70, 0.85)",
               zIndex: 999999,
               display: "flex",
               justifyContent: "center",
@@ -726,14 +734,14 @@ export default function HerbAiDashboard() {
                 maxWidth: "600px",
                 width: "90%",
                 textAlign: "center",
+                border: "4px solid #10b981",
                 boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
-                border: "4px solid #f59e0b",
               }}
             >
               <div style={{ fontSize: "60px", marginBottom: "20px" }}>🚧</div>
               <h2
                 style={{
-                  color: "#92400e",
+                  color: "#065f46",
                   fontSize: "28px",
                   margin: "0 0 15px 0",
                 }}
@@ -759,7 +767,7 @@ export default function HerbAiDashboard() {
               <button
                 onClick={() => setShowNotice(false)}
                 style={{
-                  backgroundColor: "#f59e0b",
+                  backgroundColor: "#10b981",
                   color: "#fff",
                   padding: "14px 32px",
                   borderRadius: "12px",
@@ -767,7 +775,7 @@ export default function HerbAiDashboard() {
                   fontSize: "16px",
                   fontWeight: "bold",
                   cursor: "pointer",
-                  boxShadow: "0 4px 10px rgba(245, 158, 11, 0.3)",
+                  boxShadow: "0 4px 10px rgba(16, 185, 129, 0.3)",
                 }}
               >
                 I Understand, Continue
@@ -912,9 +920,17 @@ export default function HerbAiDashboard() {
                 />
               )}
             </div>
+
             <div
               className="log-section"
-              style={{ position: "relative", zIndex: 1, padding: "10px 0" }}
+              style={{
+                position: "relative",
+                backgroundColor: "#ffffff",
+                borderRadius: "16px",
+                minHeight: "150px",
+                zIndex: 1,
+                padding: "10px",
+              }}
             >
               <h3
                 style={{
@@ -1024,7 +1040,7 @@ export default function HerbAiDashboard() {
             </div>
           </div>
 
-          <div className="panel-card">
+          <div className="panel-card chat-terminal-section">
             <h3
               style={{
                 fontSize: "17px",
