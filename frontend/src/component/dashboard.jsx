@@ -40,8 +40,7 @@ const MascotBeacon = React.forwardRef((props, ref) => {
         alignItems: "center",
         cursor: "pointer",
         zIndex: 10000,
-        position: "relative",
-        transform: "translateY(15px)",
+        marginTop: "10px",
       }}
     >
       {/* Speech bubble pointer */}
@@ -66,7 +65,7 @@ const MascotBeacon = React.forwardRef((props, ref) => {
             position: "absolute",
             top: "-8px",
             left: "50%",
-            transform: "translateX(-50%)",
+            marginLeft: "-8px", // Clean CSS centering for the arrow
             width: "0",
             height: "0",
             borderLeft: "8px solid transparent",
@@ -192,38 +191,37 @@ export default function HerbAiDashboard() {
       target: ".media-upload-section",
       content:
         "Start here! Upload a video or image of a plant you want to identify.",
-      placement: "bottom",
+      placement: "right",
       disableBeacon: true,
     },
     {
       target: ".identify-btn",
       content: "Click here to send your media to the YOLO vision model.",
+      placement: "bottom",
       disableBeacon: true,
     },
     {
-      target: ".log-section",
+      target: ".log-section h3",
       content:
         "Once analyzed, all detected plants will appear here. Click on any row to load its clinical data!",
+      placement: "right",
       disableBeacon: true,
     },
     {
-      target: ".chat-terminal-section", // Adds the chat terminal to the tour
+      target: ".chat-terminal-section h3",
       content:
-        "This is the RAG Clinical Agent Terminal! Ask me follow-up questions here.",
+        "This is the RAG Clinical Agent Terminal! Here, you can ask the AI follow-up questions about the identified herbs.",
       placement: "left",
       disableBeacon: true,
     },
   ];
 
-  // Clean logic: conditionally add the beacon step ONLY on first load
   const tourSteps = isInitialTour
     ? [
         {
-          target: "body",
+          target: ".dashboard-header",
           placement: "center",
-          content:
-            "Welcome to Herb-AI! You can click here anytime to start or retake this tour.",
-          placement: "bottom",
+          content: "Welcome to Herb-AI! Let me show you around the dashboard.",
           disableBeacon: true,
         },
         ...baseSteps,
