@@ -460,11 +460,20 @@ export default function HerbAiDashboard() {
 
     html, body {
       margin: 0; padding: 0;
-      background-color: #eaf4eb;
-      /* 8-Bit Grid Background */
+      background-color: #ecfdf5; /* Soft mythical jade background */
+      /* 8-Bit Gold & Jade Grid Background */
       background-image: 
-        linear-gradient(#9ccb9a 2px, transparent 2px),
-        linear-gradient(90deg, #9ccb9a 2px, transparent 2px);
+        linear-gradient(rgba(167, 243, 208, 0.6) 2px, transparent 2px),
+        linear-gradient(90deg, rgba(167, 243, 208, 0.6) 2px, transparent 2px),
+        radial-gradient(circle at 15% 25%, rgba(212, 240, 208, 0.7) 0%, transparent 40%),
+        radial-gradient(circle at 85% 75%, rgba(184, 226, 178, 0.6) 0%, transparent 45%),
+        url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M25 25c15-15 30-7.5 37.5 7.5s-7.5 30-22.5 30-30-7.5-22.5-22.5 7.5-30 7.5-15zm-7.5 7.5c0 7.5 7.5 15 15 15M75 75c15-15 30-7.5 37.5 7.5s-7.5 30-22.5 30-30-7.5-22.5-22.5 7.5-30 7.5-15zm-7.5 7.5c0 7.5 7.5 15 15 15' fill='%236ea769' fill-opacity='0.15' stroke='%23488243' stroke-width='2' stroke-opacity='0.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      
+      background-size: 32px 32px, 32px 32px, auto, auto, 100px 100px;
+      background-attachment: fixed;
+      font-family: 'VT323', monospace;
+      height: 100%;
+      overflow-x: hidden;
       background-size: 32px 32px;
       font-family: 'VT323', monospace;
       height: 100%;
@@ -475,17 +484,17 @@ export default function HerbAiDashboard() {
       min-height: 100vh; padding: 25px 20px; box-sizing: border-box;
       font-family: 'VT323', monospace;
       width: 100%; overflow-x: hidden;
-      font-size: 22px; /* Pixel fonts need to be slightly larger for readability */
+      font-size: 24px; 
     }
     .dashboard-container { width: 100%; max-width: 1600px; margin: 0 auto; }
     
     .dashboard-header {
-      background: #0ea5e9;
+      background: #064e3b; /* Deep forest medicine green */
       padding: 25px 30px; 
-      border-radius: 8px; /* Blocky corners */
-      color: #fff;
-      border: 4px solid #1e293b; /* Thick retro border */
-      box-shadow: 8px 8px 0px #1e293b; /* Hard pixel drop-shadow */
+      border-radius: 4px; /* Hard retro corners */
+      color: #fef08a; /* Soft gold text */
+      border: 4px solid #fbbf24; /* Imperial gold border */
+      box-shadow: 8px 8px 0px #fbbf24; /* Solid gold shadow */
       margin-bottom: 35px;
       display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: space-between;
     }
@@ -494,64 +503,43 @@ export default function HerbAiDashboard() {
     
     .panel-card {
       background-color: #ffffff; 
-      border-radius: 8px; 
+      border-radius: 4px; 
       padding: 30px;
-      border: 4px solid #1e293b;
-      box-shadow: 8px 8px 0px #1e293b;
+      border: 4px solid #064e3b;
+      box-shadow: 8px 8px 0px #064e3b;
       min-height: calc(100vh - 150px); height: auto; display: flex; flex-direction: column;
-      box-sizing: border-box; overflow-y: auto;
+      box-sizing: border-box; 
+      overflow: visible; /* FIX: Prevents Joyride from cutting the log stream in half! */
     }
     
-    .log-stream-container { flex-grow: 1; overflow-y: auto; max-height: 250px; border-radius: 0px; border: 4px solid #cbd5e1; }
+    .log-stream-container { flex-grow: 1; overflow: visible; border-radius: 0px; border: 4px solid #a7f3d0; padding: 10px; }
     .telemetry-row { cursor: pointer; transition: background-color 0.1s; }
-    .telemetry-row:hover { background-color: #e2e8f0 !important; }
+    .telemetry-row:hover { background-color: #ecfdf5 !important; }
     
-    /* Pixelated Chat Adjustments */
     .chat-window { flex-grow: 1; overflow-y: auto; overflow-x: hidden; padding: 10px 10px 20px 10px; margin-bottom: 20px; width: 100%; box-sizing: border-box; }
     .chat-message-row { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 24px; width: 100%; max-width: 100%; box-sizing: border-box; }
     .chat-message-row.user { flex-direction: row-reverse; }
-    .chat-avatar { width: 44px; height: 44px; border: 4px solid #1e293b; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
-    .chat-message-row.user .chat-avatar { background-color: #10b981; }
-    .chat-message-row.agent .chat-avatar { background-color: #f1f5f9; }
+    .chat-avatar { width: 44px; height: 44px; border: 4px solid #064e3b; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; background-color: #fef08a; }
     
     .msg-bubble {
       width: fit-content; max-width: 85%; padding: 16px 20px; 
-      border-radius: 8px; font-size: 22px;
-      color: #334155; white-space: normal; word-wrap: break-word; overflow-wrap: break-word; overflow-x: auto;
-      border: 4px solid #1e293b;
-      box-shadow: 4px 4px 0px #1e293b;
+      border-radius: 4px; font-size: 24px;
+      color: #064e3b; white-space: normal; word-wrap: break-word; overflow-wrap: break-word; overflow-x: auto;
+      border: 4px solid #064e3b;
+      box-shadow: 4px 4px 0px #064e3b;
       box-sizing: border-box;
     }
     .msg-bubble > div { white-space: pre-wrap; }
-    .msg-bubble.user { background-color: #d1fae5; }
+    .msg-bubble.user { background-color: #a7f3d0; }
     .msg-bubble.agent { background-color: #ffffff; }
     
     .markdown-body table { display: block; width: 100%; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 15px 0; white-space: normal; }
-    .markdown-body th, .markdown-body td { min-width: 120px; border: 4px solid #1e293b; padding: 10px; }
-    .markdown-body th { background-color: #f8fafc; color: #334155; }
-    
-    @media (max-width: 1024px) {
-      .dashboard-wrapper { padding: 10px 5px; }
-      .dashboard-header { padding: 15px; }
-      .dashboard-grid { grid-template-columns: 1fr; gap: 20px; }
-      .panel-card { height: auto; min-height: 60vh; padding: 15px; }
-      .msg-bubble { padding: 12px 15px; }
-      .chat-window { padding: 5px 5px 15px 5px; }
-    }
-    
-    .panel-card::-webkit-scrollbar, .chat-window::-webkit-scrollbar, .log-stream-container::-webkit-scrollbar, .msg-bubble::-webkit-scrollbar { width: 12px; height: 12px; }
-    .panel-card::-webkit-scrollbar-thumb, .chat-window::-webkit-scrollbar-thumb, .log-stream-container::-webkit-scrollbar-thumb, .msg-bubble::-webkit-scrollbar-thumb { background-color: #1e293b; border-radius: 0px; }
-    
-    @keyframes bounce { 0%, 100% { transform: translateY(0); opacity: 0.5; } 50% { transform: translateY(-4px); opacity: 1; } }
-    .typing-dot { display: inline-block; animation: bounce 1.4s infinite step-end both; margin: 0 2px; }
-    .typing-dot:nth-child(1) { animation-delay: -0.32s; }
-    .typing-dot:nth-child(2) { animation-delay: -0.16s; }
-    @keyframes mascotBounce { 0% { transform: translateY(0) scale(1); } 100% { transform: translateY(-8px) scale(1.05); } }
-    @keyframes mascotFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+    .markdown-body th, .markdown-body td { min-width: 120px; border: 4px solid #064e3b; padding: 10px; }
+    .markdown-body th { background-color: #f8fafc; color: #064e3b; }
     
     /* Interactive Button Press Animation */
     .pixel-btn { transition: transform 0.1s, box-shadow 0.1s; }
-    .pixel-btn:active { transform: translate(4px, 4px) !important; box-shadow: 0px 0px 0px #1e293b !important; }
+    .pixel-btn:active { transform: translate(4px, 4px) !important; box-shadow: 0px 0px 0px #064e3b !important; }
   `;
 
   const styles = {
