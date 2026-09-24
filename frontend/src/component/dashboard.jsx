@@ -151,12 +151,12 @@ export default function HerbAiDashboard() {
   }, []);
 
   // 4. TOUR STEPS WITH BEACONS DISABLED
-  const tourSteps = [
+  const baseSteps = [
     {
-      target: ".dashboard-header",
+      target: ".dashboard-header h1",
       content: "Welcome to Herb-AI! Let me show you around the dashboard.",
       placement: "bottom",
-      disableBeacon: true, // Forces tooltip to open instantly
+      disableBeacon: true,
     },
     {
       target: ".media-upload-section",
@@ -171,18 +171,29 @@ export default function HerbAiDashboard() {
       disableBeacon: true,
     },
     {
-      target: ".log-section", 
+      target: ".log-section",
       content: "Once analyzed, all detected plants will appear here. Click on any row to load its clinical data!",
-      placement: "top", // Pops up above the log so it doesn't get cut off at the bottom of the screen
-      disableBeacon: true,
+      placement: "top", 
     },
     {
-      target: ".chat-terminal-section",
+      target: ".chat-terminal-section h3",
       content: "This is the RAG Clinical Agent Terminal! Here, you can ask the AI follow-up questions about the identified herbs.",
       placement: "left",
       disableBeacon: true,
     },
   ];
+
+  const tourSteps = isInitialTour
+    ? [
+        ...baseSteps,
+        {
+          target: ".tour-trigger-btn",
+          content: "You're all set! If you ever need a refresher, just click here to retake the tour.",
+          placement: "bottom",
+          disableBeacon: true,
+        },
+      ]
+    : baseSteps;
   // 5. UNCONTROLLED CALLBACK
   const handleJoyrideCallback = (data) => {
     const { status } = data;
@@ -432,12 +443,12 @@ export default function HerbAiDashboard() {
     .dashboard-container { width: 100%; max-width: 1600px; margin: 0 auto; }
     
     .dashboard-header {
-      background: #064e3b; /* Deep forest medicine green */
+      background: #064e3b; 
       padding: 25px 30px; 
-      border-radius: 4px; /* Hard retro corners */
-      color: #a7f3d0;
-      border: 4px solid #1e293b; /* Dark slate border to match panels */
-      box-shadow: 8px 8px 0px #1e293b; /* Dark slate shadow */
+      border-radius: 8px; 
+      color: #a7f3d0; /* Soft mint text */
+      border: 4px solid #047857; /* Deep emerald border instead of gold */
+      box-shadow: 6px 6px 0px #047857; /* Deep emerald shadow */
       margin-bottom: 35px;
       display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: space-between;
     }
@@ -510,6 +521,7 @@ export default function HerbAiDashboard() {
           run={runTour}
           continuous={true}
           showSkipButton={true}
+          //beaconComponent={() => null}
           tooltipComponent={MascotTooltip}
           callback={handleJoyrideCallback}
           disableScrollParentFix={true}
@@ -750,6 +762,7 @@ export default function HerbAiDashboard() {
                 borderRadius: "16px",
                 position: "relative",
                 zIndex: 1,
+                overflow: "visible"
               }}
             >
               <h3
