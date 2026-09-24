@@ -153,10 +153,10 @@ export default function HerbAiDashboard() {
   // 4. TOUR STEPS WITH BEACONS DISABLED
   const baseSteps = [
     {
-      target: ".dashboard-header h1",
+      target: "body", 
+      placement: "center",
       content: "Welcome to Herb-AI! Let me show you around the dashboard.",
-      placement: "bottom",
-      disableBeacon: true,
+      disableBeacon: true, 
     },
     {
       target: ".media-upload-section",
@@ -171,18 +171,20 @@ export default function HerbAiDashboard() {
       disableBeacon: true,
     },
     {
-      target: ".log-section",
+      target: ".log-stream-container", 
       content: "Once analyzed, all detected plants will appear here. Click on any row to load its clinical data!",
-      placement: "top", 
+      placement: "top-start",
+      disableBeacon: true,
     },
     {
-      target: ".chat-terminal-section h3",
+      target: ".chat-terminal-section", 
       content: "This is the RAG Clinical Agent Terminal! Here, you can ask the AI follow-up questions about the identified herbs.",
       placement: "left",
       disableBeacon: true,
     },
   ];
 
+  // Appends the outro ONLY on the first run
   const tourSteps = isInitialTour
     ? [
         ...baseSteps,
@@ -463,7 +465,7 @@ export default function HerbAiDashboard() {
       box-shadow: 8px 8px 0px #064e3b;
       min-height: calc(100vh - 150px); height: auto; display: flex; flex-direction: column;
       box-sizing: border-box; 
-      overflow: visible; /* FIX: Prevents Joyride from cutting the log stream in half! */
+      overflow-y: auto; 
     }
     
     .log-stream-container { flex-grow: 1; overflow: visible; border-radius: 0px; border: 4px solid #a7f3d0; padding: 10px; }
@@ -521,10 +523,9 @@ export default function HerbAiDashboard() {
           run={runTour}
           continuous={true}
           showSkipButton={true}
-          //beaconComponent={() => null}
           tooltipComponent={MascotTooltip}
           callback={handleJoyrideCallback}
-          disableScrollParentFix={true}
+          disableScrollParentFix={true} // Prevents clipping!
           styles={{
             options: {
               zIndex: 10000,
@@ -770,7 +771,7 @@ export default function HerbAiDashboard() {
                   fontSize: "17px",
                   fontWeight: "600",
                   color: "#065f46",
-                  margin: "5px 0 15px 0",
+                  margin: "15px 0 10px 0",
                 }}
               >
                 📊 Identification Log Stream
