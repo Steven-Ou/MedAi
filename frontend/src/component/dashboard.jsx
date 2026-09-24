@@ -29,68 +29,7 @@ const ReactJoyride = dynamic(
   { ssr: false },
 );
 
-const MascotBeacon = React.forwardRef((props, ref) => {
-  return (
-    <div
-      ref={ref}
-      {...props}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        cursor: "pointer",
-        zIndex: 10000,
-        marginTop: "10px",
-      }}
-    >
-      {/* Speech bubble pointer */}
-      <div
-        style={{
-          backgroundColor: "#065f46",
-          color: "#ffffff",
-          padding: "8px 16px",
-          borderRadius: "20px",
-          fontWeight: "bold",
-          fontSize: "13px",
-          marginBottom: "8px",
-          boxShadow: "0 6px 16px rgba(0,0,0,0.3)",
-          position: "relative",
-          animation: "mascotFloat 2s ease-in-out infinite",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {/* CSS Triangle (The Arrow) pointing UP at the button */}
-        <div
-          style={{
-            position: "absolute",
-            top: "-8px",
-            left: "50%",
-            marginLeft: "-8px", // Clean CSS centering for the arrow
-            width: "0",
-            height: "0",
-            borderLeft: "8px solid transparent",
-            borderRight: "8px solid transparent",
-            borderBottom: "8px solid #065f46",
-          }}
-        />
-        Click here to start the tour!
-      </div>
 
-      <img
-        src="/mascot.png"
-        alt="Herb-AI Mascot"
-        style={{
-          width: "60px",
-          height: "60px",
-          objectFit: "contain",
-          imageRendering: "pixelated", // Forces hard, retro pixel scaling
-          filter: "drop-shadow(4px 4px 0px #1e293b)", // Blocky shadow
-          animation: "mascotBounce 1.5s infinite alternate steps(4)", // Choppy retro animation
-        }}
-      />
-    </div>
-  );
-});
 
 // 2. THE MASCOT TOOLTIP (Safely outside the main function)
 const MascotTooltip = ({
@@ -98,6 +37,7 @@ const MascotTooltip = ({
   step,
   backProps,
   primaryProps,
+  skipProps,
   tooltipProps,
   isLastStep,
 }) => (
@@ -119,16 +59,37 @@ const MascotTooltip = ({
       <img
         src="/mascot.png"
         alt="Agent Mascot"
-        style={{ width: "80px", height: "80px" }}
+        style={{ width: "80px", height: "80px", imageRendering: "pixelated" }}
       />
     </div>
     <div style={{ flexGrow: 1 }}>
       <div
-        style={{ fontSize: "15px", marginBottom: "15px", lineHeight: "1.5" }}
+        style={{
+          fontSize: "17px",
+          marginBottom: "15px",
+          lineHeight: "1.5",
+          fontFamily: "'VT323', monospace",
+        }}
       >
         {step.content}
       </div>
       <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+        {/* ADDED: The Skip Button */}
+        <button
+          {...skipProps}
+          style={{
+            backgroundColor: "transparent",
+            color: "#94a3b8",
+            border: "none",
+            cursor: "pointer",
+            fontWeight: "bold",
+            fontFamily: "'VT323', monospace",
+            fontSize: "18px",
+          }}
+        >
+          Skip
+        </button>
+
         {index > 0 && (
           <button
             {...backProps}
@@ -138,6 +99,8 @@ const MascotTooltip = ({
               border: "none",
               cursor: "pointer",
               fontWeight: "bold",
+              fontFamily: "'VT323', monospace",
+              fontSize: "18px",
             }}
           >
             Back
@@ -153,6 +116,8 @@ const MascotTooltip = ({
             border: "none",
             cursor: "pointer",
             fontWeight: "bold",
+            fontFamily: "'VT323', monospace",
+            fontSize: "18px",
           }}
         >
           {isLastStep ? "Got it!" : "Next"}
@@ -183,16 +148,15 @@ export default function HerbAiDashboard() {
 
   useEffect(() => {
     setIsMounted(true);
-    setRunTour(true); // Greets the visitor immediately!
   }, []);
 
   // 4. TOUR STEPS WITH BEACONS DISABLED
-  const baseSteps = [
+  const tourSteps = [
     {
-      target: ".dashboard-header", 
+      target: ".dashboard-header",
       content: "Welcome to Herb-AI! Let me show you around the dashboard.",
       placement: "bottom",
-      disableBeacon: true,
+      disableBeacon: true, // Forces tooltip to open instantly
     },
     {
       target: ".media-upload-section",
@@ -207,31 +171,18 @@ export default function HerbAiDashboard() {
       disableBeacon: true,
     },
     {
-      target: ".log-section h3",
+      target: ".log-section", 
       content: "Once analyzed, all detected plants will appear here. Click on any row to load its clinical data!",
-      placement: "right",
+      placement: "top", // Pops up above the log so it doesn't get cut off at the bottom of the screen
       disableBeacon: true,
     },
     {
-      target: ".chat-terminal-section h3",
+      target: ".chat-terminal-section",
       content: "This is the RAG Clinical Agent Terminal! Here, you can ask the AI follow-up questions about the identified herbs.",
       placement: "left",
       disableBeacon: true,
     },
   ];
-
-  const tourSteps = isInitialTour
-    ? [
-        ...baseSteps,
-        {
-          target: ".tour-trigger-btn",
-          content: "You're all set! If you ever need a refresher, just click here to retake the tour.",
-          placement: "bottom",
-          disableBeacon: true,
-        }
-      ]
-    : baseSteps;
-
   // 5. UNCONTROLLED CALLBACK
   const handleJoyrideCallback = (data) => {
     const { status } = data;
@@ -484,9 +435,9 @@ export default function HerbAiDashboard() {
       background: #064e3b; /* Deep forest medicine green */
       padding: 25px 30px; 
       border-radius: 4px; /* Hard retro corners */
-      color: #fef08a; /* Soft gold text */
-      border: 4px solid #fbbf24; /* Imperial gold border */
-      box-shadow: 8px 8px 0px #fbbf24; /* Solid gold shadow */
+      color: #a7f3d0;
+      border: 4px solid #1e293b; /* Dark slate border to match panels */
+      box-shadow: 8px 8px 0px #1e293b; /* Dark slate shadow */
       margin-bottom: 35px;
       display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: space-between;
     }
@@ -558,8 +509,7 @@ export default function HerbAiDashboard() {
           steps={tourSteps}
           run={runTour}
           continuous={true}
-          showSkipButton={true} 
-          beaconComponent={MascotBeacon}
+          showSkipButton={true}
           tooltipComponent={MascotTooltip}
           callback={handleJoyrideCallback}
           disableScrollParentFix={true}
@@ -629,14 +579,17 @@ export default function HerbAiDashboard() {
                 email in the footer.
               </p>
               <button
-                onClick={() => setShowNotice(false)}
+                onClick={() => {
+                  setShowNotice(false);
+                  setRunTour(true);
+                }}
                 style={{
                   backgroundColor: "#10b981",
                   color: "#fff",
                   padding: "14px 32px",
                   borderRadius: "12px",
                   border: "none",
-                  fontSize: "16px",
+                  fontSize: "18px",
                   fontWeight: "bold",
                   cursor: "pointer",
                   boxShadow: "0 4px 10px rgba(16, 185, 129, 0.3)",
