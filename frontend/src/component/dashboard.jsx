@@ -189,9 +189,14 @@ export default function HerbAiDashboard() {
   // 4. TOUR STEPS WITH BEACONS DISABLED
   const baseSteps = [
     {
+      target: ".dashboard-header", 
+      content: "Welcome to Herb-AI! Let me show you around the dashboard.",
+      placement: "bottom",
+      disableBeacon: true,
+    },
+    {
       target: ".media-upload-section",
-      content:
-        "Start here! Upload a video or image of a plant you want to identify.",
+      content: "Start here! Upload a video or image of a plant you want to identify.",
       placement: "right",
       disableBeacon: true,
     },
@@ -203,15 +208,13 @@ export default function HerbAiDashboard() {
     },
     {
       target: ".log-section h3",
-      content:
-        "Once analyzed, all detected plants will appear here. Click on any row to load its clinical data!",
+      content: "Once analyzed, all detected plants will appear here. Click on any row to load its clinical data!",
       placement: "right",
       disableBeacon: true,
     },
     {
       target: ".chat-terminal-section h3",
-      content:
-        "This is the RAG Clinical Agent Terminal! Here, you can ask the AI follow-up questions about the identified herbs.",
+      content: "This is the RAG Clinical Agent Terminal! Here, you can ask the AI follow-up questions about the identified herbs.",
       placement: "left",
       disableBeacon: true,
     },
@@ -219,20 +222,13 @@ export default function HerbAiDashboard() {
 
   const tourSteps = isInitialTour
     ? [
-        {
-          target: "body",
-          placement: "center",
-          content: "Welcome to Herb-AI! Let me show you around the dashboard.",
-          disableBeacon: true,
-        },
         ...baseSteps,
         {
           target: ".tour-trigger-btn",
-          content:
-            "You're all set! If you ever need a refresher, just click here to retake the tour.",
+          content: "You're all set! If you ever need a refresher, just click here to retake the tour.",
           placement: "bottom",
           disableBeacon: true,
-        },
+        }
       ]
     : baseSteps;
 
@@ -474,10 +470,6 @@ export default function HerbAiDashboard() {
       font-family: 'VT323', monospace;
       height: 100%;
       overflow-x: hidden;
-      background-size: 32px 32px;
-      font-family: 'VT323', monospace;
-      height: 100%;
-      overflow-x: hidden; 
     }
     
     .dashboard-wrapper {
@@ -566,7 +558,7 @@ export default function HerbAiDashboard() {
           steps={tourSteps}
           run={runTour}
           continuous={true}
-          showSkipButton={false}
+          showSkipButton={true} 
           beaconComponent={MascotBeacon}
           tooltipComponent={MascotTooltip}
           callback={handleJoyrideCallback}
@@ -574,7 +566,7 @@ export default function HerbAiDashboard() {
           styles={{
             options: {
               zIndex: 10000,
-              primaryColor: "#10b981",
+              primaryColor: "#064e3b",
             },
           }}
         />
