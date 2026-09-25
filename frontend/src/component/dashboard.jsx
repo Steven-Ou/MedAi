@@ -508,6 +508,26 @@ export default function HerbAiDashboard() {
     /* Interactive Button Press Animation */
     .pixel-btn { transition: transform 0.1s, box-shadow 0.1s; }
     .pixel-btn:active { transform: translate(4px, 4px) !important; box-shadow: 0px 0px 0px #064e3b !important; }
+
+    .dashboard-footer {
+      background: #064e3b; 
+      padding: 20px; 
+      border-radius: 8px; 
+      color: #a7f3d0;
+      border: 4px solid #047857; 
+      box-shadow: 6px 6px 0px #047857; 
+      margin-top: 35px;
+      text-align: center;
+      line-height: 1.5;
+    }
+    .dashboard-footer a {
+      color: #fef08a; /* Matches your chat avatar yellow */
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .dashboard-footer a:hover {
+      text-decoration: underline;
+    }
   `;
 
   const styles = {
