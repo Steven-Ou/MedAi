@@ -1029,6 +1029,18 @@ export default function HerbAiDashboard() {
             </form>
           </div>
         </div>
+        <footer className="dashboard-footer">
+          <p style={{ margin: "0 0 8px 0", fontSize: "20px" }}>
+            🌿 Herb-AI Systems &copy; {new Date().getFullYear()}
+          </p>
+          <p style={{ margin: "0 0 8px 0", fontSize: "18px", opacity: 0.9 }}>
+            Developed by Steven Ou | Queens College (CUNY) - Computer Science
+          </p>
+          <p style={{ margin: 0, fontSize: "18px" }}>
+            Need help or report an anomaly?{" "}
+            <a href="mailto:youremail@example.com">Contact Support</a>
+          </p>
+        </footer>
       </div>
     </div>
   );
