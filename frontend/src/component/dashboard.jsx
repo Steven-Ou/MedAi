@@ -417,105 +417,210 @@ export default function HerbAiDashboard() {
     });
   };
 
-  const globalStyles = `
-    @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+  const css = String.raw;
 
-    html, body {
-      margin: 0; padding: 0;
-      background-color: #ecfdf5; 
-      background-image: 
+  const globalStyles = css`
+    @import url("https://fonts.googleapis.com/css2?family=VT323&display=swap");
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #ecfdf5;
+      background-image:
         linear-gradient(rgba(167, 243, 208, 0.6) 2px, transparent 2px),
         linear-gradient(90deg, rgba(167, 243, 208, 0.6) 2px, transparent 2px),
-        radial-gradient(circle at 15% 25%, rgba(212, 240, 208, 0.7) 0%, transparent 40%),
-        radial-gradient(circle at 85% 75%, rgba(184, 226, 178, 0.6) 0%, transparent 45%),
+        radial-gradient(
+          circle at 15% 25%,
+          rgba(212, 240, 208, 0.7) 0%,
+          transparent 40%
+        ),
+        radial-gradient(
+          circle at 85% 75%,
+          rgba(184, 226, 178, 0.6) 0%,
+          transparent 45%
+        ),
         url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M25 25c15-15 30-7.5 37.5 7.5s-7.5 30-22.5 30-30-7.5-22.5-22.5 7.5-30 7.5-15zm-7.5 7.5c0 7.5 7.5 15 15 15M75 75c15-15 30-7.5 37.5 7.5s-7.5 30-22.5 30-30-7.5-22.5-22.5 7.5-30 7.5-15zm-7.5 7.5c0 7.5 7.5 15 15 15' fill='%236ea769' fill-opacity='0.15' stroke='%23488243' stroke-width='2' stroke-opacity='0.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-      background-size: 32px 32px, 32px 32px, auto, auto, 100px 100px;
+      background-size:
+        32px 32px,
+        32px 32px,
+        auto,
+        auto,
+        100px 100px;
       background-attachment: fixed;
-      font-family: 'VT323', monospace;
-      
+      font-family: "VT323", monospace;
+
       min-height: 100vh;
       overflow-x: hidden;
     }
-    
+
     .dashboard-wrapper {
-      min-height: 100vh; padding: 25px 20px; box-sizing: border-box;
-      font-family: 'VT323', monospace;
-      width: 100%; overflow-x: hidden;
-      font-size: 24px; 
+      min-height: 100vh;
+      padding: 25px 20px;
+      box-sizing: border-box;
+      font-family: "VT323", monospace;
+      width: 100%;
+      overflow-x: hidden;
+      font-size: 24px;
     }
-    .dashboard-container { width: 100%; max-width: 1600px; margin: 0 auto; }
-    
-    .dashboard-header {
-      background: #064e3b; 
-      padding: 25px 30px; 
-      border-radius: 8px; 
-      color: #a7f3d0;
-      border: 4px solid #047857; 
-      box-shadow: 6px 6px 0px #047857; 
-      margin-bottom: 35px;
-      display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: space-between;
+    .dashboard-container {
+      width: 100%;
+      max-width: 1600px;
+      margin: 0 auto;
     }
 
-    .dashboard-grid { 
-      display: grid; 
-      grid-template-columns: 1fr; 
-      gap: 35px; 
-      align-items: stretch; 
+    .dashboard-header {
+      background: #064e3b;
+      padding: 25px 30px;
+      border-radius: 8px;
+      color: #a7f3d0;
+      border: 4px solid #047857;
+      box-shadow: 6px 6px 0px #047857;
+      margin-bottom: 35px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      align-items: center;
+      justify-content: space-between;
     }
-    
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 35px;
+      align-items: stretch;
+    }
+
     @media (min-width: 960px) {
       .dashboard-grid {
         grid-template-columns: minmax(350px, 1fr) minmax(450px, 1.5fr);
       }
-    }    
+    }
     .panel-card {
-      background-color: #ffffff; 
-      border-radius: 4px; 
+      background-color: #ffffff;
+      border-radius: 4px;
       padding: 30px;
       border: 4px solid #064e3b;
       box-shadow: 8px 8px 0px #064e3b;
-      min-height: calc(100vh - 150px); 
-      height: 100%; 
-      display: flex; flex-direction: column;
+      min-height: calc(100vh - 150px);
+      height: 100%;
+      display: flex;
+      flex-direction: column;
       box-sizing: border-box;
     }
-    
-    .log-stream-container { flex-grow: 1; overflow: visible; border-radius: 0px; border: 4px solid #a7f3d0; padding: 10px; }
-    .telemetry-row { cursor: pointer; transition: background-color 0.1s; }
-    .telemetry-row:hover { background-color: #ecfdf5 !important; }
-    
-    .chat-window { flex-grow: 1; overflow-y: auto; overflow-x: hidden; padding: 10px 10px 20px 10px; margin-bottom: 20px; width: 100%; box-sizing: border-box; }
-    .chat-message-row { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 24px; width: 100%; max-width: 100%; box-sizing: border-box; }
-    .chat-message-row.user { flex-direction: row-reverse; }
-    .chat-avatar { width: 44px; height: 44px; border: 4px solid #064e3b; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; background-color: #fef08a; }
-    
+
+    .log-stream-container {
+      flex-grow: 1;
+      overflow: visible;
+      border-radius: 0px;
+      border: 4px solid #a7f3d0;
+      padding: 10px;
+    }
+    .telemetry-row {
+      cursor: pointer;
+      transition: background-color 0.1s;
+    }
+    .telemetry-row:hover {
+      background-color: #ecfdf5 !important;
+    }
+
+    .chat-window {
+      flex-grow: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 10px 10px 20px 10px;
+      margin-bottom: 20px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .chat-message-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 24px;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    .chat-message-row.user {
+      flex-direction: row-reverse;
+    }
+    .chat-avatar {
+      width: 44px;
+      height: 44px;
+      border: 4px solid #064e3b;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      flex-shrink: 0;
+      background-color: #fef08a;
+    }
+
     .msg-bubble {
-      width: fit-content; max-width: 85%; padding: 16px 20px; 
-      border-radius: 4px; font-size: 24px;
-      color: #064e3b; white-space: normal; word-wrap: break-word; overflow-wrap: break-word; overflow-x: auto;
+      width: fit-content;
+      max-width: 85%;
+      padding: 16px 20px;
+      border-radius: 4px;
+      font-size: 24px;
+      color: #064e3b;
+      white-space: normal;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      overflow-x: auto;
       border: 4px solid #064e3b;
       box-shadow: 4px 4px 0px #064e3b;
       box-sizing: border-box;
     }
-    .msg-bubble > div { white-space: pre-wrap; }
-    .msg-bubble.user { background-color: #a7f3d0; }
-    .msg-bubble.agent { background-color: #ffffff; }
-    
-    .markdown-body table { display: block; width: 100%; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 15px 0; white-space: normal; }
-    .markdown-body th, .markdown-body td { min-width: 120px; border: 4px solid #064e3b; padding: 10px; }
-    .markdown-body th { background-color: #f8fafc; color: #064e3b; }
-    
+    .msg-bubble > div {
+      white-space: pre-wrap;
+    }
+    .msg-bubble.user {
+      background-color: #a7f3d0;
+    }
+    .msg-bubble.agent {
+      background-color: #ffffff;
+    }
+
+    .markdown-body table {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
+      border-collapse: collapse;
+      margin: 15px 0;
+      white-space: normal;
+    }
+    .markdown-body th,
+    .markdown-body td {
+      min-width: 120px;
+      border: 4px solid #064e3b;
+      padding: 10px;
+    }
+    .markdown-body th {
+      background-color: #f8fafc;
+      color: #064e3b;
+    }
+
     /* Interactive Button Press Animation */
-    .pixel-btn { transition: transform 0.1s, box-shadow 0.1s; }
-    .pixel-btn:active { transform: translate(4px, 4px) !important; box-shadow: 0px 0px 0px #064e3b !important; }
+    .pixel-btn {
+      transition:
+        transform 0.1s,
+        box-shadow 0.1s;
+    }
+    .pixel-btn:active {
+      transform: translate(4px, 4px) !important;
+      box-shadow: 0px 0px 0px #064e3b !important;
+    }
 
     .dashboard-footer {
-      background: #064e3b; 
-      padding: 20px; 
-      border-radius: 8px; 
+      background: #064e3b;
+      padding: 20px;
+      border-radius: 8px;
       color: #a7f3d0;
-      border: 4px solid #047857; 
-      box-shadow: 6px 6px 0px #047857; 
+      border: 4px solid #047857;
+      box-shadow: 6px 6px 0px #047857;
       margin-top: 35px;
       text-align: center;
       line-height: 1.5;
@@ -531,13 +636,13 @@ export default function HerbAiDashboard() {
 
     @media (max-width: 600px) {
       .dashboard-wrapper {
-        padding: 15px 10px !important; 
+        padding: 15px 18px 15px 10px !important;
       }
       .panel-card {
-        padding: 20px 15px !important; 
+        padding: 20px 15px !important;
       }
       .media-upload-section {
-        flex-direction: column !important; 
+        flex-direction: column !important;
       }
       .media-upload-section label {
         min-width: 100% !important;
@@ -730,8 +835,9 @@ export default function HerbAiDashboard() {
               <label
                 style={{
                   flex: 1,
-                  minWidth: "140px", /* Forces a stack on narrow screens */
-                  boxSizing: "border-box", /* Prevents padding from causing overflow */
+                  minWidth: "140px" /* Forces a stack on narrow screens */,
+                  boxSizing:
+                    "border-box" /* Prevents padding from causing overflow */,
                   padding: "12px",
                   background: "#f8fafc",
                   border: "1px dashed #cbd5e1",
@@ -749,12 +855,13 @@ export default function HerbAiDashboard() {
                   style={{ display: "none" }}
                 />
               </label>
-              
+
               <label
                 style={{
                   flex: 1,
-                  minWidth: "140px", /* Forces a stack on narrow screens */
-                  boxSizing: "border-box", /* Prevents padding from causing overflow */
+                  minWidth: "140px" /* Forces a stack on narrow screens */,
+                  boxSizing:
+                    "border-box" /* Prevents padding from causing overflow */,
                   padding: "12px",
                   background: "#f8fafc",
                   border: "1px dashed #cbd5e1",
