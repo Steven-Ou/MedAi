@@ -1179,7 +1179,7 @@ export default function HerbAiDashboard() {
           </p>
           <p style={{ margin: 0, fontSize: "18px" }}>
             Need help or report an anomaly?{" "}
-            <a href="mailto:osteve425@gmail.com">Contact Support</a>
+            <a href="mailto:medaisupports@gmail.com">Contact Support</a>
           </p>
         </footer>
       </div>
