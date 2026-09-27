@@ -695,12 +695,18 @@ export default function HerbAiDashboard() {
             </h3>
             <div
               className="media-upload-section"
-              style={{ display: "flex", gap: "10px", marginBottom: "20px" }}
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "10px",
+                marginBottom: "20px",
+              }}
             >
-              {" "}
               <label
                 style={{
                   flex: 1,
+                  minWidth: "140px", /* Forces a stack on narrow screens */
+                  boxSizing: "border-box", /* Prevents padding from causing overflow */
                   padding: "12px",
                   background: "#f8fafc",
                   border: "1px dashed #cbd5e1",
@@ -718,9 +724,12 @@ export default function HerbAiDashboard() {
                   style={{ display: "none" }}
                 />
               </label>
+              
               <label
                 style={{
                   flex: 1,
+                  minWidth: "140px", /* Forces a stack on narrow screens */
+                  boxSizing: "border-box", /* Prevents padding from causing overflow */
                   padding: "12px",
                   background: "#f8fafc",
                   border: "1px dashed #cbd5e1",
