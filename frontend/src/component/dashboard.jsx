@@ -528,6 +528,31 @@ export default function HerbAiDashboard() {
     .dashboard-footer a:hover {
       text-decoration: underline;
     }
+
+    @media (max-width: 600px) {
+      .dashboard-wrapper {
+        padding: 15px 10px !important; 
+      }
+      .panel-card {
+        padding: 20px 15px !important; 
+      }
+      .media-upload-section {
+        flex-direction: column !important; 
+      }
+      .media-upload-section label {
+        min-width: 100% !important;
+      }
+      .dashboard-header {
+        padding: 20px 15px !important;
+      }
+      .dashboard-header h1 {
+        font-size: 22px !important;
+      }
+      .tour-trigger-btn {
+        width: 100%;
+        text-align: center;
+      }
+    }
   `;
 
   const styles = {
@@ -1047,7 +1072,7 @@ export default function HerbAiDashboard() {
           </p>
           <p style={{ margin: 0, fontSize: "18px" }}>
             Need help or report an anomaly?{" "}
-            <a href="mailto:youremail@example.com">Contact Support</a>
+            <a href="osteve425@gmail.com">Contact Support</a>
           </p>
         </footer>
       </div>
