@@ -1,6 +1,6 @@
 import React from "react";
 import Head from "next/head";
-import { Analytics } from '@vercel/analytics/react';
+import { Analytics } from "@vercel/analytics/react";
 import HerbAiDashboard from "../component/dashboard"; // Corrected path and casing
 
 function App() {
@@ -11,6 +11,8 @@ function App() {
           name="viewport"
           content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"
         />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#064e3b" />
         <title>Herb-AI Dashboard</title>
       </Head>
       <div className="App">

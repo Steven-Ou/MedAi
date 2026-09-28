@@ -1,0 +1,21 @@
+{
+  "name": "MedAi Botanical Vision",
+  "short_name": "MedAi",
+  "description": "Clinical Botanical Identification & RAG Engine",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ecfdf5",
+  "theme_color": "#064e3b",
+  "icons": [
+    {
+      "src": "/mascot.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/mascot.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
