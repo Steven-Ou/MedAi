@@ -151,6 +151,50 @@ export default function HerbAiDashboard() {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+  
+  useEffect(() => {
+    let interval;
+    if (isLiveScanning) {
+      interval = setInterval(() => {
+        if (cameraRef.current && canvasRef.current) {
+          const video = cameraRef.current;
+          const canvas = canvasRef.current;
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+          canvas.toBlob(
+            async (blob) => {
+              const file = new File([blob], "frame.jpg", {
+                type: "image/jpeg",
+              });
+              const data = await predictPlantImage(file);
+
+              if (
+                data &&
+                data.predicted_class &&
+                data.predicted_class !== "Unidentified Anomaly"
+              ) {
+                setTelemetry([
+                  {
+                    species: data.predicted_class,
+                    framesTracked: 1,
+                    maxConfidence: data.confidence,
+                    evidenceImage: URL.createObjectURL(blob),
+                  },
+                ]);
+              }
+            },
+            "image/jpeg",
+            0.85,
+          );
+        }
+      }, 2000); // 2000ms polling rate
+    }
+    return () => clearInterval(interval);
+  }, [isLiveScanning]);
 
   // 4. TOUR STEPS WITH BEACONS DISABLED
   const baseSteps = [
