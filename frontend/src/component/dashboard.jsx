@@ -144,6 +144,10 @@ export default function HerbAiDashboard() {
   const videoRef = useRef(null);
   const [videoFile, setVideoFile] = useState(null);
 
+  const cameraRef = useRef(null);
+  const canvasRef = useRef(null);
+  const [isLiveScanning, setIsLiveScanning] = useState(false);
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -198,7 +202,28 @@ export default function HerbAiDashboard() {
         },
       ]
     : baseSteps;
-  // 5. UNCONTROLLED CALLBACK
+
+  const toggleCamera = async () => {
+    if (isLiveScanning) {
+      const stream = cameraRef.current?.srcObject;
+      stream?.getTracks().forEach((track) => track.stop());
+      setIsLiveScanning(false);
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" },
+        });
+        if (cameraRef.current) {
+          cameraRef.current.srcObject = stream;
+          cameraRef.current.play();
+          setIsLiveScanning(true);
+        }
+      } catch (err) {
+        alert("Camera access is required for live scanning.");
+      }
+    }
+  };
+
   const handleJoyrideCallback = (data) => {
     const { status } = data;
     if (["finished", "skipped"].includes(status)) {
