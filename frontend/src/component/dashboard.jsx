@@ -151,7 +151,7 @@ export default function HerbAiDashboard() {
   useEffect(() => {
     setIsMounted(true);
   }, []);
-  
+
   useEffect(() => {
     let interval;
     if (isLiveScanning) {
@@ -904,9 +904,8 @@ export default function HerbAiDashboard() {
               <label
                 style={{
                   flex: 1,
-                  minWidth: "140px" /* Forces a stack on narrow screens */,
-                  boxSizing:
-                    "border-box" /* Prevents padding from causing overflow */,
+                  minWidth: "140px",
+                  boxSizing: "border-box",
                   padding: "12px",
                   background: "#f8fafc",
                   border: "1px dashed #cbd5e1",
@@ -928,9 +927,8 @@ export default function HerbAiDashboard() {
               <label
                 style={{
                   flex: 1,
-                  minWidth: "140px" /* Forces a stack on narrow screens */,
-                  boxSizing:
-                    "border-box" /* Prevents padding from causing overflow */,
+                  minWidth: "140px",
+                  boxSizing: "border-box",
                   padding: "12px",
                   background: "#f8fafc",
                   border: "1px dashed #cbd5e1",
@@ -948,6 +946,26 @@ export default function HerbAiDashboard() {
                   style={{ display: "none" }}
                 />
               </label>
+
+              {/* DROP THE CAMERA BUTTON HERE */}
+              <button
+                onClick={toggleCamera}
+                style={{
+                  flex: 1,
+                  minWidth: "140px",
+                  boxSizing: "border-box",
+                  padding: "12px",
+                  background: isLiveScanning ? "#fee2e2" : "#f8fafc",
+                  border: "1px dashed #cbd5e1",
+                  borderRadius: "10px",
+                  cursor: "pointer",
+                  fontSize: "20px",
+                }}
+              >
+                {isLiveScanning
+                  ? "🛑 Stop Live Camera"
+                  : "📱 Start Live Viewfinder"}
+              </button>
             </div>
 
             <button
@@ -969,7 +987,21 @@ export default function HerbAiDashboard() {
             >
               {isScanning ? "🎥 Scanning Media..." : "🚀 Identify Footage"}
             </button>
+
+            <canvas ref={canvasRef} style={{ display: "none" }} />
+
             <div style={styles.viewport}>
+              <video
+                ref={cameraRef}
+                playsInline
+                muted
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  display: isLiveScanning ? "block" : "none",
+                }}
+              />
               {videoSrc && (
                 <video
                   ref={videoRef}
