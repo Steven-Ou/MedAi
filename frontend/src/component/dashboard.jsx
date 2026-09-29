@@ -815,7 +815,7 @@ export default function HerbAiDashboard() {
           <div className="panel-card">
             <h3
               style={{
-                fontSize: "17px",
+                fontSize: "25px",
                 fontWeight: "600",
                 color: "#065f46",
                 margin: "0 0 15px 0",
@@ -844,7 +844,7 @@ export default function HerbAiDashboard() {
                   borderRadius: "10px",
                   textAlign: "center",
                   cursor: "pointer",
-                  fontSize: "13.5px",
+                  fontSize: "20px",
                 }}
               >
                 🎥 Upload Video
@@ -868,7 +868,7 @@ export default function HerbAiDashboard() {
                   borderRadius: "10px",
                   textAlign: "center",
                   cursor: "pointer",
-                  fontSize: "13.5px",
+                  fontSize: "20px",
                 }}
               >
                 📸 Upload Herb Image
@@ -895,7 +895,7 @@ export default function HerbAiDashboard() {
                 cursor: "pointer",
                 boxShadow: "6px 6px 0px #1e293b",
                 fontFamily: "'VT323', monospace",
-                fontSize: "24px",
+                fontSize: "25px",
               }}
             >
               {isScanning ? "🎥 Scanning Media..." : "🚀 Identify Footage"}
@@ -941,7 +941,7 @@ export default function HerbAiDashboard() {
             >
               <h3
                 style={{
-                  fontSize: "17px",
+                  fontSize: "25px",
                   fontWeight: "600",
                   color: "#065f46",
                   margin: "15px 0 10px 0",
@@ -962,7 +962,7 @@ export default function HerbAiDashboard() {
                     }}
                   >
                     <p
-                      style={{ fontSize: "14px", color: "#64748b", margin: 0 }}
+                      style={{ fontSize: "20px", color: "#64748b", margin: 0 }}
                     >
                       Waiting for visual telemetry.
                       <br />
@@ -1050,7 +1050,7 @@ export default function HerbAiDashboard() {
           <div className="panel-card chat-terminal-section">
             <h3
               style={{
-                fontSize: "17px",
+                fontSize: "25px",
                 fontWeight: "600",
                 color: "#065f46",
                 margin: "0 0 15px 0",
@@ -1068,11 +1068,11 @@ export default function HerbAiDashboard() {
                     padding: "0 20px",
                   }}
                 >
-                  <div style={{ fontSize: "40px", marginBottom: "15px" }}>
+                  <div style={{ fontSize: "50px", marginBottom: "15px" }}>
                     🌿
                   </div>
                   <p
-                    style={{ margin: 0, fontSize: "14.5px", lineHeight: "1.6" }}
+                    style={{ margin: 0, fontSize: "20.5px", lineHeight: "1.6" }}
                   >
                     I am Herb-AI, your advanced, multimodal medical botanical
                     vision agent.
@@ -1145,7 +1145,7 @@ export default function HerbAiDashboard() {
                   border: "4px solid #1e293b",
                   backgroundColor: "#f8fafc",
                   outline: "none",
-                  fontSize: "22px",
+                  fontSize: "25px",
                   fontFamily: "'VT323', monospace",
                 }}
               />
@@ -1162,7 +1162,7 @@ export default function HerbAiDashboard() {
                   cursor: "pointer",
                   boxShadow: "4px 4px 0px #1e293b",
                   fontFamily: "'VT323', monospace",
-                  fontSize: "22px",
+                  fontSize: "25px",
                 }}
               >
                 Send
