@@ -750,22 +750,16 @@ export default function HerbAiDashboard() {
 
     @media (max-width: 600px) {
       .dashboard-wrapper {
-        padding: 15px 18px 15px 10px !important;
+        padding: 12px 8px !important;
       }
       .panel-card {
-        padding: 20px 15px !important;
-      }
-      .media-upload-section {
-        flex-direction: column !important;
-      }
-      .media-upload-section label {
-        min-width: 100% !important;
+        padding: 16px 12px !important;
       }
       .dashboard-header {
-        padding: 20px 15px !important;
+        padding: 16px 12px !important;
       }
       .dashboard-header h1 {
-        font-size: 22px !important;
+        font-size: 24px !important;
       }
       .tour-trigger-btn {
         width: 100%;
