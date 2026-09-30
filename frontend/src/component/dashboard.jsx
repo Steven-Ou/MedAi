@@ -940,24 +940,29 @@ export default function HerbAiDashboard() {
             <div
               className="media-upload-section"
               style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "10px",
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+                gap: "12px",
                 marginBottom: "20px",
               }}
             >
               <label
+                className="pixel-btn"
                 style={{
-                  flex: 1,
-                  minWidth: "140px",
-                  boxSizing: "border-box",
-                  padding: "12px",
-                  background: "#f8fafc",
-                  border: "1px dashed #cbd5e1",
-                  borderRadius: "10px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "12px 8px",
+                  background: "#f0fdf4",
+                  color: "#064e3b",
+                  border: "3px solid #064e3b",
+                  borderRadius: "6px",
+                  boxShadow: "3px 3px 0px #064e3b",
                   textAlign: "center",
                   cursor: "pointer",
-                  fontSize: "20px",
+                  fontFamily: "'VT323', monospace",
+                  fontSize: "22px",
+                  fontWeight: "600",
                 }}
               >
                 🎥 Upload Video
@@ -970,17 +975,22 @@ export default function HerbAiDashboard() {
               </label>
 
               <label
+                className="pixel-btn"
                 style={{
-                  flex: 1,
-                  minWidth: "140px",
-                  boxSizing: "border-box",
-                  padding: "12px",
-                  background: "#f8fafc",
-                  border: "1px dashed #cbd5e1",
-                  borderRadius: "10px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "12px 8px",
+                  background: "#f0fdf4",
+                  color: "#064e3b",
+                  border: "3px solid #064e3b",
+                  borderRadius: "6px",
+                  boxShadow: "3px 3px 0px #064e3b",
                   textAlign: "center",
                   cursor: "pointer",
-                  fontSize: "20px",
+                  fontFamily: "'VT323', monospace",
+                  fontSize: "22px",
+                  fontWeight: "600",
                 }}
               >
                 📸 Upload Herb Image
@@ -992,29 +1002,31 @@ export default function HerbAiDashboard() {
                 />
               </label>
 
-              {/* DROP THE CAMERA BUTTON HERE */}
               <button
+                type="button"
                 onClick={toggleCamera}
                 className="pixel-btn"
                 style={{
-                  flex: 1,
-                  minWidth: "140px",
-                  boxSizing: "border-box",
-                  padding: "12px",
-                  backgroundColor: isLiveScanning ? "#ef4444" : "#10b981",
-                  color: "#fff",
-                  border: "4px solid #1e293b",
-                  borderRadius: "8px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "12px 8px",
+                  background: isLiveScanning ? "#fef2f2" : "#f0fdf4",
+                  color: isLiveScanning ? "#991b1b" : "#064e3b",
+                  border: isLiveScanning
+                    ? "3px solid #991b1b"
+                    : "3px solid #064e3b",
+                  borderRadius: "6px",
+                  boxShadow: isLiveScanning
+                    ? "3px 3px 0px #991b1b"
+                    : "3px 3px 0px #064e3b",
                   cursor: "pointer",
-                  fontWeight: "600",
-                  boxShadow: "4px 4px 0px #1e293b",
                   fontFamily: "'VT323', monospace",
                   fontSize: "22px",
+                  fontWeight: "600",
                 }}
               >
-                {isLiveScanning
-                  ? "🛑 Stop Live Camera"
-                  : "📱 Start Live Viewfinder"}
+                {isLiveScanning ? "🛑 Stop Live Camera" : "📱 Live Viewfinder"}
               </button>
             </div>
 
