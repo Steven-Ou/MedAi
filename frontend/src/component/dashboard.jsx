@@ -653,6 +653,7 @@ export default function HerbAiDashboard() {
       width: 100%;
       max-width: 100%;
       box-sizing: border-box;
+      overflow-x: hidden;
     }
     .chat-message-row.user {
       flex-direction: row-reverse;
@@ -700,6 +701,7 @@ export default function HerbAiDashboard() {
       width: 100%;
       max-width: 100%;
       overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
       border-collapse: collapse;
       margin: 15px 0;
       white-space: normal;
@@ -993,16 +995,21 @@ export default function HerbAiDashboard() {
               {/* DROP THE CAMERA BUTTON HERE */}
               <button
                 onClick={toggleCamera}
+                className="pixel-btn"
                 style={{
                   flex: 1,
                   minWidth: "140px",
                   boxSizing: "border-box",
                   padding: "12px",
-                  background: isLiveScanning ? "#fee2e2" : "#f8fafc",
-                  border: "1px dashed #cbd5e1",
-                  borderRadius: "10px",
+                  backgroundColor: isLiveScanning ? "#ef4444" : "#10b981",
+                  color: "#fff",
+                  border: "4px solid #1e293b",
+                  borderRadius: "8px",
                   cursor: "pointer",
-                  fontSize: "20px",
+                  fontWeight: "600",
+                  boxShadow: "4px 4px 0px #1e293b",
+                  fontFamily: "'VT323', monospace",
+                  fontSize: "22px",
                 }}
               >
                 {isLiveScanning
