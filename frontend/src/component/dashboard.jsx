@@ -149,10 +149,6 @@ export default function HerbAiDashboard() {
   const [isLiveScanning, setIsLiveScanning] = useState(false);
 
   useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  useEffect(() => {
     let interval;
     if (isLiveScanning) {
       interval = setInterval(() => {
@@ -177,21 +173,68 @@ export default function HerbAiDashboard() {
                 data.predicted_class &&
                 data.predicted_class !== "Unidentified Anomaly"
               ) {
+                // 1. Log the detected plant
+                const speciesName = data.predicted_class;
                 setTelemetry([
                   {
-                    species: data.predicted_class,
+                    species: speciesName,
                     framesTracked: 1,
                     maxConfidence: data.confidence,
                     evidenceImage: URL.createObjectURL(blob),
                   },
                 ]);
+
+                // 2. STOP SCANNING IMMEDIATELY (Prevents 502/429 errors)
+                setIsLiveScanning(false);
+                if (cameraRef.current?.srcObject) {
+                  cameraRef.current.srcObject
+                    .getTracks()
+                    .forEach((track) => track.stop());
+                }
+
+                // 3. AUTO-TRIGGER THE CHAT
+                const autoQueryText = `Provide a structured clinical textbook profile for the medicinal substance: ${speciesName}. Include active compounds and biological properties.`;
+
+                setMessages((prev) => [
+                  ...prev,
+                  { role: "user", text: `Tell me about ${speciesName}.` },
+                  { role: "agent", text: "", isTyping: true },
+                ]);
+
+                let streamedText = "";
+                await streamBotanicalQuestion(
+                  autoQueryText,
+                  (chunk, isReplace = false) => {
+                    if (isReplace) {
+                      streamedText = chunk;
+                    } else {
+                      streamedText += chunk;
+                    }
+                    setMessages((prev) => {
+                      const newHistory = [...prev];
+                      const lastIndex = newHistory.length - 1;
+                      if (newHistory[lastIndex].role === "agent") {
+                        newHistory[lastIndex].text = streamedText;
+                      }
+                      return newHistory;
+                    });
+                  },
+                );
+
+                setMessages((prev) => {
+                  const newHistory = [...prev];
+                  if (newHistory[newHistory.length - 1].role === "agent") {
+                    newHistory[newHistory.length - 1].isTyping = false;
+                  }
+                  return newHistory;
+                });
               }
             },
             "image/jpeg",
             0.85,
           );
         }
-      }, 2000); // 2000ms polling rate
+      }, 3000); // Polling safely every 3 seconds
     }
     return () => clearInterval(interval);
   }, [isLiveScanning]);
