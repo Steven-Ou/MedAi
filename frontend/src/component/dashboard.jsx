@@ -651,9 +651,8 @@ export default function HerbAiDashboard() {
       gap: 12px;
       margin-bottom: 24px;
       width: 100%;
-      max-width: 100%;
       box-sizing: border-box;
-      overflow-x: hidden;
+      min-width: 0;
     }
     .chat-message-row.user {
       flex-direction: row-reverse;
@@ -674,6 +673,7 @@ export default function HerbAiDashboard() {
     .msg-bubble {
       width: fit-content;
       max-width: 85%;
+      min-width: 0;
       padding: 16px 20px;
       border-radius: 4px;
       font-size: 24px;
@@ -750,13 +750,14 @@ export default function HerbAiDashboard() {
 
     @media (max-width: 600px) {
       .dashboard-wrapper {
-        padding: 12px 8px !important;
+        padding: 16px !important;
       }
       .panel-card {
-        padding: 16px 12px !important;
+        padding: 20px 16px !important;
+        min-width: 0;
       }
       .dashboard-header {
-        padding: 16px 12px !important;
+        padding: 16px !important;
       }
       .dashboard-header h1 {
         font-size: 24px !important;
@@ -947,11 +948,11 @@ export default function HerbAiDashboard() {
                   alignItems: "center",
                   justifyContent: "center",
                   padding: "12px 8px",
-                  background: "#f0fdf4",
-                  color: "#064e3b",
-                  border: "3px solid #064e3b",
-                  borderRadius: "6px",
-                  boxShadow: "3px 3px 0px #064e3b",
+                  backgroundColor: "#10b981",
+                  color: "#fff",
+                  border: "4px solid #1e293b",
+                  borderRadius: "8px",
+                  boxShadow: "4px 4px 0px #1e293b",
                   textAlign: "center",
                   cursor: "pointer",
                   fontFamily: "'VT323', monospace",
@@ -975,11 +976,11 @@ export default function HerbAiDashboard() {
                   alignItems: "center",
                   justifyContent: "center",
                   padding: "12px 8px",
-                  background: "#f0fdf4",
-                  color: "#064e3b",
-                  border: "3px solid #064e3b",
-                  borderRadius: "6px",
-                  boxShadow: "3px 3px 0px #064e3b",
+                  backgroundColor: "#10b981",
+                  color: "#fff",
+                  border: "4px solid #1e293b",
+                  borderRadius: "8px",
+                  boxShadow: "4px 4px 0px #1e293b",
                   textAlign: "center",
                   cursor: "pointer",
                   fontFamily: "'VT323', monospace",
@@ -987,7 +988,7 @@ export default function HerbAiDashboard() {
                   fontWeight: "600",
                 }}
               >
-                📸 Upload Herb Image
+                📸 Upload Image
                 <input
                   type="file"
                   accept="image/*"
@@ -1005,22 +1006,18 @@ export default function HerbAiDashboard() {
                   alignItems: "center",
                   justifyContent: "center",
                   padding: "12px 8px",
-                  background: isLiveScanning ? "#fef2f2" : "#f0fdf4",
-                  color: isLiveScanning ? "#991b1b" : "#064e3b",
-                  border: isLiveScanning
-                    ? "3px solid #991b1b"
-                    : "3px solid #064e3b",
-                  borderRadius: "6px",
-                  boxShadow: isLiveScanning
-                    ? "3px 3px 0px #991b1b"
-                    : "3px 3px 0px #064e3b",
+                  backgroundColor: isLiveScanning ? "#ef4444" : "#10b981",
+                  color: "#fff",
+                  border: "4px solid #1e293b",
+                  borderRadius: "8px",
+                  boxShadow: "4px 4px 0px #1e293b",
                   cursor: "pointer",
                   fontFamily: "'VT323', monospace",
                   fontSize: "22px",
                   fontWeight: "600",
                 }}
               >
-                {isLiveScanning ? "🛑 Stop Live Camera" : "📱 Live Viewfinder"}
+                {isLiveScanning ? "🛑 Stop Camera" : "📱 Live Scanner"}
               </button>
             </div>
 
