@@ -316,6 +316,7 @@ export default function HerbAiDashboard() {
     if (["finished", "skipped"].includes(status)) {
       setRunTour(false);
       setIsInitialTour(false);
+      setTourKey((prev) => prev + 1);
     }
   };
 
@@ -653,6 +654,7 @@ export default function HerbAiDashboard() {
       width: 100%;
       box-sizing: border-box;
       max-width: 100%;
+      min-width:0;
     }
     .chat-message-row.user {
       flex-direction: row-reverse;
@@ -672,7 +674,7 @@ export default function HerbAiDashboard() {
 
     .msg-bubble {
       width: fit-content;
-      max-width: 85%;
+      max-width: calc(100% - 56px);
       min-width: 0;
       padding: 16px 20px;
       border-radius: 4px;
@@ -698,7 +700,9 @@ export default function HerbAiDashboard() {
 
     .markdown-body {
       min-width: 0;
+      max-width: 100%;
       width: 100%;
+      overflow-x: auto;
     }
 
     /* Target generated markdown tables and code blocks to prevent stretching */
