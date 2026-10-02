@@ -147,6 +147,7 @@ export default function HerbAiDashboard() {
   const cameraRef = useRef(null);
   const canvasRef = useRef(null);
   const [isLiveScanning, setIsLiveScanning] = useState(false);
+  const [isChatLoading, setIsChatLoading] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -450,6 +451,9 @@ export default function HerbAiDashboard() {
   };
 
   const handleRowClick = async (speciesName) => {
+    if (isChatLoading) return; 
+    setIsChatLoading(true);
+
     const autoQueryText = `Provide a structured clinical textbook profile for the medicinal substance: ${speciesName}. Include active compounds and biological properties.`;
 
     setMessages((prev) => [
@@ -486,11 +490,14 @@ export default function HerbAiDashboard() {
       }
       return newHistory;
     });
+    
+    setIsChatLoading(false); // Release the lock
   };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!inputQuery.trim()) return;
+    if (!inputQuery.trim() || isChatLoading) return; // Prevent firing while generating
+    setIsChatLoading(true);
 
     const userMessageText = inputQuery;
     setInputQuery("");
@@ -532,6 +539,8 @@ export default function HerbAiDashboard() {
       }
       return newHistory;
     });
+
+    setIsChatLoading(false); // Release the lock
   };
 
   const css = String.raw;
@@ -732,8 +741,8 @@ export default function HerbAiDashboard() {
       min-width: 120px;
       border: 4px solid #064e3b;
       padding: 10px;
-      white-space: normal; 
-      word-break: normal; 
+      white-space: normal;
+      word-break: normal;
       overflow-wrap: normal;
     }
 
@@ -794,7 +803,7 @@ export default function HerbAiDashboard() {
         width: 100%;
         text-align: center;
       }
-      
+
       /* Mobile Chat Layout Overrides */
       .chat-window {
         padding: 4px !important; /* Minimize chat window padding */
@@ -806,7 +815,7 @@ export default function HerbAiDashboard() {
         display: none; /* Hide avatars entirely on phones */
       }
       .msg-bubble {
-        font-size: 20px; 
+        font-size: 20px;
         padding: 12px;
         max-width: 100%; /* Bubble can now take 100% of the row since avatar is gone */
         width: 100%;
