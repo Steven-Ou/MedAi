@@ -239,7 +239,7 @@ class BotanicalQueryEngine:
             if self.groq_client or self.openai_client:
                 client_to_use = self.groq_client or self.openai_client
                 model_to_use = (
-                    "llama-3.2-3b-preview" if self.groq_client else "gpt-4o-mini"
+                    "llama-3.1-8b-instant" if self.groq_client else "gpt-4o-mini"
                 )
                 try:
                     response = client_to_use.chat.completions.create(
