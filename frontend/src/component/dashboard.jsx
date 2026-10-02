@@ -696,6 +696,17 @@ export default function HerbAiDashboard() {
       background-color: #ffffff;
     }
 
+    .markdown-body {
+      min-width: 0;
+      width: 100%;
+    }
+
+    /* Target generated markdown tables and code blocks to prevent stretching */
+    .markdown-body pre, .markdown-body code {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
     .markdown-body table {
       display: block;
       width: 100%;
@@ -706,12 +717,14 @@ export default function HerbAiDashboard() {
       margin: 15px 0;
       white-space: normal;
     }
+
     .markdown-body th,
     .markdown-body td {
       min-width: 120px;
       border: 4px solid #064e3b;
       padding: 10px;
     }
+
     .markdown-body th {
       background-color: #f8fafc;
       color: #064e3b;
