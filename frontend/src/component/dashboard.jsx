@@ -149,6 +149,10 @@ export default function HerbAiDashboard() {
   const [isLiveScanning, setIsLiveScanning] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
     let interval;
     if (isLiveScanning) {
       interval = setInterval(() => {
@@ -654,7 +658,7 @@ export default function HerbAiDashboard() {
       width: 100%;
       box-sizing: border-box;
       max-width: 100%;
-      min-width:0;
+      min-width: 0;
     }
     .chat-message-row.user {
       flex-direction: row-reverse;
@@ -728,6 +732,9 @@ export default function HerbAiDashboard() {
       min-width: 120px;
       border: 4px solid #064e3b;
       padding: 10px;
+      white-space: normal; 
+      word-break: normal; 
+      overflow-wrap: normal;
     }
 
     .markdown-body th {
@@ -768,11 +775,14 @@ export default function HerbAiDashboard() {
 
     @media (max-width: 600px) {
       .dashboard-wrapper {
-        padding: 16px !important;
+        padding: 12px !important;
+        max-width: 100vw;
+        overflow-x: hidden;
       }
       .panel-card {
-        padding: 20px 16px !important;
-        min-width: 0;
+        padding: 16px 8px !important; /* Reduced side padding to give tables more room */
+        width: 100%;
+        box-sizing: border-box;
       }
       .dashboard-header {
         padding: 16px !important;
@@ -783,6 +793,23 @@ export default function HerbAiDashboard() {
       .tour-trigger-btn {
         width: 100%;
         text-align: center;
+      }
+      
+      /* Mobile Chat Layout Overrides */
+      .chat-window {
+        padding: 4px !important; /* Minimize chat window padding */
+      }
+      .chat-message-row {
+        gap: 8px; /* Tighter gap between elements */
+      }
+      .chat-avatar {
+        display: none; /* Hide avatars entirely on phones */
+      }
+      .msg-bubble {
+        font-size: 20px; 
+        padding: 12px;
+        max-width: 100%; /* Bubble can now take 100% of the row since avatar is gone */
+        width: 100%;
       }
     }
   `;
