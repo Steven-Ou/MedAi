@@ -652,7 +652,7 @@ export default function HerbAiDashboard() {
       margin-bottom: 24px;
       width: 100%;
       box-sizing: border-box;
-      min-width: 0;
+      max-width: 100%;
     }
     .chat-message-row.user {
       flex-direction: row-reverse;
@@ -680,7 +680,7 @@ export default function HerbAiDashboard() {
       color: #064e3b;
       white-space: normal;
       word-wrap: break-word;
-      overflow-wrap: break-word;
+      overflow-wrap: anywhere;
       overflow-x: auto;
       border: 4px solid #064e3b;
       box-shadow: 4px 4px 0px #064e3b;
@@ -702,7 +702,8 @@ export default function HerbAiDashboard() {
     }
 
     /* Target generated markdown tables and code blocks to prevent stretching */
-    .markdown-body pre, .markdown-body code {
+    .markdown-body pre,
+    .markdown-body code {
       white-space: pre-wrap;
       word-break: break-word;
     }
