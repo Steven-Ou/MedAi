@@ -155,19 +155,32 @@ export default function HerbAiDashboard() {
 
   useEffect(() => {
     let interval;
+    let isProcessingFrame = false; // NEW: Local lock for the camera network requests
+
     if (isLiveScanning) {
       interval = setInterval(() => {
-        if (cameraRef.current && canvasRef.current) {
-          const video = cameraRef.current;
-          const canvas = canvasRef.current;
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
+        // Stop if chat is loading, camera isn't ready, OR if a frame is currently at the API
+        if (
+          !cameraRef.current ||
+          !canvasRef.current ||
+          isChatLoading ||
+          isProcessingFrame
+        )
+          return;
 
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        isProcessingFrame = true; // Lock the camera from taking more pictures
 
-          canvas.toBlob(
-            async (blob) => {
+        const video = cameraRef.current;
+        const canvas = canvasRef.current;
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob(
+          async (blob) => {
+            try {
               const file = new File([blob], "frame.jpg", {
                 type: "image/jpeg",
               });
@@ -178,7 +191,15 @@ export default function HerbAiDashboard() {
                 data.predicted_class &&
                 data.predicted_class !== "Unidentified Anomaly"
               ) {
-                // 1. Log the detected plant
+                // IMMEDIATELY KILL THE CAMERA POLLING LOOP
+                setIsLiveScanning(false);
+                clearInterval(interval);
+                if (cameraRef.current?.srcObject) {
+                  cameraRef.current.srcObject
+                    .getTracks()
+                    .forEach((track) => track.stop());
+                }
+
                 const speciesName = data.predicted_class;
                 setTelemetry([
                   {
@@ -189,60 +210,23 @@ export default function HerbAiDashboard() {
                   },
                 ]);
 
-                // 2. STOP SCANNING IMMEDIATELY (Prevents 502/429 errors)
-                setIsLiveScanning(false);
-                if (cameraRef.current?.srcObject) {
-                  cameraRef.current.srcObject
-                    .getTracks()
-                    .forEach((track) => track.stop());
-                }
-
-                // 3. AUTO-TRIGGER THE CHAT
-                const autoQueryText = `Provide a structured clinical textbook profile for the medicinal substance: ${speciesName}. Include active compounds and biological properties.`;
-
-                setMessages((prev) => [
-                  ...prev,
-                  { role: "user", text: `Tell me about ${speciesName}.` },
-                  { role: "agent", text: "", isTyping: true },
-                ]);
-
-                let streamedText = "";
-                await streamBotanicalQuestion(
-                  autoQueryText,
-                  (chunk, isReplace = false) => {
-                    if (isReplace) {
-                      streamedText = chunk;
-                    } else {
-                      streamedText += chunk;
-                    }
-                    setMessages((prev) => {
-                      const newHistory = [...prev];
-                      const lastIndex = newHistory.length - 1;
-                      if (newHistory[lastIndex].role === "agent") {
-                        newHistory[lastIndex].text = streamedText;
-                      }
-                      return newHistory;
-                    });
-                  },
-                );
-
-                setMessages((prev) => {
-                  const newHistory = [...prev];
-                  if (newHistory[newHistory.length - 1].role === "agent") {
-                    newHistory[newHistory.length - 1].isTyping = false;
-                  }
-                  return newHistory;
-                });
+                // Trigger the chat explicitly
+                handleRowClick(speciesName);
               }
-            },
-            "image/jpeg",
-            0.85,
-          );
-        }
-      }, 3000); // Polling safely every 3 seconds
+            } catch (error) {
+              console.error("Vision API Error:", error);
+            } finally {
+              isProcessingFrame = false; // Always release the network lock when finished
+            }
+          },
+          "image/jpeg",
+          0.85,
+        );
+      }, 3000);
     }
     return () => clearInterval(interval);
-  }, [isLiveScanning]);
+  }, [isLiveScanning, isChatLoading]);
+  
 
   // 4. TOUR STEPS WITH BEACONS DISABLED
   const baseSteps = [
@@ -451,7 +435,7 @@ export default function HerbAiDashboard() {
   };
 
   const handleRowClick = async (speciesName) => {
-    if (isChatLoading) return; 
+    if (isChatLoading) return;
     setIsChatLoading(true);
 
     const autoQueryText = `Provide a structured clinical textbook profile for the medicinal substance: ${speciesName}. Include active compounds and biological properties.`;
@@ -490,7 +474,7 @@ export default function HerbAiDashboard() {
       }
       return newHistory;
     });
-    
+
     setIsChatLoading(false); // Release the lock
   };
 
@@ -687,20 +671,20 @@ export default function HerbAiDashboard() {
 
     .msg-bubble {
       width: fit-content;
-      max-width: calc(100% - 56px);
+      max-width: 100%;
       min-width: 0;
       padding: 16px 20px;
       border-radius: 4px;
       font-size: 24px;
       color: #064e3b;
-      white-space: normal;
-      word-wrap: break-word;
-      overflow-wrap: anywhere;
-      overflow-x: auto;
+      word-break: break-word;
+      overflow-wrap: break-word;
       border: 4px solid #064e3b;
       box-shadow: 4px 4px 0px #064e3b;
       box-sizing: border-box;
+      overflow: hidden;
     }
+
     .msg-bubble > div {
       white-space: pre-wrap;
     }
@@ -712,7 +696,7 @@ export default function HerbAiDashboard() {
     }
 
     .markdown-body {
-      min-width: 0;
+      -webkit-overflow-scrolling: touch;
       max-width: 100%;
       width: 100%;
       overflow-x: auto;
@@ -729,7 +713,6 @@ export default function HerbAiDashboard() {
       display: block;
       width: 100%;
       max-width: 100%;
-      overflow-x: auto;
       -webkit-overflow-scrolling: touch;
       border-collapse: collapse;
       margin: 15px 0;
