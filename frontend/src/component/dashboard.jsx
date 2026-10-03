@@ -684,6 +684,19 @@ export default function HerbAiDashboard() {
         width: 100%;
         /* The left/right scroll will now activate perfectly here on small screens */
       }
+
+      /* Target the form components on mobile */
+      .chat-input-form {
+        gap: 6px;
+      }
+      .chat-input {
+        font-size: 20px;
+        padding: 12px;
+      }
+      .chat-send-btn {
+        font-size: 20px;
+        padding: 0 16px;
+      }
     }
     .panel-card {
       background-color: #ffffff;
