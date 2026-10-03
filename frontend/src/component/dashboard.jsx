@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import rehypeRaw from "rehype-raw";
 import dynamic from "next/dynamic";
 import "katex/dist/katex.min.css";
 import {
@@ -654,6 +655,7 @@ export default function HerbAiDashboard() {
         width: 100%;
         max-width: 100%;
         min-width: 0; /* CRITICAL: Prevents the card from expanding past the screen */
+        overflow-x: hidden !important;
         box-sizing: border-box;
       }
       .dashboard-header {
@@ -670,6 +672,9 @@ export default function HerbAiDashboard() {
       /* Mobile Chat Layout Overrides */
       .chat-window {
         padding: 4px !important;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden !important;
       }
       .chat-message-row {
         gap: 8px;
@@ -1408,7 +1413,7 @@ export default function HerbAiDashboard() {
                       <div className="markdown-body">
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm, remarkMath]}
-                          rehypePlugins={[rehypeKatex]}
+                          rehypePlugins={[rehypeRaw, rehypeKatex]}
                         >
                           {msg.text}
                         </ReactMarkdown>
