@@ -226,7 +226,7 @@ export default function HerbAiDashboard() {
     }
     return () => clearInterval(interval);
   }, [isLiveScanning, isChatLoading]);
-  
+
 
   // 4. TOUR STEPS WITH BEACONS DISABLED
   const baseSteps = [
@@ -682,7 +682,6 @@ export default function HerbAiDashboard() {
       border: 4px solid #064e3b;
       box-shadow: 4px 4px 0px #064e3b;
       box-sizing: border-box;
-      overflow: hidden;
     }
 
     .msg-bubble > div {
@@ -696,10 +695,12 @@ export default function HerbAiDashboard() {
     }
 
     .markdown-body {
-      -webkit-overflow-scrolling: touch;
-      max-width: 100%;
       width: 100%;
-      overflow-x: auto;
+      max-width: 100%;
+      min-width: 0;
+      overflow-x: auto; 
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 8px;
     }
 
     /* Target generated markdown tables and code blocks to prevent stretching */
