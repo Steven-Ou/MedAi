@@ -69,41 +69,16 @@ class BotanicalQueryEngine:
         return self.chroma_client.get_or_create_collection(name="botanical_knowledge")
 
     def _get_unified_session_context(self, session_id: str = "default_session") -> str:
-        """Queries local telemetry tables and recent upload directories to build a merged context window."""
+        """Queries local telemetry tables to build a merged context window strictly for this user's session."""
         summary = "ACTIVE SESSION TELEMETRY & MULTIMODAL SNAPSHOT SUMMARY:\n"
         has_context = False
 
-        # 1. Inspect recent unlearned photo upload snapshots on disk
-        unlearned_dir = os.path.abspath(
-            os.path.join(CURRENT_DIR, "../../data/clean_training/unlearned")
-        )
-        recent_uploads = []
-        if os.path.exists(unlearned_dir):
-            files = [f for f in os.listdir(unlearned_dir) if f.endswith(".jpg")]
-            if files:
-                # Sort by timestamp to catch the most recent file upload
-                files.sort(
-                    key=lambda x: os.path.getmtime(os.path.join(unlearned_dir, x)),
-                    reverse=True,
-                )
-                for f in files[:2]:  # Grab up to the 2 latest snapshots
-                    parts = f.replace(".jpg", "").split("_")
-                    if len(parts) > 1:
-                        clean_name = " ".join(parts[1:]).title()
-                        recent_uploads.append(clean_name)
-                    else:
-                        recent_uploads.append(f.replace(".jpg", "").title())
-
-        if recent_uploads:
-            summary += f"[⚠️ RECENT SNAPSHOT IMAGE UPLOADS]: The user just uploaded static images to the workspace. Your vision pipeline analyzed them and identified them as: {', '.join(recent_uploads)}.\n"
-            has_context = True
-
-        # 2. Extract companion metrics from your camera's live video tracking tables
         try:
             from database.db_manager import get_conn
 
             conn = get_conn()
             cursor = conn.cursor()
+            # Only grabs the plants detected by THIS specific user's browser tab
             cursor.execute(
                 """
                     SELECT p.species_name, COUNT(t.id), MAX(t.confidence_score)
@@ -118,7 +93,7 @@ class BotanicalQueryEngine:
             conn.close()
 
             if rows:
-                summary += "🎥 [VIDEO SCAN TELEMETRY RECORDS]:\n"
+                summary += "🎥 [SESSION TELEMETRY RECORDS]:\n"
                 for row in rows:
                     summary += f"- Logged class '{row[0]}' across {row[1]} moving video frames (Max Confidence: {row[2]:.2f}).\n"
                 has_context = True
@@ -208,17 +183,16 @@ class BotanicalQueryEngine:
             history_str = "\n".join(self.chat_history[-4:])
 
             prompt = (
-                f"You are Herb-AI, an expert medical botanical vision agent.\n"
+                "You are Herb-AI, an expert medical botanical vision agent. Answer the user's question conversationally.\n"
                 "CRITICAL RULES:\n"
-                "1. You ARE a multimodal vision agent. The 'Session Context' below contains the exact plants you just identified in the user's video or image.\n"
-                "2. If the user asks what you saw, what is in the video, or asks about the current session, answer using the 'Session Context'.\n"
-                "3. If the user asks about medical or clinical benefits, answer using ONLY the 'Textbook Context'.\n"
-                "4. If you are asked a clinical question and the textbook context is empty, say: 'I do not have enough specific clinical data in my knowledge base to answer that yet.'\n\n"
-                f"--- SESSION CONTEXT ---\n{session_context}\n\n"
-                f"--- TEXTBOOK CONTEXT ---\n{retrieved_context}\n\n"
-                f"--- CONVERSATION HISTORY ---\n{history_str}\n\n"
+                "1. Answer the User Question using ONLY the information provided in the [Clinical Data] and [Vision Telemetry] blocks below.\n"
+                "2. DO NOT echo or repeat the raw context block headers. Synthesize the answer naturally.\n"
+                "3. If the answer is not in the data below, state: 'I do not have enough clinical data on that specific topic.'\n\n"
+                f"[Vision Telemetry]\n{session_context}\n\n"
+                f"[Clinical Data]\n{retrieved_context}\n\n"
+                f"[Conversation History]\n{history_str}\n\n"
                 f"User Question: {user_query}\n"
-                f"Answer clearly and concisely."
+                "Herb-AI Answer:"
             )
 
             # NEW: Cascade to Gemini first to avoid the 5-minute HTTP timeout
