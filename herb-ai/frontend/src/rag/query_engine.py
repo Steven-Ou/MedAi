@@ -118,9 +118,15 @@ class BotanicalQueryEngine:
 
             conn = get_conn()
             cursor = conn.cursor()
-            # Grab all plants seen in this session, ordered by highest confidence
             cursor.execute(
-                "SELECT p.species_name FROM plants p JOIN telemetry t ON p.id = t.plant_id WHERE t.session_id = %s GROUP BY p.species_name ORDER BY MAX(t.confidence_score) DESC",
+                """
+                SELECT p.species_name 
+                FROM plants p 
+                JOIN telemetry t ON p.id = t.plant_id 
+                WHERE t.session_id = %s 
+                GROUP BY p.species_name 
+                ORDER BY MAX(t.id) DESC
+                """,
                 (session_id,),
             )
             rows = cursor.fetchall()
@@ -136,9 +142,11 @@ class BotanicalQueryEngine:
                 if row[0].lower() in user_query.lower():
                     plants_to_generate.append(row[0])
 
-            # 2. Fallback: If no specific plant is mentioned, generate the top 2 most confident plants
+            # 2. Fallback: If no specific plant is mentioned, generate the most recently scanned plant
             if not plants_to_generate and rows:
-                plants_to_generate = [row[0] for row in rows[:2]]
+                plants_to_generate = [
+                    row[0] for row in rows[:1]
+                ]  # Just grab the absolute newest 1
 
             for plant_name in plants_to_generate:
                 if kg.generate_profile_if_new(plant_name):
@@ -200,7 +208,7 @@ class BotanicalQueryEngine:
                 f"User Question: {user_query}\n"
                 "Herb-AI Answer:"
             )
-            
+
             # NEW: Cascade to Gemini first to avoid the 5-minute HTTP timeout
             if self.gemini_client:
                 try:
