@@ -227,7 +227,6 @@ export default function HerbAiDashboard() {
     return () => clearInterval(interval);
   }, [isLiveScanning, isChatLoading]);
 
-
   // 4. TOUR STEPS WITH BEACONS DISABLED
   const baseSteps = [
     {
@@ -617,7 +616,7 @@ export default function HerbAiDashboard() {
       background-color: #f8fafc;
       outline: none;
       font-size: 25px;
-      font-family: 'VT323', monospace;
+      font-family: "VT323", monospace;
       box-sizing: border-box;
     }
 
@@ -631,11 +630,11 @@ export default function HerbAiDashboard() {
       font-weight: 600;
       cursor: pointer;
       box-shadow: 4px 4px 0px #1e293b;
-      font-family: 'VT323', monospace;
+      font-family: "VT323", monospace;
       font-size: 25px;
       box-sizing: border-box;
     }
-      
+
     @media (max-width: 600px) {
       .dashboard-wrapper {
         padding: 12px !important;
@@ -651,7 +650,7 @@ export default function HerbAiDashboard() {
         box-sizing: border-box;
       }
       .panel-card {
-        padding: 16px 8px !important; 
+        padding: 16px 8px !important;
         width: 100%;
         max-width: 100%;
         min-width: 0; /* CRITICAL: Prevents the card from expanding past the screen */
@@ -670,18 +669,18 @@ export default function HerbAiDashboard() {
 
       /* Mobile Chat Layout Overrides */
       .chat-window {
-        padding: 4px !important; 
+        padding: 4px !important;
       }
       .chat-message-row {
-        gap: 8px; 
+        gap: 8px;
       }
       .chat-avatar {
-        display: none; 
+        display: none;
       }
       .msg-bubble {
         font-size: 20px;
         padding: 12px;
-        max-width: 100%; 
+        max-width: 100%;
         width: 100%;
         /* The left/right scroll will now activate perfectly here on small screens */
       }
@@ -761,8 +760,8 @@ export default function HerbAiDashboard() {
       color: #064e3b;
       word-break: break-word;
       overflow-wrap: break-word;
-      overflow-x: auto; 
-      -webkit-overflow-scrolling: touch; 
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
       border: 4px solid #064e3b;
       box-shadow: 4px 4px 0px #064e3b;
       box-sizing: border-box;
@@ -782,7 +781,7 @@ export default function HerbAiDashboard() {
       width: 100%;
       max-width: 100%;
       min-width: 0;
-      overflow-x: auto; 
+      overflow-x: auto;
       -webkit-overflow-scrolling: touch;
       padding-bottom: 8px;
     }
@@ -1406,42 +1405,15 @@ export default function HerbAiDashboard() {
                 </div>
               ))}
             </div>
-            <form
-              onSubmit={handleSendMessage}
-              style={{ display: "flex", gap: "10px" }}
-            >
+            <form onSubmit={handleSendMessage} className="chat-input-form">
               <input
                 type="text"
                 value={inputQuery}
                 onChange={(e) => setInputQuery(e.target.value)}
                 placeholder="Ask the agent..."
-                style={{
-                  flexGrow: 1,
-                  padding: "16px",
-                  borderRadius: "8px",
-                  border: "4px solid #1e293b",
-                  backgroundColor: "#f8fafc",
-                  outline: "none",
-                  fontSize: "25px",
-                  fontFamily: "'VT323', monospace",
-                }}
+                className="chat-input"
               />
-              <button
-                type="submit"
-                className="pixel-btn"
-                style={{
-                  padding: "0 28px",
-                  backgroundColor: "#065f46",
-                  color: "#fff",
-                  border: "4px solid #1e293b",
-                  borderRadius: "8px",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  boxShadow: "4px 4px 0px #1e293b",
-                  fontFamily: "'VT323', monospace",
-                  fontSize: "25px",
-                }}
-              >
+              <button type="submit" className="pixel-btn chat-send-btn">
                 Send
               </button>
             </form>
