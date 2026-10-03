@@ -601,6 +601,41 @@ export default function HerbAiDashboard() {
       align-items: stretch;
     }
 
+    .chat-input-form {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .chat-input {
+      flex-grow: 1;
+      min-width: 0; /* CRITICAL: Allows input to shrink without pushing the button off screen */
+      padding: 16px;
+      border-radius: 8px;
+      border: 4px solid #1e293b;
+      background-color: #f8fafc;
+      outline: none;
+      font-size: 25px;
+      font-family: 'VT323', monospace;
+      box-sizing: border-box;
+    }
+
+    .chat-send-btn {
+      padding: 0 28px;
+      flex-shrink: 0; /* CRITICAL: Prevents button from being squished */
+      background-color: #065f46;
+      color: #fff;
+      border: 4px solid #1e293b;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 4px 4px 0px #1e293b;
+      font-family: 'VT323', monospace;
+      font-size: 25px;
+      box-sizing: border-box;
+    }
+      
     @media (max-width: 600px) {
       .dashboard-wrapper {
         padding: 12px !important;
