@@ -78,7 +78,6 @@ class BotanicalQueryEngine:
 
             conn = get_conn()
             cursor = conn.cursor()
-            # Only grabs the plants detected by THIS specific user's browser tab
             cursor.execute(
                 """
                     SELECT p.species_name, COUNT(t.id), MAX(t.confidence_score)
@@ -86,6 +85,7 @@ class BotanicalQueryEngine:
                     JOIN telemetry t ON p.id = t.plant_id
                     WHERE t.session_id = %s
                     GROUP BY p.species_name
+                    ORDER BY MAX(t.id) DESC
                 """,
                 (session_id,),
             )
@@ -93,9 +93,13 @@ class BotanicalQueryEngine:
             conn.close()
 
             if rows:
-                summary += "🎥 [SESSION TELEMETRY RECORDS]:\n"
-                for row in rows:
-                    summary += f"- Logged class '{row[0]}' across {row[1]} moving video frames (Max Confidence: {row[2]:.2f}).\n"
+                summary += (
+                    "🎥 [SESSION TELEMETRY RECORDS] (Ordered newest to oldest):\n"
+                )
+                for i, row in enumerate(rows):
+                    # Flag the newest item for the LLM
+                    label = "[MOST RECENTLY SCANNED] " if i == 0 else ""
+                    summary += f"- {label}Logged class '{row[0]}' across {row[1]} moving video frames (Max Confidence: {row[2]:.2f}).\n"
                 has_context = True
         except Exception:
             pass
@@ -187,14 +191,16 @@ class BotanicalQueryEngine:
                 "CRITICAL RULES:\n"
                 "1. Answer the User Question using ONLY the information provided in the [Clinical Data] and [Vision Telemetry] blocks below.\n"
                 "2. DO NOT echo or repeat the raw context block headers. Synthesize the answer naturally.\n"
-                "3. If the answer is not in the data below, state: 'I do not have enough clinical data on that specific topic.'\n\n"
+                "3. If the user uses pronouns like 'it' or 'this', they are referring to the [MOST RECENTLY SCANNED] plant in the Vision Telemetry.\n"
+                "4. Format your response beautifully using Markdown. Use tables, bolding, and bullet points where appropriate.\n"
+                "5. If you do not have enough specific clinical data, state: 'I do not have enough textbook data on that specific topic.'\n\n"
                 f"[Vision Telemetry]\n{session_context}\n\n"
                 f"[Clinical Data]\n{retrieved_context}\n\n"
                 f"[Conversation History]\n{history_str}\n\n"
                 f"User Question: {user_query}\n"
                 "Herb-AI Answer:"
             )
-
+            
             # NEW: Cascade to Gemini first to avoid the 5-minute HTTP timeout
             if self.gemini_client:
                 try:
@@ -279,14 +285,18 @@ class BotanicalQueryEngine:
         history_str = "\n".join(self.chat_history[-4:])
 
         prompt = (
-            f"You are Herb-AI, an expert medical botanical vision agent.\n"
+            "You are Herb-AI, an expert medical botanical vision agent. Answer the user's question conversationally.\n"
             "CRITICAL RULES:\n"
-            "1. You ARE a multimodal vision agent. Use 'Session Context' for what you saw.\n"
-            "2. Format your response beautifully using Markdown. Use tables, bolding, and bullet points where appropriate.\n"
-            f"--- SESSION CONTEXT ---\n{session_context}\n\n"
-            f"--- TEXTBOOK CONTEXT ---\n{retrieved_context}\n\n"
-            f"--- CONVERSATION HISTORY ---\n{history_str}\n\n"
+            "1. Answer the User Question using ONLY the information provided in the [Clinical Data] and [Vision Telemetry] blocks below.\n"
+            "2. DO NOT echo or repeat the raw context block headers. Synthesize the answer naturally.\n"
+            "3. If the user uses pronouns like 'it' or 'this', they are referring to the [MOST RECENTLY SCANNED] plant in the Vision Telemetry.\n"
+            "4. Format your response beautifully using Markdown. Use tables, bolding, and bullet points where appropriate.\n"
+            "5. If you do not have enough specific clinical data, state: 'I do not have enough textbook data on that specific topic.'\n\n"
+            f"[Vision Telemetry]\n{session_context}\n\n"
+            f"[Clinical Data]\n{retrieved_context}\n\n"
+            f"[Conversation History]\n{history_str}\n\n"
             f"User Question: {user_query}\n"
+            "Herb-AI Answer:"
         )
 
         full_answer = ""
