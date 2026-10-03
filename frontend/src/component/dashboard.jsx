@@ -601,9 +601,54 @@ export default function HerbAiDashboard() {
       align-items: stretch;
     }
 
-    @media (min-width: 960px) {
-      .dashboard-grid {
-        grid-template-columns: minmax(350px, 1fr) minmax(450px, 1.5fr);
+    @media (max-width: 600px) {
+      .dashboard-wrapper {
+        padding: 12px !important;
+        width: 100%;
+        max-width: 100vw; /* Hard ceiling on screen width */
+        overflow-x: hidden !important; /* Forces the whole page to never scroll horizontally */
+        box-sizing: border-box;
+      }
+      .dashboard-container {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+      }
+      .panel-card {
+        padding: 16px 8px !important; 
+        width: 100%;
+        max-width: 100%;
+        min-width: 0; /* CRITICAL: Prevents the card from expanding past the screen */
+        box-sizing: border-box;
+      }
+      .dashboard-header {
+        padding: 16px !important;
+      }
+      .dashboard-header h1 {
+        font-size: 24px !important;
+      }
+      .tour-trigger-btn {
+        width: 100%;
+        text-align: center;
+      }
+
+      /* Mobile Chat Layout Overrides */
+      .chat-window {
+        padding: 4px !important; 
+      }
+      .chat-message-row {
+        gap: 8px; 
+      }
+      .chat-avatar {
+        display: none; 
+      }
+      .msg-bubble {
+        font-size: 20px;
+        padding: 12px;
+        max-width: 100%; 
+        width: 100%;
+        /* The left/right scroll will now activate perfectly here on small screens */
       }
     }
     .panel-card {
@@ -641,6 +686,8 @@ export default function HerbAiDashboard() {
       padding: 10px 10px 20px 10px;
       margin-bottom: 20px;
       width: 100%;
+      max-width: 100%;
+      min-width: 0;
       box-sizing: border-box;
     }
     .chat-message-row {
@@ -679,6 +726,8 @@ export default function HerbAiDashboard() {
       color: #064e3b;
       word-break: break-word;
       overflow-wrap: break-word;
+      overflow-x: auto; 
+      -webkit-overflow-scrolling: touch; 
       border: 4px solid #064e3b;
       box-shadow: 4px 4px 0px #064e3b;
       box-sizing: border-box;
@@ -714,6 +763,7 @@ export default function HerbAiDashboard() {
       display: block;
       width: 100%;
       max-width: 100%;
+      overflow-x: auto;
       -webkit-overflow-scrolling: touch;
       border-collapse: collapse;
       margin: 15px 0;
