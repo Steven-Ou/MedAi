@@ -223,7 +223,7 @@ export default function HerbAiDashboard() {
           "image/jpeg",
           0.85,
         );
-      }, 3000);
+      }, 6000);
     }
     return () => clearInterval(interval);
   }, [isLiveScanning, isChatLoading]);
@@ -241,6 +241,13 @@ export default function HerbAiDashboard() {
       content:
         "Start here! Upload a video or image of a plant you want to identify.",
       placement: "right",
+      disableBeacon: true,
+    },
+    {
+      target: ".live-scanner-btn",
+      content:
+        "On a phone or tablet? Use the Live Scanner to point your camera directly at an herb for real-time AI identification!",
+      placement: "bottom",
       disableBeacon: true,
     },
     {
@@ -293,7 +300,7 @@ export default function HerbAiDashboard() {
           cameraRef.current.srcObject = stream;
           cameraRef.current.play();
           setIsLiveScanning(true);
-          
+
           setVideoSrc(null);
           setImageSrc(null);
           setVideoFile(null);
@@ -1144,7 +1151,7 @@ export default function HerbAiDashboard() {
               <button
                 type="button"
                 onClick={toggleCamera}
-                className="pixel-btn"
+                className="pixel-btn live-scanner-btn"
                 style={{
                   display: "flex",
                   alignItems: "center",
