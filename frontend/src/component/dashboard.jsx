@@ -293,6 +293,10 @@ export default function HerbAiDashboard() {
           cameraRef.current.srcObject = stream;
           cameraRef.current.play();
           setIsLiveScanning(true);
+          
+          setVideoSrc(null);
+          setImageSrc(null);
+          setVideoFile(null);
         }
       } catch (err) {
         alert("Camera access is required for live scanning.");
