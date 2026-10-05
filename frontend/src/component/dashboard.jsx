@@ -822,25 +822,17 @@ export default function HerbAiDashboard() {
       word-break: break-word;
     }
 
-    .markdown-body table {
-      display: block;
+   .markdown-body table {
       width: 100%;
-      max-width: 100%;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
       border-collapse: collapse;
       margin: 15px 0;
-      white-space: normal;
     }
 
     .markdown-body th,
     .markdown-body td {
-      min-width: 120px;
       border: 4px solid #064e3b;
       padding: 10px;
-      white-space: normal;
-      word-break: normal;
-      overflow-wrap: normal;
+      vertical-align: top; 
     }
 
     .markdown-body th {
